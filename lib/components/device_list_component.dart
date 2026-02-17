@@ -107,6 +107,7 @@ class _DeviceRow extends StatelessComponent {
     final stateStyle = device.isRunning ? st.statusRunning : st.statusStopped;
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(' $stateIcon ', style: stateStyle),
         Expanded(

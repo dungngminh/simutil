@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import '../models/device.dart';
 import '../models/device_state.dart';
@@ -24,8 +25,6 @@ class AdbService implements DeviceService {
         Platform.environment['ANDROID_HOME'] ??
         Platform.environment['ANDROID_SDK_ROOT'];
     if (env != null && env.isNotEmpty) return env;
-
-    // Default macOS path (same as MiniSim).
     final home = Platform.environment['HOME'] ?? '';
     return '$home/Library/Android/sdk';
   }
@@ -52,12 +51,21 @@ class AdbService implements DeviceService {
   // ── List devices ──────────────────────────────────────────────
 
   @override
-  Future<List<Device>> listDevices() => listEmulators();
+  Future<List<Device>> listDevices() async {
+    final adb = adbPath;
+    final emu = emulatorPath;
 
-  /// List all Android Virtual Devices (AVDs) and their running state.
-  Future<List<Device>> listEmulators() async {
+    return Isolate.run(() => _listEmulatorsInIsolate(_exec, adb, emu));
+  }
+
+  /// Static method to run in isolate.
+  Future<List<Device>> _listEmulatorsInIsolate(
+    CommandExec exec,
+    String adbPath,
+    String emulatorPath,
+  ) async {
     try {
-      final result = await _exec.run(emulatorPath, arguments: ['-list-avds']);
+      final result = await exec.run(emulatorPath, arguments: ['-list-avds']);
       if (!result.success) return [];
 
       final avdNames = result.stdout
@@ -67,7 +75,7 @@ class AdbService implements DeviceService {
           .toList();
 
       // Build a map of AVD name → emulator serial for running emulators.
-      final runningMap = await _getRunningAvdMap();
+      final runningMap = await _getRunningAvdMap(exec, adbPath);
 
       return avdNames.map((name) {
         return Device(
@@ -86,12 +94,12 @@ class AdbService implements DeviceService {
   }
 
   /// Query every online `emulator-*` device for its AVD name.
-  ///
-  /// Returns a `{avdName: serialId}` map so we can accurately match AVD names
-  /// (the same approach MiniSim uses in `getAdbId`).
-  Future<Map<String, String>> _getRunningAvdMap() async {
+  static Future<Map<String, String>> _getRunningAvdMap(
+    CommandExec exec,
+    String adbPath,
+  ) async {
     try {
-      final result = await _exec.run(adbPath, arguments: ['devices']);
+      final result = await exec.run(adbPath, arguments: ['devices']);
       if (!result.success) return {};
 
       final serials = result.stdout
@@ -104,23 +112,29 @@ class AdbService implements DeviceService {
           .toList();
 
       final map = <String, String>{};
-      for (final serial in serials) {
-        try {
-          // `adb -s <serial> emu avd name` returns the AVD name on the first line.
-          final nameResult = await _exec.run(
-            adbPath,
-            arguments: ['-s', serial, 'emu', 'avd', 'name'],
-          );
-          if (nameResult.success) {
-            final name = nameResult.stdout.split('\n').first.trim();
-            if (name.isNotEmpty) {
-              map[name] = serial;
+
+      // Parallelize the lookup for each serial
+      await Future.wait(
+        serials.map((serial) async {
+          try {
+            // `adb -s <serial> emu avd name` returns the AVD name on the first line.
+            final nameResult = await exec.run(
+              adbPath,
+              arguments: ['-s', serial, 'emu', 'avd', 'name'],
+            );
+            if (nameResult.success) {
+              final name = nameResult.stdout.split('\n').first.trim();
+              if (name.isNotEmpty) {
+                // Synchronized access to map not strictly needed as Dart is single threaded
+                // within the isolate, but good to be aware.
+                map[name] = serial;
+              }
             }
+          } catch (_) {
+            // Skip; this emulator might have disconnected.
           }
-        } catch (_) {
-          // Skip; this emulator might have disconnected.
-        }
-      }
+        }),
+      );
       return map;
     } catch (_) {
       return {};
@@ -128,8 +142,11 @@ class AdbService implements DeviceService {
   }
 
   /// Look up the adb serial (e.g. `emulator-5554`) for a given AVD name.
+  /// Note: This still runs on main isolate if called directly, but it's lightweight.
   Future<String?> getAdbId(String avdName) async {
-    final map = await _getRunningAvdMap();
+    // We can allow this to run on main isolate as it's usually called before launch,
+    // or we can wrap it too if needed. For now keeping it simple as it reuses static logic.
+    final map = await _getRunningAvdMap(_exec, adbPath);
     return map[avdName];
   }
 
@@ -142,6 +159,8 @@ class AdbService implements DeviceService {
   /// Launch an Android emulator by AVD name with the given options.
   Future<void> launchEmulator(String avdName, LaunchOptions options) async {
     final args = ['@$avdName', ...options.toAndroidArgs()];
-    await Process.start(emulatorPath, args, mode: ProcessStartMode.detached);
+    // Process.start is non-blocking and returns a Process object.
+    // It is fine to run on main isolate.
+    await _exec.run(emulatorPath, arguments: args);
   }
 }

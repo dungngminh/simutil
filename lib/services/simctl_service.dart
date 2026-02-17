@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import '../models/device.dart';
 import '../models/device_state.dart';
@@ -35,9 +36,13 @@ class SimctlService implements DeviceService {
   /// List all iOS simulators.
   Future<List<Device>> listSimulators() async {
     if (!Platform.isMacOS) return [];
+    // Run parsing logic in isolate.
+    return Isolate.run(() => _listSimulatorsInIsolate(_exec));
+  }
 
+  Future<List<Device>> _listSimulatorsInIsolate(CommandExec exec) async {
     try {
-      final result = await _exec.run(
+      final result = await exec.run(
         'xcrun',
         arguments: ['simctl', 'list', 'devices', '-j'],
       );
@@ -79,14 +84,21 @@ class SimctlService implements DeviceService {
 
   @override
   Future<void> launchDevice(String deviceId, LaunchOptions options) async {
-    await bootSimulator(deviceId);
-    await openSimulatorApp();
+    await Future.wait([bootSimulator(deviceId), openSimulatorApp()]);
   }
 
   /// Boot an iOS simulator by UDID.
   Future<bool> bootSimulator(String udid) async {
+    // simctl boot can take time, run in isolate.
+    return Isolate.run(() => _bootSimulatorInIsolate(_exec, udid));
+  }
+
+  static Future<bool> _bootSimulatorInIsolate(
+    CommandExec exec,
+    String udid,
+  ) async {
     try {
-      final result = await _exec.run(
+      final result = await exec.run(
         'xcrun',
         arguments: ['simctl', 'boot', udid],
       );
@@ -98,10 +110,7 @@ class SimctlService implements DeviceService {
 
   /// Open the Simulator.app.
   Future<void> openSimulatorApp() async {
-    await Process.start('open', [
-      '-a',
-      'Simulator',
-    ], mode: ProcessStartMode.detached);
+    await _exec.run('open', arguments: ['-a', 'Simulator']);
   }
 
   /// Shutdown an iOS simulator by UDID.

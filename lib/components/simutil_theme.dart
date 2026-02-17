@@ -84,19 +84,19 @@ class SimutilTheme {
   /// Focused panel border.
   BoxDecoration focusedPanel(String title) => BoxDecoration(
     border: BoxBorder.all(style: BoxBorderStyle.rounded, color: primary),
-    title: BorderTitle(text: ' $title '),
+    title: BorderTitle(text: title),
   );
 
   /// Unfocused panel border.
   BoxDecoration unfocusedPanel(String title) => BoxDecoration(
     border: BoxBorder.all(style: BoxBorderStyle.rounded, color: outline),
-    title: BorderTitle(text: ' $title '),
+    title: BorderTitle(text: title),
   );
 
   /// Dialog panel border.
   BoxDecoration dialogPanel(String title) => BoxDecoration(
     border: BoxBorder.all(style: BoxBorderStyle.rounded, color: success),
-    title: BorderTitle(text: ' $title '),
+    title: BorderTitle(text: title),
   );
 
   // ─── Theme name ↔ TuiThemeData mapping ──────────────────────────
@@ -112,4 +112,8 @@ class SimutilTheme {
       _ => TuiThemeData.dark,
     };
   }
+}
+
+extension SimutilThemeExtension on BuildContext {
+  SimutilTheme get simutilTheme => SimutilTheme.of(this);
 }

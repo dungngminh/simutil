@@ -13,7 +13,7 @@ class AppSettings {
   final String? lastSelectedDeviceId;
 
   const AppSettings({
-    this.themeName = 'dark',
+    this.themeName = 'dracula',
     this.defaultLaunchOptions = const LaunchOptions(),
     this.lastSelectedDeviceId,
   });

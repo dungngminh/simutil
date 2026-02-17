@@ -29,6 +29,22 @@ class Device {
   /// Whether the device is currently running.
   bool get isRunning => state.isRunning;
 
+  Device copyWith({
+    String? id,
+    String? name,
+    DeviceType? type,
+    String? platform,
+    DeviceState? state,
+  }) {
+    return Device(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      platform: platform ?? this.platform,
+      state: state ?? this.state,
+    );
+  }
+
   factory Device.fromJson(Map<String, dynamic> json) {
     return Device(
       id: json['id'] as String,
@@ -58,8 +74,11 @@ class Device {
       other is Device &&
           runtimeType == other.runtimeType &&
           id == other.id &&
-          type == other.type;
+          name == other.name &&
+          type == other.type &&
+          platform == other.platform &&
+          state == other.state;
 
   @override
-  int get hashCode => Object.hash(id, type);
+  int get hashCode => Object.hash(id, name, type, platform, state);
 }

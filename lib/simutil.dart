@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:nocterm/nocterm.dart';
@@ -5,7 +6,6 @@ import 'package:simutil/components/app_header.dart';
 import 'package:simutil/components/app_status_bar.dart';
 import 'package:simutil/components/device_detail_panel.dart';
 import 'package:simutil/components/device_list_component.dart';
-import 'package:simutil/components/launch_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil/models/app_settings.dart';
 import 'package:simutil/models/device.dart';
@@ -35,6 +35,7 @@ class _SimutilAppState extends State<SimutilApp> {
   List<Device> _iosDevices = [];
   bool _loadingAndroid = true;
   bool _loadingIos = true;
+  bool _isRefreshing = false;
   String _statusMessage = 'Loading devices…';
 
   int _androidSelectedIndex = 0;
@@ -43,13 +44,28 @@ class _SimutilAppState extends State<SimutilApp> {
   /// Active panel: 'android' | 'ios'
   String _focusKey = 'android';
 
-  // ── Lifecycle ─────────────────────────────────────────────────
+  /// Timer to refresh devices
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
     _refreshDevices();
+    _initRefreshTimer();
+  }
+
+  void _initRefreshTimer() {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _refreshDevices(silent: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+    super.dispose();
   }
 
   Future<void> _loadSettings() async {
@@ -60,35 +76,44 @@ class _SimutilAppState extends State<SimutilApp> {
     });
   }
 
-  Future<void> _refreshDevices() async {
-    setState(() {
-      _loadingAndroid = true;
-      _loadingIos = true;
-      _statusMessage = 'Refreshing devices…';
-    });
+  Future<void> _refreshDevices({bool silent = false}) async {
+    if (_isRefreshing) return;
+    _isRefreshing = true;
 
-    final results = await Future.wait([
-      _di.adbService.listDevices().catchError((_) => <Device>[]),
-      _di.simctlService.listDevices().catchError((_) => <Device>[]),
-    ]);
+    if (!silent) {
+      setState(() {
+        _loadingAndroid = true;
+        _loadingIos = true;
+        _statusMessage = 'Refreshing devices…';
+      });
+    }
 
-    setState(() {
-      _androidDevices = results[0];
-      _iosDevices = results[1];
-      _loadingAndroid = false;
-      _loadingIos = false;
-      _androidSelectedIndex = _androidSelectedIndex.clamp(
-        0,
-        (_androidDevices.length - 1).clamp(0, 999),
-      );
-      _iosSelectedIndex = _iosSelectedIndex.clamp(
-        0,
-        (_iosDevices.length - 1).clamp(0, 999),
-      );
-      final total = _androidDevices.length + _iosDevices.length;
-      _statusMessage =
-          '$total device(s) found  •  R Refresh  S Settings  Tab Switch  Q Quit';
-    });
+    try {
+      final results = await Future.wait([
+        _di.adbService.listDevices().catchError((_) => <Device>[]),
+        _di.simctlService.listDevices().catchError((_) => <Device>[]),
+      ]);
+
+      setState(() {
+        _androidDevices = results[0];
+        _iosDevices = results[1];
+        _loadingAndroid = false;
+        _loadingIos = false;
+        _androidSelectedIndex = _androidSelectedIndex.clamp(
+          0,
+          (_androidDevices.length - 1).clamp(0, 999),
+        );
+        _iosSelectedIndex = _iosSelectedIndex.clamp(
+          0,
+          (_iosDevices.length - 1).clamp(0, 999),
+        );
+        final total = _androidDevices.length + _iosDevices.length;
+        _statusMessage =
+            '$total device(s) found  •  R Refresh  S Settings  Tab Switch  Q Quit';
+      });
+    } finally {
+      _isRefreshing = false;
+    }
   }
 
   // ── Build ─────────────────────────────────────────────────────
@@ -99,8 +124,6 @@ class _SimutilAppState extends State<SimutilApp> {
   }
 
   Component _buildShell(BuildContext context) {
-    final st = SimutilTheme.of(context);
-
     return Focusable(
       focused: true,
       onKeyEvent: _handleGlobalKey,
@@ -114,8 +137,8 @@ class _SimutilAppState extends State<SimutilApp> {
                 Expanded(
                   child: Column(
                     children: [
-                      Expanded(child: _androidPanel(st)),
-                      Expanded(child: _iosPanel(st)),
+                      Expanded(child: _androidPanel()),
+                      Expanded(child: _iosPanel()),
                     ],
                   ),
                 ),
@@ -134,8 +157,9 @@ class _SimutilAppState extends State<SimutilApp> {
 
   // ── Panels ──────────────────────────────────────────────────
 
-  Component _androidPanel(SimutilTheme st) {
+  Component _androidPanel() {
     final focused = _focusKey == 'android';
+    final st = context.simutilTheme;
     return Container(
       decoration: focused
           ? st.focusedPanel('Android Emulators')
@@ -152,7 +176,8 @@ class _SimutilAppState extends State<SimutilApp> {
     );
   }
 
-  Component _iosPanel(SimutilTheme st) {
+  Component _iosPanel() {
+    final st = context.simutilTheme;
     final focused = _focusKey == 'ios';
     return Container(
       decoration: focused
@@ -185,70 +210,49 @@ class _SimutilAppState extends State<SimutilApp> {
   // ── Key handling ────────────────────────────────────────────
 
   bool _handleGlobalKey(KeyboardEvent event) {
-    // Tab — cycle focus
-    if (event.logicalKey == LogicalKey.tab) {
-      setState(() {
-        _focusKey = switch (_focusKey) {
-          'android' => 'ios',
-          _ => 'android',
-        };
-      });
-      return true;
+    switch (event.logicalKey) {
+      case LogicalKey.tab || LogicalKey.arrowLeft || LogicalKey.arrowRight:
+        setState(() {
+          _androidSelectedIndex = 0;
+          _iosSelectedIndex = 0;
+          _focusKey = switch (_focusKey) {
+            'android' => 'ios',
+            _ => 'android',
+          };
+        });
+        return true;
+      case LogicalKey.keyR:
+        _refreshDevices();
+        return true;
+      case LogicalKey.keyS:
+        return true;
+      case LogicalKey.keyQ:
+        exit(0);
+      default:
+        return false;
     }
-
-
-
-    // R — refresh
-    if (event.logicalKey == LogicalKey.keyR) {
-      _refreshDevices();
-      return true;
-    }
-
-    if (event.logicalKey == LogicalKey.keyS) {}
-
-    // Q — quit
-    if (event.logicalKey == LogicalKey.keyQ) {
-      exit(0);
-    }
-
-    return false;
   }
 
   // ── Launch ──────────────────────────────────────────────────
 
   Future<void> _onDeviceLaunch(Device device) async {
-    if (device.type == DeviceType.android) {
-      // Show launch options overlay for Android
-      final options = await showLaunchDialog(
-        context,
-        device: device,
-        initialOptions: _settings.defaultLaunchOptions,
-      );
-
-      // User cancelled
-      if (options == null) return;
-
+    try {
       setState(() => _statusMessage = 'Launching ${device.name}…');
-      try {
-        await _di.adbService.launchDevice(device.id, options);
-        setState(() => _statusMessage = '${device.name} launched!');
-        Future.delayed(Duration(seconds: 2), _refreshDevices);
-      } catch (e) {
-        setState(() => _statusMessage = 'Failed to launch ${device.name}: $e');
-      }
-    } else {
-      // iOS — launch directly
-      setState(() => _statusMessage = 'Launching ${device.name}…');
-      try {
+      if (device.type == DeviceType.android) {
+        await _di.adbService.launchDevice(
+          device.id,
+          _settings.defaultLaunchOptions,
+        );
+      } else {
         await _di.simctlService.launchDevice(
           device.id,
           _settings.defaultLaunchOptions,
         );
-        setState(() => _statusMessage = '${device.name} launched!');
-        Future.delayed(Duration(seconds: 2), _refreshDevices);
-      } catch (e) {
-        setState(() => _statusMessage = 'Failed to launch ${device.name}: $e');
       }
+      _statusMessage = '${device.name} launched!';
+      Future.delayed(Duration(seconds: 2), () => _refreshDevices(silent: true));
+    } catch (e) {
+      setState(() => _statusMessage = 'Failed to launch ${device.name}: $e');
     }
   }
 }

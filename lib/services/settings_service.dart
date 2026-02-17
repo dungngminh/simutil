@@ -18,11 +18,11 @@ class SettingsService {
   Future<AppSettings> load() async {
     final file = File(_settingsPath);
     final dir = file.parent;
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
     if (!await file.exists()) {
-      return const AppSettings();
+      await dir.create(recursive: true);
+      const defaults = AppSettings();
+      await file.writeAsString(_toYaml(defaults));
+      return defaults;
     }
     try {
       final content = await file.readAsString();
