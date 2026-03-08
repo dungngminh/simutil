@@ -2,14 +2,22 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:nocterm/nocterm.dart';
+import 'package:simutil/features/android/adb_tools/adb_tools_dialog.dart';
 import 'package:simutil/components/app_header.dart';
 import 'package:simutil/components/app_status_bar.dart';
 import 'package:simutil/components/device_detail_panel.dart';
 import 'package:simutil/components/device_list_component.dart';
+import 'package:simutil/components/error_dialog.dart';
+import 'package:simutil/components/input_dialog.dart';
+import 'package:simutil/components/android_launch_dialog.dart';
+import 'package:simutil/features/android/adb_tools/qr_connect_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
+import 'package:simutil/components/success_dialog.dart';
+import 'package:simutil/features/android/adb_tools/wireless_pairing_dialog.dart';
+import 'package:simutil/models/android_quick_launch_option.dart';
 import 'package:simutil/models/app_settings.dart';
 import 'package:simutil/models/device.dart';
-import 'package:simutil/models/device_type.dart';
+import 'package:simutil/models/os.dart';
 import 'package:simutil/services/service_locator.dart';
 
 /// Root component of the SimUtil TUI application.
@@ -50,8 +58,13 @@ class _SimutilAppState extends State<SimutilApp> {
   @override
   void initState() {
     super.initState();
+    _initApp();
+  }
+
+  Future<void> _initApp() async {
+    await _di.init();
     _loadSettings();
-    _refreshDevices();
+    await _refreshDevices(); // Await first refresh to ensure devices load
     _initRefreshTimer();
   }
 
@@ -65,6 +78,7 @@ class _SimutilAppState extends State<SimutilApp> {
   void dispose() {
     _refreshTimer?.cancel();
     _refreshTimer = null;
+    _di.dispose();
     super.dispose();
   }
 
@@ -84,14 +98,22 @@ class _SimutilAppState extends State<SimutilApp> {
       setState(() {
         _loadingAndroid = true;
         _loadingIos = true;
-        _statusMessage = 'Refreshing devices…';
+        _statusMessage = 'Refreshing devices...';
       });
     }
 
     try {
       final results = await Future.wait([
-        _di.adbService.listDevices().catchError((_) => <Device>[]),
-        _di.simctlService.listDevices().catchError((_) => <Device>[]),
+        _di.adbService.listDevices().catchError((e, st) {
+          // ignore: avoid_print
+          print('Failed to load Android devices: $e');
+          return <Device>[];
+        }),
+        _di.simctlService.listDevices().catchError((e, st) {
+          // ignore: avoid_print
+          print('Failed to load iOS devices: $e');
+          return <Device>[];
+        }),
       ]);
 
       setState(() {
@@ -108,8 +130,7 @@ class _SimutilAppState extends State<SimutilApp> {
           (_iosDevices.length - 1).clamp(0, 999),
         );
         final total = _androidDevices.length + _iosDevices.length;
-        _statusMessage =
-            '$total device(s) found  •  R Refresh  S Settings  Tab Switch  Q Quit';
+        _statusMessage = _buildIdleStatusMessage(total);
       });
     } finally {
       _isRefreshing = false;
@@ -155,6 +176,19 @@ class _SimutilAppState extends State<SimutilApp> {
     );
   }
 
+  String _buildIdleStatusMessage(int total) {
+    final parts = <String>[
+      '$total device(s)',
+      'Launch: <enter>',
+      'Options: <space>',
+      if (_focusKey == 'android') 'ADB Tools: n',
+      'Refresh: r',
+      'Switch: <tab>',
+      'Quit: q',
+    ];
+    return parts.join(' | ');
+  }
+
   // ── Panels ──────────────────────────────────────────────────
 
   Component _androidPanel() {
@@ -171,7 +205,8 @@ class _SimutilAppState extends State<SimutilApp> {
         selectedIndex: _androidSelectedIndex,
         emptyMessage: 'No Android emulators found',
         onSelectionChanged: (i) => setState(() => _androidSelectedIndex = i),
-        onDeviceLaunch: _onDeviceLaunch,
+        onDeviceLaunch: _onDeviceDefaultLaunch,
+        onDeviceShowOptions: _onDeviceShowOptions,
       ),
     );
   }
@@ -190,13 +225,13 @@ class _SimutilAppState extends State<SimutilApp> {
         selectedIndex: _iosSelectedIndex,
         emptyMessage: 'No iOS simulators found',
         onSelectionChanged: (i) => setState(() => _iosSelectedIndex = i),
-        onDeviceLaunch: _onDeviceLaunch,
+        onDeviceLaunch: _onDeviceDefaultLaunch,
+        onDeviceShowOptions: _onDeviceShowOptions,
       ),
     );
   }
 
-  // ── Helpers ─────────────────────────────────────────────────
-
+  // ── Helpers ────────────────────────────────────────────────
   Device? get _currentSelectedDevice {
     if (_focusKey == 'android' && _androidDevices.isNotEmpty) {
       return _androidDevices[_androidSelectedIndex];
@@ -224,6 +259,12 @@ class _SimutilAppState extends State<SimutilApp> {
       case LogicalKey.keyR:
         _refreshDevices();
         return true;
+      case LogicalKey.keyN:
+        // ADB Tools - only available when Android panel is focused
+        if (_focusKey == 'android') {
+          _showAdbTools();
+        }
+        return true;
       case LogicalKey.keyS:
         return true;
       case LogicalKey.keyQ:
@@ -233,15 +274,130 @@ class _SimutilAppState extends State<SimutilApp> {
     }
   }
 
-  // ── Launch ──────────────────────────────────────────────────
+  // ── ADB Tools ──────────────────────────────────────────────────
 
-  Future<void> _onDeviceLaunch(Device device) async {
+  Future<void> _showAdbTools() async {
+    final option = await showAdbToolsDialog(context: context);
+    if (option == null) return;
+
+    switch (option) {
+      case AdbToolOption.connectViaIp:
+        await _handleAdbConnect();
+        break;
+      case AdbToolOption.connectViaPairCode:
+        await _handleWirelessPairing();
+        break;
+      case AdbToolOption.connectViaQr:
+        await _handleQrConnect();
+        break;
+    }
+  }
+
+  Future<void> _handleAdbConnect() async {
+    final host = await showInputDialog(
+      context: context,
+      title: 'ADB Connect',
+      label: 'Enter device IP:Port',
+      hint: 'e.g., 192.168.1.100:5555',
+    );
+
+    if (host == null || host.isEmpty) return;
+
+    setState(() => _statusMessage = 'Connecting to $host…');
+
+    final result = await _di.adbService.connectDevice(host);
+
+    if (result.success) {
+      await showSuccessDialog(
+        context: context,
+        title: 'Connected',
+        message: result.message,
+      );
+      await _refreshDevices();
+    } else {
+      await showErrorDialog(
+        context: context,
+        title: 'Connection Failed',
+        message: result.message,
+      );
+      setState(() => _statusMessage = 'Connection failed');
+    }
+  }
+
+  Future<void> _handleWirelessPairing() async {
+    final input = await showWirelessPairingDialog(context: context);
+
+    if (input == null) return;
+
+    setState(() => _statusMessage = 'Pairing with ${input.host}…');
+
+    final result = await _di.adbService.pairDevice(
+      input.host,
+      input.pairingCode,
+    );
+
+    if (result.success) {
+      await showSuccessDialog(
+        context: context,
+        title: 'Paired Successfully',
+        message: '${result.message}\n\nYou can now connect to the device.',
+      );
+
+      // Ask user if they want to connect now
+      final connectHost = await showInputDialog(
+        context: context,
+        title: 'Connect to Device',
+        label: 'Enter device IP:Port for connection',
+        hint: 'Usually same IP with port 5555',
+      );
+
+      if (connectHost != null && connectHost.isNotEmpty) {
+        await _handleAdbConnectDirect(connectHost);
+      }
+    } else {
+      await showErrorDialog(
+        context: context,
+        title: 'Pairing Failed',
+        message: result.message,
+      );
+      setState(() => _statusMessage = 'Pairing failed');
+    }
+  }
+
+  Future<void> _handleQrConnect() async {
+    // Show QR code informational dialog
+    await showQrConnectDialog(context: context);
+  }
+
+  Future<void> _handleAdbConnectDirect(String host) async {
+    setState(() => _statusMessage = 'Connecting to $host…');
+
+    final result = await _di.adbService.connectDevice(host);
+
+    if (result.success) {
+      await showSuccessDialog(
+        context: context,
+        title: 'Connected',
+        message: result.message,
+      );
+      await _refreshDevices();
+    } else {
+      await showErrorDialog(
+        context: context,
+        title: 'Connection Failed',
+        message: result.message,
+      );
+      setState(() => _statusMessage = 'Connection failed');
+    }
+  }
+
+  Future<void> _onDeviceDefaultLaunch(Device device) async {
     try {
       setState(() => _statusMessage = 'Launching ${device.name}…');
-      if (device.type == DeviceType.android) {
-        await _di.adbService.launchDevice(
+      if (device.os == Os.android) {
+        await _di.adbService.launchWithQuickOption(
           device.id,
-          _settings.defaultLaunchOptions,
+          AndroidQuickLaunchOption.normal,
         );
       } else {
         await _di.simctlService.launchDevice(
@@ -249,8 +405,29 @@ class _SimutilAppState extends State<SimutilApp> {
           _settings.defaultLaunchOptions,
         );
       }
-      _statusMessage = '${device.name} launched!';
+      setState(() => _statusMessage = '${device.name} launched!');
       Future.delayed(Duration(seconds: 2), () => _refreshDevices(silent: true));
+    } catch (e) {
+      setState(() => _statusMessage = 'Failed to launch ${device.name}: $e');
+    }
+  }
+
+  Future<void> _onDeviceShowOptions(Device device) async {
+    try {
+      if (device.os == Os.android) {
+        final option = await showLaunchDialog(context: context, device: device);
+        if (option != null) {
+          setState(() => _statusMessage = 'Launching ${device.name}…');
+          await _di.adbService.launchWithQuickOption(device.id, option);
+          setState(() => _statusMessage = '${device.name} launched!');
+          Future.delayed(
+            Duration(seconds: 2),
+            () => _refreshDevices(silent: true),
+          );
+        }
+      } else {
+        await _onDeviceDefaultLaunch(device);
+      }
     } catch (e) {
       setState(() => _statusMessage = 'Failed to launch ${device.name}: $e');
     }

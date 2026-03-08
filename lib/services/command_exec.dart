@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'isolate_runner.dart';
+
 /// Result of executing a shell command.
 class CommandResult {
   final String stdout;
@@ -41,6 +43,27 @@ class CommandExecImpl implements CommandExec {
       stdout: result.stdout as String,
       stderr: result.stderr as String,
       exitCode: result.exitCode,
+    );
+  }
+}
+
+/// A [CommandExec] that delegates all process execution to a long-lived
+/// background [IsolateRunner], keeping the main UI isolate free.
+class IsolateCommandExec implements CommandExec {
+  final IsolateRunner _runner;
+
+  IsolateCommandExec(this._runner);
+
+  @override
+  Future<CommandResult> run(
+    String command, {
+    List<String> arguments = const [],
+    String? workingDirectory,
+  }) {
+    return _runner.execute(
+      command,
+      arguments,
+      workingDirectory: workingDirectory,
     );
   }
 }

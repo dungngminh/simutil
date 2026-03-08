@@ -2,7 +2,6 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil/models/device.dart';
 
-/// Right-hand panel showing details for the currently selected device.
 class DeviceDetailPanel extends StatelessComponent {
   final Device? device;
   final bool focused;
@@ -33,7 +32,7 @@ class DeviceDetailPanel extends StatelessComponent {
         _row(st, 'Name', device.name),
         _row(st, 'ID', device.id),
         _row(st, 'Platform', device.platform),
-        _row(st, 'Type', device.type.name),
+        _row(st, 'Type', device.os.name),
         _row(st, 'State', device.state.label),
         Divider(),
         Text(' ⏎ Launch  R Refresh  S Settings', style: st.dimmed),

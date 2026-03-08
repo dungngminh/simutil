@@ -1,5 +1,6 @@
-import 'device_state.dart';
-import 'device_type.dart';
+import 'package:simutil/models/device_state.dart';
+import 'package:simutil/models/device_type.dart';
+import 'package:simutil/models/os.dart';
 
 /// Represents a simulator or emulator device.
 class Device {
@@ -10,10 +11,13 @@ class Device {
   final String name;
 
   /// Whether this is an Android or iOS device.
-  final DeviceType type;
+  final Os os;
 
   /// Platform/OS version info (e.g., "Android 14", "iOS 17.2").
   final String platform;
+
+  /// Device type (physical or simulator).
+  final DeviceType type;
 
   /// Current device state.
   final DeviceState state;
@@ -21,9 +25,10 @@ class Device {
   const Device({
     required this.id,
     required this.name,
-    required this.type,
+    required this.os,
     required this.platform,
     required this.state,
+    required this.type,
   });
 
   /// Whether the device is currently running.
@@ -32,16 +37,19 @@ class Device {
   Device copyWith({
     String? id,
     String? name,
-    DeviceType? type,
+    Os? os,
     String? platform,
     DeviceState? state,
+    DeviceType? type,
   }) {
     return Device(
       id: id ?? this.id,
       name: name ?? this.name,
-      type: type ?? this.type,
+      os: os ?? this.os,
       platform: platform ?? this.platform,
       state: state ?? this.state,
+      type: type ?? this.type,
+
     );
   }
 
@@ -49,9 +57,10 @@ class Device {
     return Device(
       id: json['id'] as String,
       name: json['name'] as String,
-      type: DeviceType.values.byName(json['type'] as String),
+      os: Os.values.byName(json['type'] as String),
       platform: json['platform'] as String? ?? '',
       state: DeviceState.fromString(json['state'] as String? ?? 'Shutdown'),
+      type: DeviceType.values.byName(json['type'] as String),
     );
   }
 
@@ -59,14 +68,14 @@ class Device {
     return {
       'id': id,
       'name': name,
-      'type': type.name,
+      'type': os.name,
       'platform': platform,
       'state': state.label,
     };
   }
 
   @override
-  String toString() => 'Device($name, $type, $state)';
+  String toString() => 'Device($name, $os, $state)';
 
   @override
   bool operator ==(Object other) =>
@@ -75,10 +84,10 @@ class Device {
           runtimeType == other.runtimeType &&
           id == other.id &&
           name == other.name &&
-          type == other.type &&
+          os == other.os &&
           platform == other.platform &&
           state == other.state;
 
   @override
-  int get hashCode => Object.hash(id, name, type, platform, state);
+  int get hashCode => Object.hash(id, name, os, platform, state);
 }

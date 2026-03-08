@@ -1,12 +1,13 @@
 name: simutil
-description: A sample command-line application.
+description: TUI application for launching Android Simulators / iOS Simulators and more ...
 version: 1.0.0
-# repository: https://github.com/my_org/my_repo
+repository: https://github.com/dungngminh/simutil
 
 environment:
   sdk: ^3.11.0
 
 dependencies:
+  ascii_qr: ^1.0.1
   cli_util: ^0.4.2
   nocterm: ^0.5.1
   path: ^1.9.0

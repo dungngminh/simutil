@@ -1,8 +1,5 @@
-/// The type of simulator/emulator device.
 enum DeviceType {
-  /// Android emulator managed via `emulator` CLI and `adb`.
-  android,
-
-  /// iOS simulator managed via `xcrun simctl` (macOS only).
-  ios,
+  physical,
+  
+  simulator, // android is emulator but we treat it as simulator
 }

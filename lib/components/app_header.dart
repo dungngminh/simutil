@@ -2,7 +2,6 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/simutil_icons.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
-/// Top header bar showing the app name and current theme.
 class AppHeader extends StatelessComponent {
   final String themeName;
 

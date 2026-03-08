@@ -10,7 +10,13 @@ class DeviceListComponent extends StatefulComponent {
   final bool focused;
   final int selectedIndex;
   final ValueChanged<int>? onSelectionChanged;
+
+  /// Called when user presses Enter - launches with default options.
   final ValueChanged<Device>? onDeviceLaunch;
+
+  /// Called when user presses Space - shows launch options dialog.
+  final ValueChanged<Device>? onDeviceShowOptions;
+
   final bool isLoading;
   final String emptyMessage;
 
@@ -21,6 +27,7 @@ class DeviceListComponent extends StatefulComponent {
     this.selectedIndex = 0,
     this.onSelectionChanged,
     this.onDeviceLaunch,
+    this.onDeviceShowOptions,
     this.isLoading = false,
     this.emptyMessage = 'No devices found',
   });
@@ -81,9 +88,20 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
       return true;
     }
 
+    // Enter → launch with default options
     if (event.logicalKey == LogicalKey.enter) {
       if (component.selectedIndex < component.devices.length) {
         component.onDeviceLaunch?.call(
+          component.devices[component.selectedIndex],
+        );
+      }
+      return true;
+    }
+
+    // Space → show launch options dialog
+    if (event.logicalKey == LogicalKey.space) {
+      if (component.selectedIndex < component.devices.length) {
+        component.onDeviceShowOptions?.call(
           component.devices[component.selectedIndex],
         );
       }

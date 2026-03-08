@@ -97,6 +97,7 @@ class SimutilTheme {
   BoxDecoration dialogPanel(String title) => BoxDecoration(
     border: BoxBorder.all(style: BoxBorderStyle.rounded, color: success),
     title: BorderTitle(text: title),
+    color: background,
   );
 
   // ─── Theme name ↔ TuiThemeData mapping ──────────────────────────
