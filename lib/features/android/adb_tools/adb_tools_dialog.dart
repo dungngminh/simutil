@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:nocterm/nocterm.dart';
+import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_icons.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
@@ -18,21 +19,20 @@ enum AdbToolOption {
     description: 'Scan QR code for wireless debugging (Android 11+)',
   );
 
+  const AdbToolOption({required this.label, required this.description});
+
   final String label;
   final String description;
-
-  const AdbToolOption({required this.label, required this.description});
 }
 
 class AdbToolsDialog extends StatefulComponent {
-  final void Function(AdbToolOption option) onSelect;
-  final VoidCallback onCancel;
-
   const AdbToolsDialog({
     super.key,
     required this.onSelect,
     required this.onCancel,
   });
+  final void Function(AdbToolOption option) onSelect;
+  final VoidCallback onCancel;
 
   @override
   State<AdbToolsDialog> createState() => _AdbToolsDialogState();
@@ -126,27 +126,19 @@ class _AdbToolsDialogState extends State<AdbToolsDialog> {
   }
 }
 
-Future<AdbToolOption?> showAdbToolsDialog({required BuildContext context}) {
-  final completer = Completer<AdbToolOption?>();
-  OverlayEntry? entry;
-
-  entry = OverlayEntry(
-    opaque: false,
-    builder: (context) {
-      return AdbToolsDialog(
-        onSelect: (option) {
-          completer.complete(option);
-          entry?.remove();
-        },
-        onCancel: () {
-          completer.complete(null);
-          entry?.remove();
-        },
-      );
-    },
-  );
-
-  Overlay.of(context).insert(entry);
-
-  return completer.future;
-}
+Future<AdbToolOption?> showAdbToolsDialog(BuildContext context) =>
+    showOverlayDialog(
+      context: context,
+      builder: (context, completer, entry) {
+        return AdbToolsDialog(
+          onSelect: (option) {
+            completer.complete(option);
+            entry?.remove();
+          },
+          onCancel: () {
+            completer.complete(null);
+            entry?.remove();
+          },
+        );
+      },
+    );

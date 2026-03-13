@@ -5,9 +5,6 @@ import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
 class SuccessDialog extends StatelessComponent {
-  final String title;
-  final String message;
-  final VoidCallback onDismiss;
 
   const SuccessDialog({
     super.key,
@@ -15,6 +12,9 @@ class SuccessDialog extends StatelessComponent {
     required this.message,
     required this.onDismiss,
   });
+  final String title;
+  final String message;
+  final VoidCallback onDismiss;
 
   @override
   Component build(BuildContext context) {

@@ -3,10 +3,10 @@ import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil/models/device.dart';
 
 class DeviceDetailPanel extends StatelessComponent {
-  final Device? device;
-  final bool focused;
 
   const DeviceDetailPanel({super.key, this.device, this.focused = false});
+  final Device? device;
+  final bool focused;
 
   @override
   Component build(BuildContext context) {

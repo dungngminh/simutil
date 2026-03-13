@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
-import '../models/app_settings.dart';
-import '../models/launch_options.dart';
+import 'package:simutil/models/app_settings.dart';
+import 'package:simutil/models/launch_options.dart';
 
 /// Service for loading and saving app settings as YAML.
 ///
@@ -14,7 +14,6 @@ class SettingsService {
     return '$home/.simutil/settings.yaml';
   }
 
-  /// Load settings from disk. Returns defaults if file missing or corrupt.
   Future<AppSettings> load() async {
     final file = File(_settingsPath);
     final dir = file.parent;
@@ -29,12 +28,10 @@ class SettingsService {
       final yaml = loadYaml(content) as YamlMap;
       return _fromYaml(yaml);
     } catch (_) {
-      // If the file is corrupt, return defaults.
       return const AppSettings();
     }
   }
 
-  /// Save settings to disk as YAML.
   Future<void> save(AppSettings settings) async {
     final file = File(_settingsPath);
     final dir = file.parent;
@@ -44,7 +41,6 @@ class SettingsService {
     await file.writeAsString(_toYaml(settings));
   }
 
-  /// Convenience: load → mutate → save.
   Future<AppSettings> update(AppSettings Function(AppSettings) updater) async {
     final current = await load();
     final updated = updater(current);
@@ -52,10 +48,8 @@ class SettingsService {
     return updated;
   }
 
-  // ─── YAML Serialization ────────────────────────────────────────
-
   AppSettings _fromYaml(YamlMap yaml) {
-    LaunchOptions options = const LaunchOptions();
+    var options = const LaunchOptions();
 
     final launchMap = yaml['default_launch_options'];
     if (launchMap is YamlMap) {
@@ -75,19 +69,19 @@ class SettingsService {
   }
 
   String _toYaml(AppSettings settings) {
-    final buf = StringBuffer();
-    buf.writeln('# SimUtil Settings');
-    buf.writeln();
-    buf.writeln('theme: ${settings.themeName}');
-    buf.writeln(
-      'last_selected_device_id: ${settings.lastSelectedDeviceId ?? "~"}',
-    );
-    buf.writeln();
-    buf.writeln('default_launch_options:');
-    buf.writeln('  no_audio: ${settings.defaultLaunchOptions.noAudio}');
-    buf.writeln('  wipe_data: ${settings.defaultLaunchOptions.wipeData}');
-    buf.writeln('  gpu: ${settings.defaultLaunchOptions.gpu}');
-    buf.writeln('  no_snapshot: ${settings.defaultLaunchOptions.noSnapshot}');
+    final buf = StringBuffer()
+      ..writeln('# SimUtil Settings')
+      ..writeln()
+      ..writeln('theme: ${settings.themeName}')
+      ..writeln(
+        'last_selected_device_id: ${settings.lastSelectedDeviceId ?? "~"}',
+      )
+      ..writeln()
+      ..writeln('default_launch_options:')
+      ..writeln('  no_audio: ${settings.defaultLaunchOptions.noAudio}')
+      ..writeln('  wipe_data: ${settings.defaultLaunchOptions.wipeData}')
+      ..writeln('  gpu: ${settings.defaultLaunchOptions.gpu}')
+      ..writeln('  no_snapshot: ${settings.defaultLaunchOptions.noSnapshot}');
     return buf.toString();
   }
 }

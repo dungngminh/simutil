@@ -1,5 +1,21 @@
 /// Options for launching a simulator/emulator.
 class LaunchOptions {
+
+  const LaunchOptions({
+    this.noAudio = false,
+    this.wipeData = false,
+    this.gpu = 'auto',
+    this.noSnapshot = false,
+  });
+
+  factory LaunchOptions.fromJson(Map<String, dynamic> json) {
+    return LaunchOptions(
+      noAudio: json['noAudio'] as bool? ?? false,
+      wipeData: json['wipeData'] as bool? ?? false,
+      gpu: json['gpu'] as String? ?? 'auto',
+      noSnapshot: json['noSnapshot'] as bool? ?? false,
+    );
+  }
   /// Launch without audio (Android: `-no-audio`).
   final bool noAudio;
 
@@ -12,13 +28,6 @@ class LaunchOptions {
 
   /// Don't load snapshot on boot (Android: `-no-snapshot-load`).
   final bool noSnapshot;
-
-  const LaunchOptions({
-    this.noAudio = false,
-    this.wipeData = false,
-    this.gpu = 'auto',
-    this.noSnapshot = false,
-  });
 
   LaunchOptions copyWith({
     bool? noAudio,
@@ -42,15 +51,6 @@ class LaunchOptions {
     if (gpu != 'auto') args.addAll(['-gpu', gpu]);
     if (noSnapshot) args.add('-no-snapshot-load');
     return args;
-  }
-
-  factory LaunchOptions.fromJson(Map<String, dynamic> json) {
-    return LaunchOptions(
-      noAudio: json['noAudio'] as bool? ?? false,
-      wipeData: json['wipeData'] as bool? ?? false,
-      gpu: json['gpu'] as String? ?? 'auto',
-      noSnapshot: json['noSnapshot'] as bool? ?? false,
-    );
   }
 
   Map<String, dynamic> toJson() {

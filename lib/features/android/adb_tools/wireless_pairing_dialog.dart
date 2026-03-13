@@ -1,31 +1,23 @@
 import 'dart:async';
 
 import 'package:nocterm/nocterm.dart';
+import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
-/// Result of wireless pairing dialog.
 class WirelessPairingInput {
+  const WirelessPairingInput({required this.host, required this.pairingCode});
   final String host;
   final String pairingCode;
-
-  const WirelessPairingInput({
-    required this.host,
-    required this.pairingCode,
-  });
 }
 
-/// A modal dialog for wireless debugging pairing (Android 11+).
-///
-/// Use [showWirelessPairingDialog] to display this as an overlay.
 class WirelessPairingDialog extends StatefulComponent {
-  final void Function(WirelessPairingInput input) onSubmit;
-  final VoidCallback onCancel;
-
   const WirelessPairingDialog({
     super.key,
     required this.onSubmit,
     required this.onCancel,
   });
+  final void Function(WirelessPairingInput input) onSubmit;
+  final VoidCallback onCancel;
 
   @override
   State<WirelessPairingDialog> createState() => _WirelessPairingDialogState();
@@ -34,7 +26,7 @@ class WirelessPairingDialog extends StatefulComponent {
 class _WirelessPairingDialogState extends State<WirelessPairingDialog> {
   late TextEditingController _hostController;
   late TextEditingController _pairingCodeController;
-  int _focusedField = 0; // 0 = host, 1 = pairing code
+  int _focusedField = 0;
 
   @override
   void initState() {
@@ -60,7 +52,6 @@ class _WirelessPairingDialogState extends State<WirelessPairingDialog> {
     final host = _hostController.text.trim();
     final pairingCode = _pairingCodeController.text.trim();
 
-    // Validate: host not empty, pairing code is exactly 6 digits
     if (host.isNotEmpty && pairingCode.length == 6) {
       component.onSubmit(
         WirelessPairingInput(host: host, pairingCode: pairingCode),
@@ -69,25 +60,21 @@ class _WirelessPairingDialogState extends State<WirelessPairingDialog> {
   }
 
   bool _handleKeyEvent(KeyboardEvent event) {
-    // Escape → cancel
     if (event.logicalKey == LogicalKey.escape) {
       component.onCancel();
       return true;
     }
 
-    // Tab → switch field
     if (event.logicalKey == LogicalKey.tab) {
       _switchField(1);
       return true;
     }
 
-    // Arrow up → previous field
     if (event.logicalKey == LogicalKey.arrowUp) {
       _switchField(-1);
       return true;
     }
 
-    // Arrow down → next field
     if (event.logicalKey == LogicalKey.arrowDown) {
       _switchField(1);
       return true;
@@ -202,32 +189,18 @@ class _WirelessPairingDialogState extends State<WirelessPairingDialog> {
   }
 }
 
-/// Show the wireless pairing dialog as a modal overlay.
-///
-/// Returns [WirelessPairingInput] if submitted, or `null` if cancelled.
 Future<WirelessPairingInput?> showWirelessPairingDialog({
   required BuildContext context,
-}) {
-  final completer = Completer<WirelessPairingInput?>();
-  OverlayEntry? entry;
-
-  entry = OverlayEntry(
-    opaque: false,
-    builder: (context) {
-      return WirelessPairingDialog(
-        onSubmit: (input) {
-          completer.complete(input);
-          entry?.remove();
-        },
-        onCancel: () {
-          completer.complete(null);
-          entry?.remove();
-        },
-      );
+}) => showOverlayDialog<WirelessPairingInput?>(
+  context: context,
+  builder: (context, completer, entry) => WirelessPairingDialog(
+    onSubmit: (input) {
+      completer.complete(input);
+      entry?.remove();
     },
-  );
-
-  Overlay.of(context).insert(entry);
-
-  return completer.future;
-}
+    onCancel: () {
+      completer.complete(null);
+      entry?.remove();
+    },
+  ),
+);

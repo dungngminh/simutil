@@ -3,9 +3,9 @@ import 'package:simutil/components/simutil_theme.dart';
 
 /// Bottom status bar displaying a single-line status message.
 class AppStatusBar extends StatelessComponent {
-  final String message;
 
   const AppStatusBar({super.key, required this.message});
+  final String message;
 
   @override
   Component build(BuildContext context) {

@@ -6,22 +6,13 @@ import 'package:simutil/models/device_state.dart';
 import 'package:simutil/models/device_type.dart';
 import 'package:simutil/models/launch_options.dart';
 import 'package:simutil/models/os.dart';
+import 'package:simutil/services/command_exec.dart';
+import 'package:simutil/services/device_service.dart';
 
-import 'command_exec.dart';
-import 'device_service.dart';
-
-/// Service for interacting with Android emulators via `adb` and `emulator` CLI.
-///
-/// Resolves tool paths through `$ANDROID_HOME` (or the default macOS SDK path)
-/// following the same strategy as MiniSim.
 class AndroidDeviceService implements DeviceService {
+  AndroidDeviceService(this._exec);
   final CommandExec _exec;
 
-  AndroidDeviceService(this._exec);
-
-  // ── Path helpers ──────────────────────────────────────────────
-
-  /// Resolve `ANDROID_HOME`, falling back to `~/Library/Android/sdk` on macOS.
   String getAndroidHome() {
     final env =
         Platform.environment['ANDROID_HOME'] ??
@@ -31,13 +22,9 @@ class AndroidDeviceService implements DeviceService {
     return '$home/Library/Android/sdk';
   }
 
-  /// Full path to the `adb` binary.
   String get adbPath => '${getAndroidHome()}/platform-tools/adb';
 
-  /// Full path to the `emulator` binary.
   String get emulatorPath => '${getAndroidHome()}/emulator/emulator';
-
-  // ── Availability ──────────────────────────────────────────────
 
   @override
   Future<bool> isAvailable() async {
@@ -50,15 +37,9 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
-  // ── List devices ──────────────────────────────────────────────
-
   @override
   Future<List<Device>> listDevices() => _listEmulators();
 
-  /// List all Android emulators, checking which ones are currently running.
-  ///
-  /// All CLI calls go through [_exec], which is backed by the long-lived
-  /// background isolate — no per-call isolate spawning needed.
   Future<List<Device>> _listEmulators() async {
     try {
       final result = await _exec.run(emulatorPath, arguments: ['-list-avds']);
@@ -70,7 +51,6 @@ class AndroidDeviceService implements DeviceService {
           .where((l) => l.isNotEmpty)
           .toList();
 
-      // Build a map of AVD name → emulator serial for running emulators.
       final runningMap = await _getRunningAvdMap();
 
       return avdNames.map((name) {
@@ -82,17 +62,15 @@ class AndroidDeviceService implements DeviceService {
           platform: 'Android',
           state: runningMap.containsKey(name)
               ? DeviceState.booted
-              : DeviceState.shutdown, 
+              : DeviceState.shutdown,
         );
       }).toList();
     } catch (e, st) {
-      // ignore: avoid_print
       print('AndroidDeviceService._listEmulators error: $e\n$st');
       return [];
     }
   }
 
-  /// Query every online `emulator-*` device for its AVD name.
   Future<Map<String, String>> _getRunningAvdMap() async {
     try {
       final result = await _exec.run(adbPath, arguments: ['devices']);
@@ -109,12 +87,9 @@ class AndroidDeviceService implements DeviceService {
 
       final map = <String, String>{};
 
-      // Parallelize the lookup for each serial.
       await Future.wait(
         serials.map((serial) async {
           try {
-            // `adb -s <serial> emu avd name` returns the AVD name on the
-            // first line.
             final nameResult = await _exec.run(
               adbPath,
               arguments: ['-s', serial, 'emu', 'avd', 'name'],
@@ -125,9 +100,7 @@ class AndroidDeviceService implements DeviceService {
                 map[name] = serial;
               }
             }
-          } catch (_) {
-            // Skip; this emulator might have disconnected.
-          }
+          } catch (_) {}
         }),
       );
       return map;
@@ -142,7 +115,6 @@ class AndroidDeviceService implements DeviceService {
     await _exec.run(emulatorPath, arguments: args);
   }
 
-  /// Launch emulator with quick launch option preset.
   Future<void> launchWithQuickOption(
     String deviceId,
     AndroidQuickLaunchOption option,
@@ -151,11 +123,6 @@ class AndroidDeviceService implements DeviceService {
     await _exec.run(emulatorPath, arguments: args);
   }
 
-  // ── ADB Connect ────────────────────────────────────────────────
-
-  /// Connect to a device via ADB over TCP/IP.
-  ///
-  /// [host] should be in format "ip:port" (e.g., "192.168.1.100:5555").
   Future<AdbConnectResult> connectDevice(String host) async {
     try {
       final result = await _exec.run(adbPath, arguments: ['connect', host]);
@@ -174,7 +141,6 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
-  /// Disconnect a device connected via TCP/IP.
   Future<bool> disconnectDevice(String host) async {
     try {
       final result = await _exec.run(adbPath, arguments: ['disconnect', host]);
@@ -184,10 +150,6 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
-  /// Enable wireless debugging on a USB-connected device.
-  ///
-  /// This sets the device to listen on the specified [port] (default 5555).
-  /// After this, you can disconnect USB and use [connectDevice] with the IP.
   Future<bool> enableTcpIp(String serial, {int port = 5555}) async {
     try {
       final result = await _exec.run(
@@ -200,19 +162,14 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
-  /// Get the IP address of a connected device.
-  ///
-  /// Returns null if the IP cannot be determined.
   Future<String?> getDeviceIpAddress(String serial) async {
     try {
-      // Try wlan0 first (most common for WiFi)
       final result = await _exec.run(
         adbPath,
         arguments: ['-s', serial, 'shell', 'ip', 'route'],
       );
 
       if (result.success) {
-        // Parse "... src 192.168.x.x ..." from ip route output
         final match = RegExp(
           r'src\s+(\d+\.\d+\.\d+\.\d+)',
         ).firstMatch(result.stdout);
@@ -221,7 +178,6 @@ class AndroidDeviceService implements DeviceService {
         }
       }
 
-      // Fallback: try ifconfig
       final ifconfig = await _exec.run(
         adbPath,
         arguments: ['-s', serial, 'shell', 'ifconfig', 'wlan0'],
@@ -242,12 +198,8 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
-  /// Get pairing code info for wireless debugging (Android 11+).
-  ///
-  /// Returns the pairing port if wireless debugging is enabled.
   Future<WirelessPairingInfo?> getWirelessPairingInfo(String serial) async {
     try {
-      // Check if device supports wireless debugging (Android 11+)
       final versionResult = await _exec.run(
         adbPath,
         arguments: ['-s', serial, 'shell', 'getprop', 'ro.build.version.sdk'],
@@ -257,7 +209,7 @@ class AndroidDeviceService implements DeviceService {
 
       final sdkVersion = int.tryParse(versionResult.stdout.trim()) ?? 0;
       if (sdkVersion < 30) {
-        return null; // Wireless debugging requires Android 11 (API 30)+
+        return null;
       }
 
       final ip = await getDeviceIpAddress(serial);
@@ -273,10 +225,6 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
-  /// Pair with a device using wireless debugging (Android 11+).
-  ///
-  /// [host] should be "ip:port" from the pairing dialog on device.
-  /// [pairingCode] is the 6-digit code shown on device.
   Future<AdbConnectResult> pairDevice(String host, String pairingCode) async {
     try {
       final result = await _exec.run(
@@ -298,23 +246,19 @@ class AndroidDeviceService implements DeviceService {
   }
 }
 
-/// Result of an ADB connect/pair operation.
 class AdbConnectResult {
+  const AdbConnectResult({required this.success, required this.message});
   final bool success;
   final String message;
-
-  const AdbConnectResult({required this.success, required this.message});
 }
 
-/// Information for wireless debugging pairing.
 class WirelessPairingInfo {
-  final String deviceIp;
-  final int defaultPort;
-  final bool supportsWirelessDebugging;
-
   const WirelessPairingInfo({
     required this.deviceIp,
     required this.defaultPort,
     required this.supportsWirelessDebugging,
   });
+  final String deviceIp;
+  final int defaultPort;
+  final bool supportsWirelessDebugging;
 }

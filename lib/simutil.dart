@@ -1,18 +1,19 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:nocterm/nocterm.dart';
-import 'package:simutil/features/android/adb_tools/adb_tools_dialog.dart';
+import 'package:simutil/components/android_launch_dialog.dart';
 import 'package:simutil/components/app_header.dart';
 import 'package:simutil/components/app_status_bar.dart';
 import 'package:simutil/components/device_detail_panel.dart';
 import 'package:simutil/components/device_list_component.dart';
 import 'package:simutil/components/error_dialog.dart';
 import 'package:simutil/components/input_dialog.dart';
-import 'package:simutil/components/android_launch_dialog.dart';
-import 'package:simutil/features/android/adb_tools/qr_connect_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil/components/success_dialog.dart';
+import 'package:simutil/features/android/adb_tools/adb_tools_dialog.dart';
+import 'package:simutil/features/android/adb_tools/qr_connect_dialog.dart';
 import 'package:simutil/features/android/adb_tools/wireless_pairing_dialog.dart';
 import 'package:simutil/models/android_quick_launch_option.dart';
 import 'package:simutil/models/app_settings.dart';
@@ -20,10 +21,6 @@ import 'package:simutil/models/device.dart';
 import 'package:simutil/models/os.dart';
 import 'package:simutil/services/service_locator.dart';
 
-/// Root component of the SimUtil TUI application.
-///
-/// Wraps the app in [TuiTheme] and orchestrates the layout:
-/// ```
 class SimutilApp extends StatefulComponent {
   const SimutilApp({super.key});
 
@@ -32,10 +29,8 @@ class SimutilApp extends StatefulComponent {
 }
 
 class _SimutilAppState extends State<SimutilApp> {
-  // ── DI ────────────────────────────────────────────────────────
   final _di = ServiceLocator.instance;
 
-  // ── State ─────────────────────────────────────────────────────
   AppSettings _settings = const AppSettings();
   TuiThemeData _themeData = TuiThemeData.dark;
 
@@ -52,7 +47,6 @@ class _SimutilAppState extends State<SimutilApp> {
   /// Active panel: 'android' | 'ios'
   String _focusKey = 'android';
 
-  /// Timer to refresh devices
   Timer? _refreshTimer;
 
   @override
@@ -64,7 +58,7 @@ class _SimutilAppState extends State<SimutilApp> {
   Future<void> _initApp() async {
     await _di.init();
     _loadSettings();
-    await _refreshDevices(); // Await first refresh to ensure devices load
+    await _refreshDevices();
     _initRefreshTimer();
   }
 
@@ -74,20 +68,20 @@ class _SimutilAppState extends State<SimutilApp> {
     });
   }
 
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    _refreshTimer = null;
-    _di.dispose();
-    super.dispose();
-  }
-
   Future<void> _loadSettings() async {
     final settings = await _di.settingsService.load();
     setState(() {
       _settings = settings;
       _themeData = SimutilTheme.resolveTheme(settings.themeName);
     });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+    _di.dispose();
+    super.dispose();
   }
 
   Future<void> _refreshDevices({bool silent = false}) async {
@@ -105,13 +99,11 @@ class _SimutilAppState extends State<SimutilApp> {
     try {
       final results = await Future.wait([
         _di.adbService.listDevices().catchError((e, st) {
-          // ignore: avoid_print
-          print('Failed to load Android devices: $e');
+          log('Failed to load Android devices: $e');
           return <Device>[];
         }),
         _di.simctlService.listDevices().catchError((e, st) {
-          // ignore: avoid_print
-          print('Failed to load iOS devices: $e');
+          log('Failed to load iOS devices: $e');
           return <Device>[];
         }),
       ]);
@@ -137,8 +129,6 @@ class _SimutilAppState extends State<SimutilApp> {
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────
-
   @override
   Component build(BuildContext context) {
     return TuiTheme(data: _themeData, child: _buildShell(context));
@@ -154,7 +144,6 @@ class _SimutilAppState extends State<SimutilApp> {
           Expanded(
             child: Row(
               children: [
-                // Left: Android + iOS
                 Expanded(
                   child: Column(
                     children: [
@@ -188,8 +177,6 @@ class _SimutilAppState extends State<SimutilApp> {
     ];
     return parts.join(' | ');
   }
-
-  // ── Panels ──────────────────────────────────────────────────
 
   Component _androidPanel() {
     final focused = _focusKey == 'android';
@@ -231,7 +218,6 @@ class _SimutilAppState extends State<SimutilApp> {
     );
   }
 
-  // ── Helpers ────────────────────────────────────────────────
   Device? get _currentSelectedDevice {
     if (_focusKey == 'android' && _androidDevices.isNotEmpty) {
       return _androidDevices[_androidSelectedIndex];
@@ -241,8 +227,6 @@ class _SimutilAppState extends State<SimutilApp> {
     }
     return null;
   }
-
-  // ── Key handling ────────────────────────────────────────────
 
   bool _handleGlobalKey(KeyboardEvent event) {
     switch (event.logicalKey) {
@@ -260,7 +244,6 @@ class _SimutilAppState extends State<SimutilApp> {
         _refreshDevices();
         return true;
       case LogicalKey.keyN:
-        // ADB Tools - only available when Android panel is focused
         if (_focusKey == 'android') {
           _showAdbTools();
         }
@@ -274,10 +257,8 @@ class _SimutilAppState extends State<SimutilApp> {
     }
   }
 
-  // ── ADB Tools ──────────────────────────────────────────────────
-
   Future<void> _showAdbTools() async {
-    final option = await showAdbToolsDialog(context: context);
+    final option = await showAdbToolsDialog(context);
     if (option == null) return;
 
     switch (option) {
@@ -316,7 +297,7 @@ class _SimutilAppState extends State<SimutilApp> {
       await _refreshDevices();
     } else {
       await showErrorDialog(
-        context: context,
+        context,
         title: 'Connection Failed',
         message: result.message,
       );
@@ -343,7 +324,6 @@ class _SimutilAppState extends State<SimutilApp> {
         message: '${result.message}\n\nYou can now connect to the device.',
       );
 
-      // Ask user if they want to connect now
       final connectHost = await showInputDialog(
         context: context,
         title: 'Connect to Device',
@@ -356,7 +336,7 @@ class _SimutilAppState extends State<SimutilApp> {
       }
     } else {
       await showErrorDialog(
-        context: context,
+        context,
         title: 'Pairing Failed',
         message: result.message,
       );
@@ -365,8 +345,7 @@ class _SimutilAppState extends State<SimutilApp> {
   }
 
   Future<void> _handleQrConnect() async {
-    // Show QR code informational dialog
-    await showQrConnectDialog(context: context);
+    await showQrConnectDialog(context);
   }
 
   Future<void> _handleAdbConnectDirect(String host) async {
@@ -383,7 +362,7 @@ class _SimutilAppState extends State<SimutilApp> {
       await _refreshDevices();
     } else {
       await showErrorDialog(
-        context: context,
+        context,
         title: 'Connection Failed',
         message: result.message,
       );

@@ -5,12 +5,6 @@ import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
 class InputDialog extends StatefulComponent {
-  final String title;
-  final String label;
-  final String hint;
-  final String initialValue;
-  final void Function(String value) onSubmit;
-  final VoidCallback onCancel;
 
   const InputDialog({
     super.key,
@@ -21,6 +15,12 @@ class InputDialog extends StatefulComponent {
     required this.onSubmit,
     required this.onCancel,
   });
+  final String title;
+  final String label;
+  final String hint;
+  final String initialValue;
+  final void Function(String value) onSubmit;
+  final VoidCallback onCancel;
 
   @override
   State<InputDialog> createState() => _InputDialogState();

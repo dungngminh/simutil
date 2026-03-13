@@ -1,22 +1,19 @@
 import 'dart:async';
 
 import 'package:nocterm/nocterm.dart';
+import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
-/// A modal error dialog that displays an error message.
-///
-/// Use [showErrorDialog] to display this as an overlay.
 class ErrorDialog extends StatelessComponent {
-  final String title;
-  final String message;
-  final VoidCallback onDismiss;
-
   const ErrorDialog({
     super.key,
     required this.title,
     required this.message,
     required this.onDismiss,
   });
+  final String title;
+  final String message;
+  final VoidCallback onDismiss;
 
   @override
   Component build(BuildContext context) {
@@ -62,32 +59,18 @@ class ErrorDialog extends StatelessComponent {
   }
 }
 
-/// Show an error dialog as a modal overlay.
-///
-/// Returns when the user dismisses the dialog.
-Future<void> showErrorDialog({
-  required BuildContext context,
+Future<void> showErrorDialog(
+  BuildContext context, {
   required String title,
   required String message,
-}) {
-  final completer = Completer<void>();
-  OverlayEntry? entry;
-
-  entry = OverlayEntry(
-    opaque: false,
-    builder: (context) {
-      return ErrorDialog(
-        title: title,
-        message: message,
-        onDismiss: () {
-          completer.complete();
-          entry?.remove();
-        },
-      );
+}) => showOverlayDialog<void>(
+  context: context,
+  builder: (context, completer, entry) => ErrorDialog(
+    title: title,
+    message: message,
+    onDismiss: () {
+      completer.complete();
+      entry?.remove();
     },
-  );
-
-  Overlay.of(context).insert(entry);
-
-  return completer.future;
-}
+  ),
+);

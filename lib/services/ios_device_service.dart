@@ -7,13 +7,13 @@ import 'package:simutil/models/device_type.dart';
 import 'package:simutil/models/launch_options.dart';
 import 'package:simutil/models/os.dart';
 
-import 'command_exec.dart';
-import 'device_service.dart';
+import 'package:simutil/services/command_exec.dart';
+import 'package:simutil/services/device_service.dart';
 
 class IOSDeviceService implements DeviceService {
-  final CommandExec _exec;
 
   IOSDeviceService(this._exec);
+  final CommandExec _exec;
 
   @override
   Future<bool> isAvailable() async {

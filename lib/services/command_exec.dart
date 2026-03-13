@@ -1,18 +1,18 @@
 import 'dart:io';
 
-import 'isolate_runner.dart';
+import 'package:simutil/services/isolate_runner.dart';
 
 /// Result of executing a shell command.
 class CommandResult {
-  final String stdout;
-  final String stderr;
-  final int exitCode;
 
   const CommandResult({
     required this.stdout,
     required this.stderr,
     required this.exitCode,
   });
+  final String stdout;
+  final String stderr;
+  final int exitCode;
 
   /// Whether the command exited with code 0.
   bool get success => exitCode == 0;
@@ -50,9 +50,9 @@ class CommandExecImpl implements CommandExec {
 /// A [CommandExec] that delegates all process execution to a long-lived
 /// background [IsolateRunner], keeping the main UI isolate free.
 class IsolateCommandExec implements CommandExec {
-  final IsolateRunner _runner;
 
   IsolateCommandExec(this._runner);
+  final IsolateRunner _runner;
 
   @override
   Future<CommandResult> run(

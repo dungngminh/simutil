@@ -1,25 +1,9 @@
 import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/simutil_icons.dart';
+import 'package:simutil/components/simutil_theme.dart';
+import 'package:simutil/models/device.dart';
 
-import '../models/device.dart';
-import 'simutil_theme.dart';
-
-/// A scrollable list component that displays simulator/emulator devices.
 class DeviceListComponent extends StatefulComponent {
-  final List<Device> devices;
-  final bool focused;
-  final int selectedIndex;
-  final ValueChanged<int>? onSelectionChanged;
-
-  /// Called when user presses Enter - launches with default options.
-  final ValueChanged<Device>? onDeviceLaunch;
-
-  /// Called when user presses Space - shows launch options dialog.
-  final ValueChanged<Device>? onDeviceShowOptions;
-
-  final bool isLoading;
-  final String emptyMessage;
-
   const DeviceListComponent({
     super.key,
     required this.devices,
@@ -31,6 +15,15 @@ class DeviceListComponent extends StatefulComponent {
     this.isLoading = false,
     this.emptyMessage = 'No devices found',
   });
+
+  final List<Device> devices;
+  final bool focused;
+  final int selectedIndex;
+  final ValueChanged<int>? onSelectionChanged;
+  final ValueChanged<Device>? onDeviceLaunch;
+  final ValueChanged<Device>? onDeviceShowOptions;
+  final bool isLoading;
+  final String emptyMessage;
 
   @override
   State<DeviceListComponent> createState() => _DeviceListComponentState();
@@ -113,10 +106,9 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
 }
 
 class _DeviceRow extends StatelessComponent {
+  const _DeviceRow({required this.device, required this.isSelected});
   final Device device;
   final bool isSelected;
-
-  const _DeviceRow({required this.device, required this.isSelected});
 
   @override
   Component build(BuildContext context) {

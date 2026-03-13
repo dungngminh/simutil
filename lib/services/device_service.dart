@@ -1,5 +1,5 @@
-import '../models/device.dart';
-import '../models/launch_options.dart';
+import 'package:simutil/models/device.dart';
+import 'package:simutil/models/launch_options.dart';
 
 /// Common interface for device management services (adb, simctl).
 abstract class DeviceService {

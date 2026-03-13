@@ -3,9 +3,9 @@ import 'package:simutil/components/simutil_icons.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
 class AppHeader extends StatelessComponent {
-  final String themeName;
 
   const AppHeader({super.key, required this.themeName});
+  final String themeName;
 
   @override
   Component build(BuildContext context) {

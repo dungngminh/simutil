@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 
-import '../models/isolate_message.dart';
-import 'command_exec.dart';
+import 'package:simutil/models/isolate_message.dart';
+import 'package:simutil/services/command_exec.dart';
 
 /// Manages a single long-lived background isolate that executes CLI commands.
 ///

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:ascii_qr/ascii_qr.dart';
 import 'package:nocterm/nocterm.dart';
+import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
 class QrConnectDialog extends StatefulComponent {
@@ -14,11 +15,6 @@ class QrConnectDialog extends StatefulComponent {
 }
 
 class _QrConnectDialogState extends State<QrConnectDialog> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
   @override
   Component build(BuildContext context) {
     final st = SimutilTheme.of(context);
@@ -60,23 +56,13 @@ class _QrConnectDialogState extends State<QrConnectDialog> {
   }
 }
 
-Future<void> showQrConnectDialog({required BuildContext context}) {
-  final completer = Completer<void>();
-  OverlayEntry? entry;
-
-  entry = OverlayEntry(
-    opaque: false,
-    builder: (context) {
-      return QrConnectDialog(
+Future<void> showQrConnectDialog(BuildContext context) =>
+    showOverlayDialog<void>(
+      context: context,
+      builder: (context, completer, entry) => QrConnectDialog(
         onClose: () {
           completer.complete();
           entry?.remove();
         },
-      );
-    },
-  );
-
-  Overlay.of(context).insert(entry);
-
-  return completer.future;
-}
+      ),
+    );

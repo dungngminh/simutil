@@ -4,6 +4,26 @@ import 'package:simutil/models/os.dart';
 
 /// Represents a simulator or emulator device.
 class Device {
+
+  const Device({
+    required this.id,
+    required this.name,
+    required this.os,
+    required this.platform,
+    required this.state,
+    required this.type,
+  });
+
+  factory Device.fromJson(Map<String, dynamic> json) {
+    return Device(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      os: Os.values.byName(json['type'] as String),
+      platform: json['platform'] as String? ?? '',
+      state: DeviceState.fromString(json['state'] as String? ?? 'Shutdown'),
+      type: DeviceType.values.byName(json['type'] as String),
+    );
+  }
   /// Unique identifier (AVD name for Android, UDID for iOS).
   final String id;
 
@@ -21,15 +41,6 @@ class Device {
 
   /// Current device state.
   final DeviceState state;
-
-  const Device({
-    required this.id,
-    required this.name,
-    required this.os,
-    required this.platform,
-    required this.state,
-    required this.type,
-  });
 
   /// Whether the device is currently running.
   bool get isRunning => state.isRunning;
@@ -50,17 +61,6 @@ class Device {
       state: state ?? this.state,
       type: type ?? this.type,
 
-    );
-  }
-
-  factory Device.fromJson(Map<String, dynamic> json) {
-    return Device(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      os: Os.values.byName(json['type'] as String),
-      platform: json['platform'] as String? ?? '',
-      state: DeviceState.fromString(json['state'] as String? ?? 'Shutdown'),
-      type: DeviceType.values.byName(json['type'] as String),
     );
   }
 

@@ -8,18 +8,18 @@ import 'package:simutil/models/android_quick_launch_option.dart';
 import 'package:simutil/models/device.dart';
 
 class AndroidLaunchDialog extends StatefulComponent {
-  final Device device;
-
-  final void Function(AndroidQuickLaunchOption option) onLaunch;
-
-  final VoidCallback onCancel;
-
   const AndroidLaunchDialog({
     super.key,
     required this.device,
     required this.onLaunch,
     required this.onCancel,
   });
+  
+  final Device device;
+
+  final void Function(AndroidQuickLaunchOption option) onLaunch;
+
+  final VoidCallback onCancel;
 
   @override
   State<AndroidLaunchDialog> createState() => _LaunchDialogState();
