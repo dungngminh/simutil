@@ -121,8 +121,7 @@ class _SimutilAppState extends State<SimutilApp> {
           0,
           (_iosDevices.length - 1).clamp(0, 999),
         );
-        final total = _androidDevices.length + _iosDevices.length;
-        _statusMessage = _buildIdleStatusMessage(total);
+        _statusMessage = _buildIdleStatusMessage();
       });
     } finally {
       _isRefreshing = false;
@@ -165,9 +164,8 @@ class _SimutilAppState extends State<SimutilApp> {
     );
   }
 
-  String _buildIdleStatusMessage(int total) {
+  String _buildIdleStatusMessage() {
     final parts = <String>[
-      '$total device(s)',
       'Launch: <enter>',
       'Options: <space>',
       if (_focusKey == 'android') 'ADB Tools: n',
@@ -210,6 +208,8 @@ class _SimutilAppState extends State<SimutilApp> {
         focused: focused,
         isLoading: _loadingIos,
         selectedIndex: _iosSelectedIndex,
+        loadingMessage:
+            'Loading iOS simulators...\nFirst load may take a while',
         emptyMessage: 'No iOS simulators found',
         onSelectionChanged: (i) => setState(() => _iosSelectedIndex = i),
         onDeviceLaunch: _onDeviceDefaultLaunch,

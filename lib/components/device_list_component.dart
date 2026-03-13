@@ -13,6 +13,7 @@ class DeviceListComponent extends StatefulComponent {
     this.onDeviceLaunch,
     this.onDeviceShowOptions,
     this.isLoading = false,
+    this.loadingMessage = 'Loading devices...',
     this.emptyMessage = 'No devices found',
   });
 
@@ -23,6 +24,7 @@ class DeviceListComponent extends StatefulComponent {
   final ValueChanged<Device>? onDeviceLaunch;
   final ValueChanged<Device>? onDeviceShowOptions;
   final bool isLoading;
+  final String loadingMessage;
   final String emptyMessage;
 
   @override
@@ -35,11 +37,23 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
     final st = SimutilTheme.of(context);
 
     if (component.isLoading) {
-      return Center(child: Text('Loading devices...', style: st.dimmed));
+      return Center(
+        child: Text(
+          component.loadingMessage,
+          style: st.dimmed,
+          textAlign: TextAlign.center,
+        ),
+      );
     }
 
     if (component.devices.isEmpty) {
-      return Center(child: Text(component.emptyMessage, style: st.dimmed));
+      return Center(
+        child: Text(
+          component.emptyMessage,
+          style: st.dimmed,
+          textAlign: TextAlign.center,
+        ),
+      );
     }
 
     return Focusable(
@@ -81,7 +95,6 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
       return true;
     }
 
-    // Enter → launch with default options
     if (event.logicalKey == LogicalKey.enter) {
       if (component.selectedIndex < component.devices.length) {
         component.onDeviceLaunch?.call(
@@ -91,7 +104,6 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
       return true;
     }
 
-    // Space → show launch options dialog
     if (event.logicalKey == LogicalKey.space) {
       if (component.selectedIndex < component.devices.length) {
         component.onDeviceShowOptions?.call(
