@@ -1,0 +1,33 @@
+# typed: false
+# frozen_string_literal: true
+
+class Simutil < Formula
+  desc "TUI application for launching Android Simulators / iOS Simulators"
+  homepage "https://github.com/dungngminh/simutil"
+  version "{{VERSION}}"
+  license "MIT"
+
+  on_macos do
+    on_arm do
+      url "https://github.com/dungngminh/simutil/releases/download/v{{VERSION}}/simutil-macos-arm64.tar.gz"
+      sha256 "{{ARM64_SHA256}}"
+
+      def install
+        bin.install "simutil-macos-arm64" => "simutil"
+      end
+    end
+
+    on_intel do
+      url "https://github.com/dungngminh/simutil/releases/download/v{{VERSION}}/simutil-macos-x64.tar.gz"
+      sha256 "{{X64_SHA256}}"
+
+      def install
+        bin.install "simutil-macos-x64" => "simutil"
+      end
+    end
+  end
+
+  test do
+    assert_match "simutil", shell_output("#{bin}/simutil --version", 2)
+  end
+end

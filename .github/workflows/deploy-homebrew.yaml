@@ -1,0 +1,51 @@
+name: Deploy to Homebrew
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  update-formula:
+    name: Update Homebrew Formula
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout simutil
+        uses: actions/checkout@v4
+
+      - name: Checkout homebrew-simutil tap
+        uses: actions/checkout@v4
+        with:
+          repository: dungngminh/homebrew-simutil
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Get release info and generate formula
+        id: release
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Download macOS ARM64 artifact and get SHA256
+          curl -sL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/simutil-macos-arm64.tar.gz" -o macos-arm64.tar.gz
+          ARM64_SHA=$(sha256sum macos-arm64.tar.gz | cut -d ' ' -f 1)
+
+          # Download macOS x64 artifact and get SHA256
+          curl -sL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/simutil-macos-x64.tar.gz" -o macos-x64.tar.gz
+          X64_SHA=$(sha256sum macos-x64.tar.gz | cut -d ' ' -f 1)
+
+          # Generate formula from template
+          mkdir -p homebrew-tap/Formula
+          cp .github/homebrew/simutil.rb.template homebrew-tap/Formula/simutil.rb
+          sed -i "s/{{VERSION}}/$VERSION/g" homebrew-tap/Formula/simutil.rb
+          sed -i "s/{{ARM64_SHA256}}/$ARM64_SHA/g" homebrew-tap/Formula/simutil.rb
+          sed -i "s/{{X64_SHA256}}/$X64_SHA/g" homebrew-tap/Formula/simutil.rb
+
+      - name: Commit and push formula
+        run: |
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/simutil.rb
+          git diff --staged --quiet || git commit -m "chore: update simutil to ${{ steps.release.outputs.version }}"
+          git push
