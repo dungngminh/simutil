@@ -1,0 +1,26 @@
+name: Deploy to WinGet
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  submit:
+    name: Submit to WinGet
+    runs-on: windows-latest
+    steps:
+      - name: Get release info
+        id: release
+        shell: pwsh
+        run: |
+          $VERSION = $env:GITHUB_REF_NAME -replace '^v', ''
+          echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+
+      - name: Submit to WinGet
+        uses: vedantmgoyal9/winget-releaser@main
+        with:
+          identifier: dungngminh.simutil
+          version: ${{ steps.release.outputs.version }}
+          installers-regex: 'simutil-windows-x64\.zip$'
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,39 @@
+# WinGet manifest template
+# This is automatically submitted via the winget-releaser action
+# Manual submission instructions:
+# 1. Fork https://github.com/microsoft/winget-pkgs
+# 2. Create manifest at manifests/d/dungngminh/simutil/<version>/
+# 3. Submit PR to microsoft/winget-pkgs
+
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.6.0.schema.json
+
+PackageIdentifier: dungngminh.simutil
+PackageVersion: "{{VERSION}}"
+PackageLocale: en-US
+Publisher: dungngminh
+PublisherUrl: https://github.com/dungngminh
+Author: dungngminh
+PackageName: simutil
+PackageUrl: https://github.com/dungngminh/simutil
+License: MIT
+LicenseUrl: https://github.com/dungngminh/simutil/blob/main/LICENSE
+ShortDescription: TUI application for launching Android Simulators / iOS Simulators
+Description: TUI application for launching Android Simulators / iOS Simulators and more
+Tags:
+  - simulator
+  - android
+  - ios
+  - cli
+  - tui
+  - dart
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    InstallerUrl: https://github.com/dungngminh/simutil/releases/download/v{{VERSION}}/simutil-windows-x64.zip
+    InstallerSha256: "{{SHA256}}"
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: simutil-windows-x64.exe
+        PortableCommandAlias: simutil
+ManifestType: singleton
+ManifestVersion: 1.6.0

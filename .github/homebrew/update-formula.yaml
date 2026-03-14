@@ -1,0 +1,71 @@
+# This workflow should be placed in your homebrew-tap repository
+# Repository: dungngminh/homebrew-tap
+# File: .github/workflows/update-formula.yaml
+
+name: Update Formula
+
+on:
+  repository_dispatch:
+    types: [update-formula]
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+
+      - name: Update simutil formula
+        run: |
+          VERSION="${{ github.event.client_payload.version }}"
+          ARM64_SHA="${{ github.event.client_payload.arm64_sha }}"
+          X64_SHA="${{ github.event.client_payload.x64_sha }}"
+
+          cat > Formula/simutil.rb << 'FORMULA'
+          # typed: false
+          # frozen_string_literal: true
+
+          class Simutil < Formula
+            desc "TUI application for launching Android Simulators / iOS Simulators"
+            homepage "https://github.com/dungngminh/simutil"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/dungngminh/simutil/releases/download/v${VERSION}/simutil-macos-arm64.tar.gz"
+                sha256 "${ARM64_SHA}"
+
+                def install
+                  bin.install "simutil-macos-arm64" => "simutil"
+                end
+              end
+
+              on_intel do
+                url "https://github.com/dungngminh/simutil/releases/download/v${VERSION}/simutil-macos-x64.tar.gz"
+                sha256 "${X64_SHA}"
+
+                def install
+                  bin.install "simutil-macos-x64" => "simutil"
+                end
+              end
+            end
+
+            test do
+              system "#{bin}/simutil", "--help"
+            end
+          end
+          FORMULA
+
+          # Replace placeholders
+          sed -i "s/\${VERSION}/$VERSION/g" Formula/simutil.rb
+          sed -i "s/\${ARM64_SHA}/$ARM64_SHA/g" Formula/simutil.rb
+          sed -i "s/\${X64_SHA}/$X64_SHA/g" Formula/simutil.rb
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/simutil.rb
+          git commit -m "Update simutil to ${{ github.event.client_payload.version }}"
+          git push

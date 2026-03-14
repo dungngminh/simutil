@@ -2,9 +2,6 @@ import 'package:simutil/models/app_settings.dart';
 import 'package:test/test.dart';
 
 void main() {
-  // test constructor, fromJson, toJson
-  // create an mock json for fromJson
-
   group('AppSettings', () {
     test('constructor returns correct instance with default params', () {
       final settings = AppSettings();
