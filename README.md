@@ -16,7 +16,7 @@ Simutil is written with [Nocterm](https://nocterm.dev/), a terminal UI framework
 
 // TODO: Add screenshot of Simutil
 
-### Features
+## Features
 
 - **One-Key Launch** — Start any device with `Enter`, no need to open Android Studio or Xcode
 - **Android Launch Options** — Provide launch option for Android Emulators: Normal, Cold Boot, No Audio, or Cold Boot + No Audio,...
@@ -25,7 +25,7 @@ Simutil is written with [Nocterm](https://nocterm.dev/), a terminal UI framework
   - Pair with 6-digit code (Android 11+)
   - QR code pairing (Android 11+)
 
-### Installation
+## Installation
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dungngminh/simutil/main/install.sh | bash
@@ -59,14 +59,14 @@ Then run:
 simutil
 ```
 
-### Supported platforms
+## Supported platforms
 
 - [x] macOS
 - [x] Linux
 - [ ] Windows
 
 
-### Contributing
+## Contributing
 
 ```bash
 git clone https://github.com/dungngminh/simutil.git
@@ -79,6 +79,6 @@ dart run bin/simutil.dart   # Run locally
 2. Create a branch and make your changes
 3. Open a Pull Request
 
-### License
+## License
 
 MIT — see [LICENSE](LICENSE)
