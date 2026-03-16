@@ -149,7 +149,7 @@ class _SimutilAppState extends State<SimutilApp> {
     final parts = <String>[
       'Launch: <enter>',
       'Options: <space>',
-      'ADB Tools: n',
+      // 'ADB Tools: n',
       'Refresh: r',
       'Switch: <tab>',
       'Quit: q',
@@ -183,11 +183,11 @@ class _SimutilAppState extends State<SimutilApp> {
       case LogicalKey.keyR:
         _refreshDevices();
         return true;
-      case LogicalKey.keyN:
-        if (_focusKey == 'android') {
-          _showAdbTools();
-        }
-        return true;
+      // case LogicalKey.keyN:
+      //   if (_focusKey == 'android') {
+      //     _showAdbTools();
+      //   }
+      //   return true;
       case LogicalKey.keyS:
         return true;
       case LogicalKey.keyQ:

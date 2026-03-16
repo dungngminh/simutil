@@ -94,7 +94,6 @@ jobs:
         with:
           body: ${{ steps.changelog.outputs.content }}
           generate_release_notes: false
-          
           files: |
             artifacts/*.tar.gz
             artifacts/*.zip
