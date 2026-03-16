@@ -12,13 +12,13 @@ import 'package:simutil/components/error_dialog.dart';
 import 'package:simutil/components/input_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil/components/success_dialog.dart';
-import 'package:simutil/plugins/adb_tools/adb_tools_dialog.dart';
-import 'package:simutil/plugins/adb_tools/qr_connect_dialog.dart';
-import 'package:simutil/plugins/adb_tools/wireless_pairing_dialog.dart';
 import 'package:simutil/models/android_quick_launch_option.dart';
 import 'package:simutil/models/app_settings.dart';
 import 'package:simutil/models/device.dart';
 import 'package:simutil/models/os.dart';
+import 'package:simutil/plugins/adb_tools/adb_tools_dialog.dart';
+import 'package:simutil/plugins/adb_tools/qr_connect_dialog.dart';
+import 'package:simutil/plugins/adb_tools/wireless_pairing_dialog.dart';
 import 'package:simutil/services/service_locator.dart';
 import 'package:simutil/utils/constant.dart';
 
@@ -101,11 +101,11 @@ class _SimutilAppState extends State<SimutilApp> {
 
     try {
       final results = await Future.wait([
-        _di.adbService.listDevices().catchError((e, st) {
+        _di.adbService.getSimulators().catchError((e, st) {
           log('Failed to load Android devices: $e');
           return <Device>[];
         }),
-        _di.simctlService.listDevices().catchError((e, st) {
+        _di.simctlService.getSimulators().catchError((e, st) {
           log('Failed to load iOS devices: $e');
           return <Device>[];
         }),

@@ -28,7 +28,7 @@ class IOSDeviceService implements DeviceService {
   }
 
   @override
-  Future<List<Device>> listDevices() async {
+  Future<List<Device>> getSimulators() async {
     if (!Platform.isMacOS) return [];
     return _listSimulators();
   }
@@ -126,5 +126,11 @@ class IOSDeviceService implements DeviceService {
           RegExp(r'(\w+)\s(\d.*)'),
           (m) => '${m[1]} ${m[2]?.replaceAll(' ', '.')}',
         );
+  }
+  
+  @override
+  Future<List<Device>> getPhysicalDevices() {
+    // TODO: implement getPhysicalDevices
+    throw UnimplementedError();
   }
 }
