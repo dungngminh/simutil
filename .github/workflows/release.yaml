@@ -30,7 +30,7 @@ jobs:
             artifact: simutil-windows-x64.exe
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Dart
         uses: dart-lang/setup-dart@v1
@@ -55,7 +55,7 @@ jobs:
           Compress-Archive -Path ${{ matrix.artifact }} -DestinationPath simutil-${{ matrix.target }}.zip
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: simutil-${{ matrix.target }}
           path: simutil-${{ matrix.target }}.${{ runner.os == 'Windows' && 'zip' || 'tar.gz' }}
@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -93,28 +93,29 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body: ${{ steps.changelog.outputs.content }}
-          generate_release_notes: true
+          generate_release_notes: false
+          
           files: |
             artifacts/*.tar.gz
             artifacts/*.zip
             artifacts/checksums.txt
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 
-  deploy-pub-dev:
-    name: Deploy to pub.dev
-    needs: release
-    uses: ./.github/workflows/deploy-pub-dev.yaml
-    secrets: inherit
+  # deploy-pub-dev:
+  #   name: Deploy to pub.dev
+  #   needs: release
+  #   uses: ./.github/workflows/deploy-pub-dev.yaml
+  #   secrets: inherit
 
-  deploy-homebrew:
-    name: Deploy to Homebrew
-    needs: release
-    uses: ./.github/workflows/deploy-homebrew.yaml
-    secrets: inherit
+  # deploy-homebrew:
+  #   name: Deploy to Homebrew
+  #   needs: release
+  #   uses: ./.github/workflows/deploy-homebrew.yaml
+  #   secrets: inherit
 
-  deploy-winget:
-    name: Deploy to WinGet
-    needs: release
-    uses: ./.github/workflows/deploy-winget.yaml
-    secrets: inherit
+  # deploy-winget:
+  #   name: Deploy to WinGet
+  #   needs: release
+  #   uses: ./.github/workflows/deploy-winget.yaml
+  #   secrets: inherit
