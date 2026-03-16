@@ -53,7 +53,7 @@ class SettingsService {
 
   String _toYaml(AppSettings settings) {
     final buf = StringBuffer()
-      ..writeln('# SimUtil Settings')
+      ..writeln('# Simutil Settings')
       ..writeln()
       ..writeln('theme: ${settings.themeName}')
       ..writeln(

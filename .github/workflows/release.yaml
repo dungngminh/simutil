@@ -89,18 +89,16 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: Create Draft GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           body: ${{ steps.changelog.outputs.content }}
           generate_release_notes: false
-          
+          token: ${{ secrets.GH_PAT }}
           files: |
             artifacts/*.tar.gz
             artifacts/*.zip
             artifacts/checksums.txt
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 
   # deploy-pub-dev:
   #   name: Deploy to pub.dev
