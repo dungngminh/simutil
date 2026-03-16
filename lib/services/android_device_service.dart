@@ -37,7 +37,7 @@ class AndroidDeviceService implements DeviceService {
   }
 
   @override
-  Future<List<Device>> listDevices() => _listEmulators();
+  Future<List<Device>> getSimulators() => _listEmulators();
 
   Future<List<Device>> _listEmulators() async {
     try {
@@ -236,6 +236,36 @@ class AndroidDeviceService implements DeviceService {
       );
     } catch (e) {
       return AdbConnectResult(success: false, message: e.toString());
+    }
+  }
+
+  @override
+  Future<List<Device>> getPhysicalDevices() async {
+    try {
+      final result = await _exec.run(adbPath, arguments: ['devices']);
+      if (!result.success) return [];
+
+      final devices = result.stdout
+          .split('\n')
+          .skip(1)
+          .map((l) => l.trim())
+          .where((l) => l.isNotEmpty && l.contains('device'))
+          .map((l) => l.split('\t').first)
+          .where((s) => !s.startsWith('emulator-'))
+          .toList();
+
+      return devices.map((serial) {
+        return Device(
+          id: serial,
+          name: serial,
+          os: Os.android,
+          type: DeviceType.physical,
+          platform: 'Android',
+          state: DeviceState.booted,
+        );
+      }).toList();
+    } catch (e) {
+      return [];
     }
   }
 }
