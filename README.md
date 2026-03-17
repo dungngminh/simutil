@@ -27,24 +27,26 @@ Simutil is written with [Nocterm](https://nocterm.dev/), a terminal UI framework
 
 ## Installation
 
+### Binary Install
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dungngminh/simutil/main/install.sh | bash
 ```
 
-**Using Homebrew (macOS/Linux):**
+### Using Homebrew (macOS/Linux)
 
 ```bash
 brew tap dungngminh/simutil
 brew install simutil
 ```
 
-**From pub.dev:**
+### From pub.dev
 
 ```bash
 dart pub global activate simutil
 ```
 
-**From source:**
+### From source
 
 ```bash
 git clone https://github.com/dungngminh/simutil.git
