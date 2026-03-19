@@ -173,6 +173,7 @@ class _SimutilAppState extends State<SimutilApp> {
   String _buildIdleStatusMessageForIos() {
     final parts = <String>[
       'Launch: <enter> or <space>',
+      'ADB Tools: n',
       'Refresh: r',
       'Switch: <tab>',
       'Quit: q',
@@ -239,9 +240,7 @@ class _SimutilAppState extends State<SimutilApp> {
         _refreshDevices();
         return true;
       case LogicalKey.keyN:
-        if (_focusKey == 'android' || _focusKey == 'android-emulators') {
-          _showAdbTools();
-        }
+        _showAdbTools();
         return true;
       case LogicalKey.keyS:
         return true;
