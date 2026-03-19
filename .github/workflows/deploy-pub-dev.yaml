@@ -1,7 +1,9 @@
 name: Deploy to pub.dev
 
 on:
-  workflow_call:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:

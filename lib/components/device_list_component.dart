@@ -2,6 +2,7 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/simutil_icons.dart';
 import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil/models/device.dart';
+import 'package:simutil/models/device_type.dart';
 
 class DeviceListComponent extends StatefulComponent {
   const DeviceListComponent({
@@ -9,6 +10,7 @@ class DeviceListComponent extends StatefulComponent {
     required this.devices,
     this.focused = false,
     this.selectedIndex = 0,
+    this.scrollBufferItems = 2,
     this.onSelectionChanged,
     this.onDeviceLaunch,
     this.onDeviceShowOptions,
@@ -20,6 +22,7 @@ class DeviceListComponent extends StatefulComponent {
   final List<Device> devices;
   final bool focused;
   final int selectedIndex;
+  final int scrollBufferItems;
   final ValueChanged<int>? onSelectionChanged;
   final ValueChanged<Device>? onDeviceLaunch;
   final ValueChanged<Device>? onDeviceShowOptions;
@@ -32,6 +35,14 @@ class DeviceListComponent extends StatefulComponent {
 }
 
 class _DeviceListComponentState extends State<DeviceListComponent> {
+  late final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Component build(BuildContext context) {
     final st = SimutilTheme.of(context);
@@ -60,6 +71,7 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
       focused: component.focused,
       onKeyEvent: _handleKeyEvent,
       child: ListView.builder(
+        controller: _scrollController,
         itemCount: component.devices.length,
         itemBuilder: (context, index) {
           final device = component.devices[index];
@@ -76,44 +88,64 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
 
   bool _handleKeyEvent(KeyboardEvent event) {
     if (component.devices.isEmpty) return false;
+    switch (event.logicalKey) {
+      case LogicalKey.arrowUp:
+        _handleArrowUp();
+        return true;
+      case LogicalKey.arrowDown:
+        _handleArrowDown();
+        return true;
+      case LogicalKey.enter:
+        _handleEnter();
+        return true;
+      case LogicalKey.space:
+        _handleSpace();
+        return true;
+      default:
+        return false;
+    }
+  }
 
-    if (event.logicalKey == LogicalKey.arrowUp) {
-      final newIndex = (component.selectedIndex - 1).clamp(
-        0,
-        component.devices.length - 1,
+  void _handleArrowUp() {
+    final newIndex = (component.selectedIndex - 1).clamp(
+      0,
+      component.devices.length - 1,
+    );
+    component.onSelectionChanged?.call(newIndex);
+    final scrollTarget = (newIndex - component.scrollBufferItems).clamp(
+      0,
+      component.devices.length - 1,
+    );
+    _scrollController.ensureIndexVisible(index: scrollTarget);
+  }
+
+  void _handleArrowDown() {
+    final newIndex = (component.selectedIndex + 1).clamp(
+      0,
+      component.devices.length - 1,
+    );
+    component.onSelectionChanged?.call(newIndex);
+    final scrollTarget = (newIndex + component.scrollBufferItems).clamp(
+      0,
+      component.devices.length - 1,
+    );
+    _scrollController.ensureIndexVisible(index: scrollTarget);
+  }
+
+  void _handleEnter() {
+    if (component.selectedIndex < component.devices.length) {
+      component.onDeviceLaunch?.call(
+        component.devices[component.selectedIndex],
       );
-      component.onSelectionChanged?.call(newIndex);
-      return true;
     }
+  }
 
-    if (event.logicalKey == LogicalKey.arrowDown) {
-      final newIndex = (component.selectedIndex + 1).clamp(
-        0,
-        component.devices.length - 1,
+  void _handleSpace() {
+    if (component.selectedIndex < component.devices.length) {
+      component.onDeviceShowOptions?.call(
+        component.devices[component.selectedIndex],
       );
-      component.onSelectionChanged?.call(newIndex);
-      return true;
     }
-
-    if (event.logicalKey == LogicalKey.enter) {
-      if (component.selectedIndex < component.devices.length) {
-        component.onDeviceLaunch?.call(
-          component.devices[component.selectedIndex],
-        );
-      }
-      return true;
-    }
-
-    if (event.logicalKey == LogicalKey.space) {
-      if (component.selectedIndex < component.devices.length) {
-        component.onDeviceShowOptions?.call(
-          component.devices[component.selectedIndex],
-        );
-      }
-      return true;
-    }
-
-    return false;
   }
 }
 
@@ -135,7 +167,10 @@ class _DeviceRow extends StatelessComponent {
           child: Text(device.name, style: isSelected ? st.selected : st.body),
         ),
         Text('${device.platform} ', style: st.muted),
-        Text('${device.state.label} ', style: stateStyle),
+        if (device.type == DeviceType.simulator)
+          Text('${device.state.label} ', style: stateStyle)
+        else
+          Text('Physical', style: st.muted),
       ],
     );
   }

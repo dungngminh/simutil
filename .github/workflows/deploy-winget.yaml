@@ -1,8 +1,8 @@
 name: Deploy to WinGet
 
 on:
-  release:
-    types: [released]
+  # release:
+  #   types: [released]
   workflow_call:
   workflow_dispatch:
 

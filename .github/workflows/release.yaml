@@ -103,12 +103,6 @@ jobs:
             artifacts/*.zip
             artifacts/checksums.txt
 
-  # deploy-pub-dev:
-  #   name: Deploy to pub.dev
-  #   needs: release
-  #   uses: ./.github/workflows/deploy-pub-dev.yaml
-  #   secrets: inherit
-
   # deploy-homebrew:
   #   name: Deploy to Homebrew
   #   needs: release

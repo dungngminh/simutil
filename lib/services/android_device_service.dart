@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:simutil/models/device.dart';
 import 'package:simutil/models/device_state.dart';
 import 'package:simutil/models/device_type.dart';
-import 'package:simutil/models/os.dart';
+import 'package:simutil/models/device_os.dart';
 import 'package:simutil/services/command_exec.dart';
 import 'package:simutil/services/device_service.dart';
 
@@ -56,7 +56,7 @@ class AndroidDeviceService implements DeviceService {
         return Device(
           id: name,
           name: name,
-          os: Os.android,
+          os: DeviceOs.android,
           type: DeviceType.simulator,
           platform: 'Android',
           state: runningMap.containsKey(name)
@@ -242,28 +242,39 @@ class AndroidDeviceService implements DeviceService {
   @override
   Future<List<Device>> getPhysicalDevices() async {
     try {
-      final result = await _exec.run(adbPath, arguments: ['devices']);
+      final result = await _exec.run(adbPath, arguments: ['devices', '-l']);
       if (!result.success) return [];
 
-      final devices = result.stdout
+      final stdout = result.stdout;
+
+      final rawDevices = stdout
           .split('\n')
           .skip(1)
           .map((l) => l.trim())
-          .where((l) => l.isNotEmpty && l.contains('device'))
-          .map((l) => l.split('\t').first)
-          .where((s) => !s.startsWith('emulator-'))
-          .toList();
+          .where((l) => l.isNotEmpty && !l.startsWith('emulator-'));
 
-      return devices.map((serial) {
-        return Device(
-          id: serial,
-          name: serial,
-          os: Os.android,
-          type: DeviceType.physical,
-          platform: 'Android',
-          state: DeviceState.booted,
-        );
-      }).toList();
+      return rawDevices
+          .map((line) {
+            final parts = line.split(RegExp(r'\s+'));
+            final id = parts.isNotEmpty ? parts.first : '';
+
+            var name = id;
+            for (final part in parts) {
+              if (part.startsWith('model:')) {
+                name = part.substring(6).replaceAll('_', ' ');
+                break;
+              }
+            }
+
+            return Device.android(
+              id: id,
+              name: name,
+              type: DeviceType.physical,
+              state: DeviceState.booted,
+            );
+          })
+          .where((d) => d.id.isNotEmpty)
+          .toList();
     } catch (e) {
       return [];
     }

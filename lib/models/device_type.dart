@@ -1,5 +1,9 @@
 enum DeviceType {
   physical,
   
-  simulator,
+  simulator;
+
+  bool get isPhysical => this == DeviceType.physical;
+  
+  bool get isSimulator => this == DeviceType.simulator;
 }

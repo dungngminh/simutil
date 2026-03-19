@@ -1,6 +1,6 @@
 import 'package:simutil/models/device_state.dart';
 import 'package:simutil/models/device_type.dart';
-import 'package:simutil/models/os.dart';
+import 'package:simutil/models/device_os.dart';
 
 class Device {
   const Device({
@@ -12,11 +12,44 @@ class Device {
     required this.type,
   });
 
+  factory Device.android({
+    required String id,
+    required String name,
+    required DeviceState state,
+    required DeviceType type,
+  }) {
+    return Device(
+      id: id,
+      name: name,
+      platform: 'Android',
+      os: DeviceOs.android,
+      state: state,
+      type: type,
+    );
+  }
+
+  factory Device.ios({
+    required String id,
+    required String name,
+    String? platform,
+    required DeviceState state,
+    required DeviceType type,
+  }) {
+    return Device(
+      id: id,
+      name: name,
+      platform: platform ?? 'iOS',
+      os: DeviceOs.ios,
+      state: state,
+      type: type,
+    );
+  }
+
   factory Device.fromJson(Map<String, dynamic> json) {
     return Device(
       id: json['id'] as String,
       name: json['name'] as String,
-      os: Os.values.byName(json['type'] as String),
+      os: DeviceOs.values.byName(json['type'] as String),
       platform: json['platform'] as String? ?? '',
       state: DeviceState.fromString(json['state'] as String? ?? 'Shutdown'),
       type: DeviceType.values.byName(json['type'] as String),
@@ -27,7 +60,7 @@ class Device {
 
   final String name;
 
-  final Os os;
+  final DeviceOs os;
 
   final String platform;
 
@@ -40,7 +73,7 @@ class Device {
   Device copyWith({
     String? id,
     String? name,
-    Os? os,
+    DeviceOs? os,
     String? platform,
     DeviceState? state,
     DeviceType? type,
@@ -59,9 +92,10 @@ class Device {
     return {
       'id': id,
       'name': name,
-      'type': os.name,
+      'os': os.name,
       'platform': platform,
       'state': state.label,
+      'type': type.name,
     };
   }
 

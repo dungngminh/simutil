@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:simutil/models/device.dart';
 import 'package:simutil/models/device_state.dart';
 import 'package:simutil/models/device_type.dart';
-import 'package:simutil/models/os.dart';
 import 'package:simutil/services/command_exec.dart';
 import 'package:simutil/services/device_service.dart';
 
@@ -54,14 +53,13 @@ class IOSDeviceService implements DeviceService {
           final map = d as Map<String, dynamic>;
           if (map['isAvailable'] == true) {
             devices.add(
-              Device(
+              Device.ios(
                 id: map['udid'] as String,
                 name: map['name'] as String,
-                os: Os.ios,
-                type: DeviceType.simulator,
                 platform: platformName,
+                type: DeviceType.simulator,
                 state: DeviceState.fromString(
-                  map['state'] as String? ?? 'Shutdown',
+                  map['state'] as String? ?? DeviceState.shutdown.label,
                 ),
               ),
             );
