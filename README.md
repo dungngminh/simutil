@@ -14,7 +14,7 @@ Browse your available emulators and simulators side-by-side, launch with custom 
 
 Simutil is written with [Nocterm](https://nocterm.dev/), a terminal UI framework for Dart with similar syntax to Flutter.
 
-<video src="https://github.com/user-attachments/assets/abc83a10-6553-41e8-90e7-47a936f9485e" autoplay loop muted playsinline></video>
+![Simutil Showcase](art/showcase.png)
 
 ## Features
 

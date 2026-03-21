@@ -226,7 +226,7 @@ class _SimutilAppState extends State<SimutilApp> {
   String _buildIdleStatusMessageForAndroidEmulators() {
     final parts = <String>[
       'Launch: <enter>',
-      'Options: <space>',
+      'Launch with option: <space>',
       'ADB Tools: n',
       'Refresh: r',
       'Switch: <tab>',
