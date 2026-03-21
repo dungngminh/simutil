@@ -134,10 +134,6 @@ class _SimutilAppState extends State<SimutilApp> {
         }),
       ]);
 
-      final hasAndroidDevices = _androidDevices.isNotEmpty;
-      final hasIosDevices = _iosSimulators.isNotEmpty;
-      final hasPhysicalDevices = hasIosDevices || hasAndroidDevices;
-
       setState(() {
         _androidDevices = results[0];
         _androidEmulators = results[1];
@@ -168,19 +164,29 @@ class _SimutilAppState extends State<SimutilApp> {
         _statusMessage = _buildIdleStatusMessage();
 
         // By default always keep focus on simulators / emulator list
-        final isFocusingOnPhysicalDevicesPanel =
-            _focusKey == 'android' || _focusKey == 'ios';
-        if (isFocusingOnPhysicalDevicesPanel && !hasPhysicalDevices) {
+        final hasAndroidDevices = _androidDevices.isNotEmpty;
+        final hasIosDevices = _iosSimulators.isNotEmpty;
+
+        final isFocusingOnEmptyAndroidDevicesPanel =
+            _focusKey == 'android' && !hasAndroidDevices;
+        final isFocusingOnEmptyIosDevicesPanel =
+            _focusKey == 'ios' && !hasIosDevices;
+
+        final isFocusingOnEmptyPhysicalDevicesPanel =
+            isFocusingOnEmptyAndroidDevicesPanel ||
+            isFocusingOnEmptyIosDevicesPanel;
+
+        if (isFocusingOnEmptyPhysicalDevicesPanel) {
           _focusKey = 'android-emulators';
           _statusMessage = _buildIdleStatusMessage();
         }
+        focusPanelScopes = [
+          if (hasAndroidDevices) 'android',
+          'android-emulators',
+          if (hasIosDevices) 'ios',
+          'ios-simulators',
+        ];
       });
-      focusPanelScopes = [
-        if (hasAndroidDevices) 'android',
-        'android-emulators',
-        if (hasIosDevices) 'ios',
-        'ios-simulators',
-      ];
     } finally {
       _isRefreshing = false;
     }
