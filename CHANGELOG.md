@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add iOS devices discovery.
+- Add `SelectionArea` in Detail panel to allow user to select.
+
 ### Changed
 
-- ADB tools can be accessed from any panel
+- ADB tools can be accessed from any panel.
+- Replace Android emulator id with serial id when device is launching.
 
 ## [0.1.0] - 2026-03-20
 

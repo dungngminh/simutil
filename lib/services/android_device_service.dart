@@ -2,9 +2,9 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:simutil/models/device.dart';
+import 'package:simutil/models/device_os.dart';
 import 'package:simutil/models/device_state.dart';
 import 'package:simutil/models/device_type.dart';
-import 'package:simutil/models/device_os.dart';
 import 'package:simutil/services/command_exec.dart';
 import 'package:simutil/services/device_service.dart';
 
@@ -54,7 +54,7 @@ class AndroidDeviceService implements DeviceService {
 
       return avdNames.map((name) {
         return Device(
-          id: name,
+          id: runningMap[name] ?? name,
           name: name,
           os: DeviceOs.android,
           type: DeviceType.simulator,

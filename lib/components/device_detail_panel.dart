@@ -22,15 +22,17 @@ class DeviceDetailPanel extends StatelessComponent {
   }
 
   Component _buildInfo(SimutilTheme st, Device device) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _row(st, label: 'Name', value: device.name),
-        _row(st, label: 'ID', value: device.id),
-        _row(st, label: 'Platform', value: device.platform),
-        _row(st, label: 'Type', value: device.os.label),
-        _row(st, label: 'State', value: device.state.label),
-      ],
+    return SelectionArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _row(st, label: 'Name', value: device.name),
+          _row(st, label: 'ID', value: device.id),
+          _row(st, label: 'Platform', value: device.platform),
+          _row(st, label: 'Type', value: device.os.label),
+          _row(st, label: 'State', value: device.state.label),
+        ],
+      ),
     );
   }
 

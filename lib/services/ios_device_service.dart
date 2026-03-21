@@ -125,10 +125,60 @@ class IOSDeviceService implements DeviceService {
           (m) => '${m[1]} ${m[2]?.replaceAll(' ', '.')}',
         );
   }
-  
+
   @override
-  Future<List<Device>> getPhysicalDevices() {
-    // TODO: implement getPhysicalDevices
-    throw UnimplementedError();
+  Future<List<Device>> getPhysicalDevices() async {
+    if (!Platform.isMacOS) return [];
+
+    final tempDirectory = Directory.systemTemp;
+    final outputFile = File('${tempDirectory.path}/ios_devices.json');
+
+    try {
+      final devicectl = await _exec.run(
+        'xcrun',
+        arguments: ['devicectl', 'list', 'devices', '-j', outputFile.path],
+      );
+
+      if (!devicectl.success) return [];
+
+      final json =
+          jsonDecode(await outputFile.readAsString()) as Map<String, dynamic>;
+
+      return _parsePhysicalDevices(json);
+    } catch (e, st) {
+      log('IOSDeviceService.getPhysicalDevices error: $e\n$st');
+      return [];
+    } finally {
+      if (outputFile.existsSync()) {
+        outputFile.deleteSync();
+      }
+    }
+  }
+
+  List<Device> _parsePhysicalDevices(Map<String, dynamic> json) {
+    final result = json['result'] as Map<String, dynamic>? ?? {};
+    final deviceList = result['devices'] as List<dynamic>? ?? [];
+
+    final devices = <Device>[];
+
+    for (final d in deviceList) {
+      final map = d as Map<String, dynamic>;
+      final deviceProps =
+          map['deviceProperties'] as Map<String, dynamic>? ?? {};
+      final identifier = map['identifier'] as String? ?? '';
+      final name = deviceProps['name'] as String? ?? '';
+      final osVersion = deviceProps['osVersionNumber'] as String? ?? '';
+      devices.add(
+        Device.ios(
+          id: identifier,
+          name: name,
+          platform: 'iOS $osVersion',
+          type: DeviceType.physical,
+          state: DeviceState.booted,
+        ),
+      );
+    }
+
+    return devices;
   }
 }
