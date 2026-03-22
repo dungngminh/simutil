@@ -203,8 +203,10 @@ class _SimutilAppState extends State<SimutilApp> {
   }
 
   String _buildIdleStatusMessageForIosSimulators() {
+    final device = _iosSimulators[_iosSimulatorSelectedIndex];
     final parts = <String>[
-      'Launch: <enter> or <space>',
+      'Launch: <space> or <enter>',
+      if (device.isRunning) 'Shutdown: t',
       'ADB Tools: n',
       'Refresh: r',
       'Switch: <tab>',
@@ -224,9 +226,11 @@ class _SimutilAppState extends State<SimutilApp> {
   }
 
   String _buildIdleStatusMessageForAndroidEmulators() {
+    final device = _androidEmulators[_androidEmulatorSelectedIndex];
     final parts = <String>[
-      'Launch: <enter>',
-      'Launch with option: <space>',
+      'Launch: <space>',
+      'Launch with option: <enter>',
+      if (device.isRunning) 'Shutdown: t',
       'ADB Tools: n',
       'Refresh: r',
       'Switch: <tab>',
@@ -455,6 +459,25 @@ class _SimutilAppState extends State<SimutilApp> {
     }
   }
 
+  Future<void> _onDeviceShutdownRequested(Device device) async {
+    try {
+      if (device.type.isPhysical || !device.isRunning) return;
+      setState(() => _statusMessage = 'Shutting down ${device.name}…');
+      if (device.os == DeviceOs.android) {
+        await _di.adbService.shutdownSimulator(deviceId: device.id);
+      } else {
+        await _di.simctlService.shutdownSimulator(deviceId: device.id);
+      }
+      setState(() => _statusMessage = '${device.name} shut down!');
+      Future.delayed(
+        kReloadAfterActionInterval,
+        () => _refreshDevices(silent: true),
+      );
+    } catch (e) {
+      setState(() => _statusMessage = 'Failed to shut down ${device.name}: $e');
+    }
+  }
+
   @override
   Component build(BuildContext context) {
     return TuiTheme(data: _themeData, child: _buildShell(context));
@@ -508,9 +531,10 @@ class _SimutilAppState extends State<SimutilApp> {
         isLoading: _loadingAndroidDevices,
         selectedIndex: _androidDeviceSelectedIndex,
         emptyMessage: 'No Android devices found',
-        onSelectionChanged: (i) =>
-            setState(() => _androidDeviceSelectedIndex = i),
-        onDeviceLaunch: null,
+        onSelectionChanged: (i) => setState(() {
+          _androidDeviceSelectedIndex = i;
+        }),
+        onDeviceLaunchRequested: null,
         onDeviceShowOptions: null,
       ),
     );
@@ -528,10 +552,13 @@ class _SimutilAppState extends State<SimutilApp> {
         focused: focused,
         isLoading: _loadingAndroidEmulators,
         selectedIndex: _androidEmulatorSelectedIndex,
+        onDeviceShutdownRequested: _onDeviceShutdownRequested,
         emptyMessage: 'No Android emulators found',
-        onSelectionChanged: (i) =>
-            setState(() => _androidEmulatorSelectedIndex = i),
-        onDeviceLaunch: _onDeviceDefaultLaunch,
+        onSelectionChanged: (i) => setState(() {
+          _androidEmulatorSelectedIndex = i;
+          _statusMessage = _buildIdleStatusMessage();
+        }),
+        onDeviceLaunchRequested: _onDeviceDefaultLaunch,
         onDeviceShowOptions: _onDeviceShowOptions,
       ),
     );
@@ -566,10 +593,13 @@ class _SimutilAppState extends State<SimutilApp> {
         selectedIndex: _iosSimulatorSelectedIndex,
         loadingMessage: 'Loading devices...\nFirst load may take a while',
         emptyMessage: 'No iOS simulators found',
-        onSelectionChanged: (i) =>
-            setState(() => _iosSimulatorSelectedIndex = i),
-        onDeviceLaunch: _onDeviceDefaultLaunch,
+        onSelectionChanged: (i) => setState(() {
+          _iosSimulatorSelectedIndex = i;
+          _statusMessage = _buildIdleStatusMessage();
+        }),
+        onDeviceLaunchRequested: _onDeviceDefaultLaunch,
         onDeviceShowOptions: _onDeviceShowOptions,
+        onDeviceShutdownRequested: _onDeviceShutdownRequested,
       ),
     );
   }
@@ -588,7 +618,7 @@ class _SimutilAppState extends State<SimutilApp> {
         selectedIndex: _iosDeviceSelectedInded,
         emptyMessage: 'No iOS devices found',
         onSelectionChanged: (i) => setState(() => _iosDeviceSelectedInded = i),
-        onDeviceLaunch: _onDeviceDefaultLaunch,
+        onDeviceLaunchRequested: _onDeviceDefaultLaunch,
         onDeviceShowOptions: _onDeviceShowOptions,
       ),
     );

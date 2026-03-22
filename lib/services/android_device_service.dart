@@ -9,7 +9,8 @@ import 'package:simutil/services/command_exec.dart';
 import 'package:simutil/services/device_service.dart';
 
 class AndroidDeviceService implements DeviceService {
-  AndroidDeviceService(this._exec);
+  const AndroidDeviceService(this._exec);
+
   final CommandExec _exec;
 
   String getAndroidHome() {
@@ -277,6 +278,19 @@ class AndroidDeviceService implements DeviceService {
           .toList();
     } catch (e) {
       return [];
+    }
+  }
+
+  @override
+  Future<bool> shutdownSimulator({required String deviceId}) async {
+    try {
+      final result = await _exec.run(
+        adbPath,
+        arguments: ['-s', deviceId, 'emu', 'kill'],
+      );
+      return result.success;
+    } catch (e) {
+      return false;
     }
   }
 }

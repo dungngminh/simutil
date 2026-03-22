@@ -12,8 +12,9 @@ class DeviceListComponent extends StatefulComponent {
     this.selectedIndex = 0,
     this.scrollBufferItems = 2,
     this.onSelectionChanged,
-    this.onDeviceLaunch,
+    this.onDeviceLaunchRequested,
     this.onDeviceShowOptions,
+    this.onDeviceShutdownRequested,
     this.isLoading = false,
     this.loadingMessage = 'Loading devices...',
     this.emptyMessage = 'No devices found',
@@ -23,9 +24,10 @@ class DeviceListComponent extends StatefulComponent {
   final bool focused;
   final int selectedIndex;
   final int scrollBufferItems;
-  final ValueChanged<int>? onSelectionChanged;
-  final ValueChanged<Device>? onDeviceLaunch;
-  final ValueChanged<Device>? onDeviceShowOptions;
+  final void Function(int)? onSelectionChanged;
+  final void Function(Device)? onDeviceLaunchRequested;
+  final void Function(Device)? onDeviceShowOptions;
+  final void Function(Device)? onDeviceShutdownRequested;
   final bool isLoading;
   final String loadingMessage;
   final String emptyMessage;
@@ -101,6 +103,9 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
       case LogicalKey.space:
         _handleSpace();
         return true;
+      case LogicalKey.keyT:
+        _handleShutdown();
+        return true;
       default:
         return false;
     }
@@ -134,7 +139,7 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
 
   void _handleEnter() {
     if (component.selectedIndex < component.devices.length) {
-      component.onDeviceLaunch?.call(
+      component.onDeviceShowOptions?.call(
         component.devices[component.selectedIndex],
       );
     }
@@ -142,7 +147,15 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
 
   void _handleSpace() {
     if (component.selectedIndex < component.devices.length) {
-      component.onDeviceShowOptions?.call(
+      component.onDeviceLaunchRequested?.call(
+        component.devices[component.selectedIndex],
+      );
+    }
+  }
+
+  void _handleShutdown() {
+    if (component.selectedIndex < component.devices.length) {
+      component.onDeviceShutdownRequested?.call(
         component.devices[component.selectedIndex],
       );
     }

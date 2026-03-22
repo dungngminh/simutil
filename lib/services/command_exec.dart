@@ -24,6 +24,7 @@ abstract class CommandExec {
 }
 
 class CommandExecImpl implements CommandExec {
+  
   @override
   Future<CommandResult> run(
     String command, {
@@ -44,7 +45,8 @@ class CommandExecImpl implements CommandExec {
 }
 
 class IsolateCommandExec implements CommandExec {
-  IsolateCommandExec(this._runner);
+  const IsolateCommandExec(this._runner);
+
   final IsolateRunner _runner;
 
   @override

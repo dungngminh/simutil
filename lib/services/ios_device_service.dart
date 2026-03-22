@@ -9,7 +9,8 @@ import 'package:simutil/services/command_exec.dart';
 import 'package:simutil/services/device_service.dart';
 
 class IOSDeviceService implements DeviceService {
-  IOSDeviceService(this._exec);
+  const IOSDeviceService(this._exec);
+
   final CommandExec _exec;
 
   @override
@@ -102,11 +103,12 @@ class IOSDeviceService implements DeviceService {
     );
   }
 
-  Future<bool> shutdownSimulator(String udid) async {
+  @override
+  Future<bool> shutdownSimulator({required String deviceId}) async {
     try {
       final result = await _exec.run(
         'xcrun',
-        arguments: ['simctl', 'shutdown', udid],
+        arguments: ['simctl', 'shutdown', deviceId],
       );
       return result.success;
     } catch (_) {

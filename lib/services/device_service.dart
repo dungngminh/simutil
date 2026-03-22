@@ -11,4 +11,6 @@ abstract class DeviceService {
     required String deviceId,
     List<String> additionalArgs = const [],
   });
+
+  Future<bool> shutdownSimulator({required String deviceId});
 }
