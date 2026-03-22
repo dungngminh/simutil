@@ -1,0 +1,26 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+  categories:
+    - title: Features ✨
+      labels:
+        - feature
+    - title: Enhancements 🔥
+      labels:
+        - enhancement
+    - title: Fixes 🔧
+      labels:
+        - bug
+    - title: Docs 📖
+      labels:
+        - docs
+    - title: CI/CD ⚙️
+      labels:
+        - ci/cd
+    - title: Performance Improvements 📊
+      labels:
+        - performance
+    - title: Other Changes
+      labels:
+        - "*"
