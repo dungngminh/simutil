@@ -1,6 +1,6 @@
 name: simutil
 description: TUI application for launching Android Simulators / iOS Simulators and more ...
-version: 0.3.0
+version: 0.3.1
 repository: https://github.com/dungngminh/simutil
 
 environment:

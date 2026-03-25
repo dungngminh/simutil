@@ -19,7 +19,7 @@ jobs:
           - os: ubuntu-latest
             target: linux-x64
             artifact: simutil-linux-x64
-          - os: macos-latest
+          - os: macos-15-intel
             target: macos-x64
             artifact: simutil-macos-x64
           - os: macos-14
