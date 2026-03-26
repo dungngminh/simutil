@@ -6,6 +6,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/github/stars/dungngminh/simutil" alt="GitHub Repo stars" />
   <a href="https://github.com/dungngminh/simutil/actions/workflows/ci.yaml"><img src="https://github.com/dungngminh/simutil/actions/workflows/ci.yaml/badge.svg" alt="Build" /></a>
   <a href="https://github.com/dungngminh/simutil/releases/latest"><img src="https://img.shields.io/github/v/release/dungngminh/simutil" alt="GitHub release" /></a>
 </p>
