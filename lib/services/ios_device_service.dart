@@ -173,11 +173,11 @@ class IOSDeviceService implements DeviceService {
       final name = deviceProps['name'] as String? ?? '';
       final osVersion = deviceProps['osVersionNumber'] as String? ?? '';
       final tunnelState = connectionProps['tunnelState'] as String?;
-      final booted = ![
+      final isConnected = ![
         'unavailable',
         'disconnected',
       ].contains(tunnelState);
-      if (!booted) continue;
+      if (!isConnected) continue;
       devices.add(
         Device.ios(
           id: identifier,
