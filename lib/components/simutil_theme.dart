@@ -29,6 +29,14 @@ class SimutilTheme {
 
   TextStyle get selected => const TextStyle(reverse: true);
 
+  /// Text style for dialog body content — uses explicit [onBackground] color
+  /// so text is legible against the dialog's dark [background] fill.
+  TextStyle get dialogBody => TextStyle(color: onBackground);
+
+  /// Text style for dialog hint/footer text — uses [outline] color for
+  /// a subtler appearance while remaining readable in dialogs.
+  TextStyle get dialogHint => TextStyle(color: outline);
+
   TextStyle get label => TextStyle(color: primary);
 
   TextStyle get sectionHeader =>

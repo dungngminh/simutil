@@ -103,16 +103,16 @@ class _WirelessPairingDialogState extends State<WirelessPairingDialog> {
                 Text(' Steps to pair:', style: st.label),
                 Text(
                   '  1. On your Android device, go to Developer Options',
-                  style: st.dimmed,
+                  style: st.dialogHint,
                 ),
-                Text('  2. Enable "Wireless debugging"', style: st.dimmed),
+                Text('  2. Enable "Wireless debugging"', style: st.dialogHint),
                 Text(
                   '  3. Tap "Pair device with pairing code"',
-                  style: st.dimmed,
+                  style: st.dialogHint,
                 ),
                 Text(
                   '  4. Enter the IP:Port and 6-digit pairing code below',
-                  style: st.dimmed,
+                  style: st.dialogHint,
                 ),
                 Divider(),
                 _buildInputField(
@@ -133,7 +133,7 @@ class _WirelessPairingDialogState extends State<WirelessPairingDialog> {
                 Divider(),
                 Text(
                   ' Switch field: <tab> | Pair: <enter> | Cancel: <esc>',
-                  style: st.dimmed,
+                  style: st.dialogHint,
                 ),
               ],
             ),
@@ -156,7 +156,7 @@ class _WirelessPairingDialogState extends State<WirelessPairingDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(' $label:', style: isFocused ? st.label : st.body),
+        Text(' $label:', style: isFocused ? st.label : st.dialogBody),
         Row(
           children: [
             Text('  ', style: st.body),
@@ -165,8 +165,8 @@ class _WirelessPairingDialogState extends State<WirelessPairingDialog> {
                 controller: controller,
                 focused: isFocused,
                 placeholder: placeholder,
-                placeholderStyle: st.dimmed,
-                style: st.body,
+                placeholderStyle: st.dialogHint,
+                style: st.dialogBody,
                 onSubmitted: (_) => _trySubmit(),
                 decoration: InputDecoration(
                   border: BoxBorder.all(

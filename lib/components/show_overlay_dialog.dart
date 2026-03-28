@@ -9,6 +9,10 @@ typedef OverlayDialogBuilder<T> =
       OverlayEntry? entry,
     );
 
+/// Shows an overlay dialog with a dimmed modal barrier backdrop.
+///
+/// The [FadeModalBarrier] ensures the background content is dimmed,
+/// making the dialog clearly visible even on maximized terminal windows.
 Future<T?> showOverlayDialog<T>({
   required BuildContext context,
   required OverlayDialogBuilder<T> builder,
@@ -19,7 +23,18 @@ Future<T?> showOverlayDialog<T>({
   entry = OverlayEntry(
     opaque: false,
     builder: (context) {
-      return builder(context, completer, entry);
+      return Stack(
+        children: [
+          // Dimmed backdrop to occlude underlying content
+          FadeModalBarrier(
+            color: Colors.black.withOpacity(0.6),
+            dismissible: false,
+            duration: const Duration(milliseconds: 100),
+          ),
+          // Actual dialog content rendered on top
+          builder(context, completer, entry),
+        ],
+      );
     },
   );
 

@@ -77,10 +77,10 @@ class _InputDialogState extends State<InputDialog> {
                 _buildInputField(st),
                 if (component.hint.isNotEmpty) ...[
                   SizedBox(height: 1),
-                  Text(' ${component.hint}', style: st.dimmed),
+                  Text(' ${component.hint}', style: st.dialogHint),
                 ],
                 Divider(),
-                Text(' Submit: <enter> | Cancel: <esc>', style: st.dimmed),
+                Text(' Submit: <enter> | Cancel: <esc>', style: st.dialogHint),
               ],
             ),
           ),
