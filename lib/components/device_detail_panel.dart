@@ -10,7 +10,7 @@ class DeviceDetailPanel extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    final st = SimutilTheme.of(context);
+    final st = context.simutilTheme;
 
     return Container(
       decoration: focused

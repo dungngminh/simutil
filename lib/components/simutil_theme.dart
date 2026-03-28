@@ -10,15 +10,25 @@ class SimutilTheme {
   TuiThemeData get data => _theme;
 
   Color get primary => _theme.primary;
+  
   Color get secondary => _theme.secondary;
+  
   Color get surface => _theme.surface;
+  
   Color get background => _theme.background;
+  
   Color get error => _theme.error;
+  
   Color get success => _theme.success;
+  
   Color get warning => _theme.warning;
+  
   Color get outline => _theme.outline;
+  
   Color get outlineVariant => _theme.outlineVariant;
+  
   Color get onSurface => _theme.onSurface;
+  
   Color get onBackground => _theme.onBackground;
 
   TextStyle get body => const TextStyle();
@@ -45,22 +55,24 @@ class SimutilTheme {
   TextStyle get statusRunning => TextStyle(color: success);
 
   TextStyle get statusStopped =>
-      TextStyle(color: outlineVariant, fontWeight: FontWeight.dim);
+      TextStyle(color: outline, fontWeight: FontWeight.dim);
 
   BoxDecoration focusedPanel(String title) => BoxDecoration(
     border: BoxBorder.all(style: BoxBorderStyle.rounded, color: primary),
     title: BorderTitle(text: title),
+    color: Color.defaultColor
   );
 
   BoxDecoration unfocusedPanel(String title) => BoxDecoration(
     border: BoxBorder.all(style: BoxBorderStyle.rounded, color: outline),
     title: BorderTitle(text: title),
+    color: Color.defaultColor
   );
 
   BoxDecoration dialogPanel(String title) => BoxDecoration(
-    border: BoxBorder.all(style: BoxBorderStyle.rounded, color: success),
+    border: BoxBorder.all(style: BoxBorderStyle.rounded, color: primary),
     title: BorderTitle(text: title),
-    color: background,
+    color: Color.defaultColor
   );
 
   static TuiThemeData resolveTheme(String name) {

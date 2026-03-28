@@ -17,7 +17,7 @@ class QrConnectDialog extends StatefulComponent {
 class _QrConnectDialogState extends State<QrConnectDialog> {
   @override
   Component build(BuildContext context) {
-    final st = SimutilTheme.of(context);
+    final st = context.simutilTheme;
     return Center(
       child: Container(
         width: 100,

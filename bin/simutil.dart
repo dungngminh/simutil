@@ -4,7 +4,7 @@ import 'package:simutil/simutil_app.dart';
 
 void main(List<String> arguments) {
   if (arguments.isEmpty) {
-    runApp(Navigator(home: SimutilApp()));
+    runApp(Navigator(home: const SimutilApp()));
   } else {
     SimutilCommandRunner().run(arguments);
   }

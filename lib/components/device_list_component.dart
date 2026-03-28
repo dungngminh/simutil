@@ -47,7 +47,7 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
 
   @override
   Component build(BuildContext context) {
-    final st = SimutilTheme.of(context);
+    final st = context.simutilTheme;
 
     if (component.isLoading) {
       return Center(
@@ -169,7 +169,7 @@ class _DeviceRow extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    final st = SimutilTheme.of(context);
+    final st = context.simutilTheme;
     final stateIcon = device.isRunning ? SimutilIcons.on : SimutilIcons.off;
     final stateStyle = device.isRunning ? st.statusRunning : st.statusStopped;
     return Row(
@@ -179,7 +179,7 @@ class _DeviceRow extends StatelessComponent {
         Expanded(
           child: Text(device.name, style: isSelected ? st.selected : st.body),
         ),
-        Text('${device.platform} ', style: st.muted),
+        Text('${device.platform} ', style: st.dimmed),
         if (device.type == DeviceType.simulator)
           Text('${device.state.label} ', style: stateStyle)
         else

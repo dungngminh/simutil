@@ -17,7 +17,7 @@ class ErrorDialog extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    final st = SimutilTheme.of(context);
+    final st = context.simutilTheme;
 
     return Center(
       child: Focusable(

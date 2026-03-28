@@ -45,10 +45,11 @@ class _AdbToolsDialogState extends State<AdbToolsDialog> {
 
   @override
   Component build(BuildContext context) {
-    final st = SimutilTheme.of(context);
+    final st = context.simutilTheme;
 
     return Center(
       child: Container(
+        color: st.background,
         margin: EdgeInsets.all(16),
         decoration: st.dialogPanel('ADB Tools'),
         child: Padding(

@@ -37,7 +37,7 @@ class _LaunchDialogState extends State<AndroidLaunchDialog> {
 
   @override
   Component build(BuildContext context) {
-    final st = SimutilTheme.of(context);
+    final st = context.simutilTheme;
     return Center(
       child: Container(
         margin: EdgeInsets.all(16),
