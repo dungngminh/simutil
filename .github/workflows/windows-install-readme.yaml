@@ -1,0 +1,40 @@
+# Tests the README binary install on Windows using Git Bash (same as curl | bash).
+# install.sh detects MINGW/MSYS, downloads simutil-windows-x64.zip from releases, and extracts to ~/.local/lib/simutil.
+
+name: Windows install (README)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: windows-install-readme-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-bash-install:
+    name: Install via bash (README) and verify
+    runs-on: windows-latest
+    steps:
+      - name: Install (curl install.sh | bash)
+        shell: bash
+        env:
+          INSTALL_SCRIPT_URL: ${{ github.event_name == 'pull_request' && format('https://raw.githubusercontent.com/{0}/{1}/install.sh', github.event.pull_request.head.repo.full_name, github.event.pull_request.head.sha) || format('https://raw.githubusercontent.com/{0}/{1}/install.sh', github.repository, github.sha) }}
+        run: curl -fsSL "$INSTALL_SCRIPT_URL" | bash
+
+      # install.sh does not modify PATH on Windows; users add ~/.local/lib/simutil manually.
+      # Mirror that so we exercise `simutil` as a normal command, not a path to the .exe.
+      - name: Verify simutil on PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/lib/simutil:$PATH"
+          if ! command -v simutil >/dev/null 2>&1; then
+            echo "simutil is not on PATH (expected after adding ~/.local/lib/simutil)"
+            ls -la "$HOME/.local/lib/simutil" || true
+            exit 1
+          fi
+          simutil version
