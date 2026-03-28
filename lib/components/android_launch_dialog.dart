@@ -58,7 +58,7 @@ class _LaunchDialogState extends State<AndroidLaunchDialog> {
                 Divider(),
                 Text(
                   ' Navigate: <↑/↓> | Launch: <enter> | Cancel: <esc>',
-                  style: st.dimmed,
+                  style: st.dialogHint,
                 ),
               ],
             ),
@@ -78,7 +78,10 @@ class _LaunchDialogState extends State<AndroidLaunchDialog> {
       children: [
         Text(isSelected ? ' ${SimutilIcons.pointer} ' : '   ', style: st.label),
         Expanded(
-          child: Text(option.label, style: isSelected ? st.selected : st.body),
+          child: Text(
+            option.label,
+            style: isSelected ? st.sectionHeader : st.dialogBody,
+          ),
         ),
       ],
     );

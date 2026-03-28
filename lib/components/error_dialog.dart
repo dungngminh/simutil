@@ -49,7 +49,7 @@ class ErrorDialog extends StatelessComponent {
                 Text(' $message', style: st.errorStyle),
                 SizedBox(height: 1),
                 Divider(),
-                Text(' Close: <enter> | <esc>', style: st.dimmed),
+                Text(' Close: <enter> | <esc>', style: st.dialogHint),
               ],
             ),
           ),

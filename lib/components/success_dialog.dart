@@ -50,7 +50,7 @@ class SuccessDialog extends StatelessComponent {
                 Text(' $message', style: st.successStyle),
                 SizedBox(height: 1),
                 Divider(),
-                Text(' Close: <enter> | <esc>', style: st.dimmed),
+                Text(' Close: <enter> | <esc>', style: st.dialogHint),
               ],
             ),
           ),

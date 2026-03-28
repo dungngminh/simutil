@@ -41,7 +41,7 @@ class _QrConnectDialogState extends State<QrConnectDialog> {
               children: [
                 _buildQrArt(),
                 Divider(),
-                Text(' Close: <enter> or <esc>', style: st.dimmed),
+                Text(' Close: <enter> or <esc>', style: st.dialogHint),
               ],
             ),
           ),

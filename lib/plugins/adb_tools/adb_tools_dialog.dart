@@ -66,7 +66,7 @@ class _AdbToolsDialogState extends State<AdbToolsDialog> {
                 Divider(),
                 Text(
                   ' Navigate: <↑/↓> | Select: <enter> | Cancel: <esc>',
-                  style: st.dimmed,
+                  style: st.dialogHint,
                 ),
               ],
             ),
@@ -91,7 +91,7 @@ class _AdbToolsDialogState extends State<AdbToolsDialog> {
             Text(option.label, style: isSelected ? st.selected : st.bold),
           ],
         ),
-        Text('   ${option.description}', style: st.dimmed),
+        Text('   ${option.description}', style: st.dialogHint),
         SizedBox(height: 1),
       ],
     );
