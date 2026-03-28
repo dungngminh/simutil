@@ -170,6 +170,11 @@ class IOSDeviceService implements DeviceService {
       final identifier = map['identifier'] as String? ?? '';
       final name = deviceProps['name'] as String? ?? '';
       final osVersion = deviceProps['osVersionNumber'] as String? ?? '';
+      final booted = ![
+        'unavailable',
+        'disconnected',
+      ].contains(map['connectionProperties']['tunnelState']);
+      if (!booted) continue;
       devices.add(
         Device.ios(
           id: identifier,

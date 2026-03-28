@@ -165,7 +165,7 @@ class _SimutilAppState extends State<SimutilApp> {
 
         // By default always keep focus on simulators / emulator list
         final hasAndroidDevices = _androidDevices.isNotEmpty;
-        final hasIosDevices = _iosSimulators.isNotEmpty;
+        final hasIosDevices = _iosDevices.isNotEmpty;
 
         final isFocusingOnEmptyAndroidDevicesPanel =
             _focusKey == 'android' && !hasAndroidDevices;
