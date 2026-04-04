@@ -55,7 +55,7 @@ class _LogcatDialogState extends State<LogcatDialog> {
       );
       _process = process;
       _subscription = process.stdout
-          .transform(systemEncoding.decoder)
+          .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen(_onNewLine);
     } catch (e) {

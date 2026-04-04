@@ -167,6 +167,7 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
   }
 
   void _handleLogcat() {
+    if (component.onDeviceLogcatRequested == null) return;
     if (component.selectedIndex < component.devices.length) {
       final device = component.devices[component.selectedIndex];
       if (device.isRunning) {
