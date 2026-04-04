@@ -70,6 +70,10 @@ class _LogcatDialogState extends State<LogcatDialog> {
       _lines.add(line);
       if (_lines.length > _maxLines) {
         _lines.removeAt(0);
+        // Compensate for the removed front item so the same content stays visible.
+        if (!_autoScroll && _scrollIndex > 0) {
+          _scrollIndex--;
+        }
       }
       if (_autoScroll) {
         _scrollIndex = _lines.length - 1;
@@ -77,6 +81,10 @@ class _LogcatDialogState extends State<LogcatDialog> {
     });
     if (_autoScroll) {
       _scrollController.ensureIndexVisible(index: _lines.length - 1);
+    } else {
+      // Anchor the viewport to the current position so new lines
+      // appended at the bottom do not cause the view to drift.
+      _scrollController.ensureIndexVisible(index: _scrollIndex);
     }
   }
 
