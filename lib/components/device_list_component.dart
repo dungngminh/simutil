@@ -15,6 +15,7 @@ class DeviceListComponent extends StatefulComponent {
     this.onDeviceLaunchRequested,
     this.onDeviceShowOptions,
     this.onDeviceShutdownRequested,
+    this.onDeviceLogcatRequested,
     this.isLoading = false,
     this.loadingMessage = 'Loading devices...',
     this.emptyMessage = 'No devices found',
@@ -28,6 +29,7 @@ class DeviceListComponent extends StatefulComponent {
   final void Function(Device)? onDeviceLaunchRequested;
   final void Function(Device)? onDeviceShowOptions;
   final void Function(Device)? onDeviceShutdownRequested;
+  final void Function(Device)? onDeviceLogcatRequested;
   final bool isLoading;
   final String loadingMessage;
   final String emptyMessage;
@@ -106,6 +108,9 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
       case LogicalKey.keyT:
         _handleShutdown();
         return true;
+      case LogicalKey.keyL:
+        _handleLogcat();
+        return true;
       default:
         return false;
     }
@@ -158,6 +163,16 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
       component.onDeviceShutdownRequested?.call(
         component.devices[component.selectedIndex],
       );
+    }
+  }
+
+  void _handleLogcat() {
+    if (component.onDeviceLogcatRequested == null) return;
+    if (component.selectedIndex < component.devices.length) {
+      final device = component.devices[component.selectedIndex];
+      if (device.isRunning) {
+        component.onDeviceLogcatRequested?.call(device);
+      }
     }
   }
 }

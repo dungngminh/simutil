@@ -19,6 +19,7 @@ import 'package:simutil/models/device_os.dart';
 import 'package:simutil/plugins/adb_tools/adb_tools_dialog.dart';
 import 'package:simutil/plugins/adb_tools/qr_connect_dialog.dart';
 import 'package:simutil/plugins/adb_tools/wireless_pairing_dialog.dart';
+import 'package:simutil/plugins/logcat/logcat_dialog.dart';
 import 'package:simutil/services/service_locator.dart';
 import 'package:simutil/utils/constant.dart';
 
@@ -231,6 +232,7 @@ class _SimutilAppState extends State<SimutilApp> {
       'Launch: <space>',
       'Launch with option: <enter>',
       if (device.isRunning) 'Shutdown: t',
+      if (device.isRunning) 'Logcat: l',
       'ADB Tools: n',
       'Refresh: r',
       'Switch: <tab>',
@@ -241,6 +243,7 @@ class _SimutilAppState extends State<SimutilApp> {
 
   String _buildIdleStatusMessageForAndroidDevices() {
     final parts = <String>[
+      'Logcat: l',
       'ADB Tools: n',
       'Refresh: r',
       'Switch: <tab>',
@@ -478,6 +481,14 @@ class _SimutilAppState extends State<SimutilApp> {
     }
   }
 
+  Future<void> _onDeviceLogcatRequested(Device device) async {
+    await showLogcatDialog(
+      context: context,
+      device: device,
+      adbPath: _di.adbService.adbPath,
+    );
+  }
+
   @override
   Component build(BuildContext context) {
     return TuiTheme(data: _themeData, child: _buildShell(context));
@@ -536,6 +547,7 @@ class _SimutilAppState extends State<SimutilApp> {
         }),
         onDeviceLaunchRequested: null,
         onDeviceShowOptions: null,
+        onDeviceLogcatRequested: _onDeviceLogcatRequested,
       ),
     );
   }
@@ -560,6 +572,7 @@ class _SimutilAppState extends State<SimutilApp> {
         }),
         onDeviceLaunchRequested: _onDeviceDefaultLaunch,
         onDeviceShowOptions: _onDeviceShowOptions,
+        onDeviceLogcatRequested: _onDeviceLogcatRequested,
       ),
     );
   }
