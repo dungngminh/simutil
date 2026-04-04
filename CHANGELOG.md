@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-05
+
+### Added
+
+- Add Logcat dialog for launching Android emulators / devices.
+
 ## [0.3.2] - 2026-03-28
 
 ### Fixed
