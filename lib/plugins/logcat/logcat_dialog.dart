@@ -45,7 +45,10 @@ bool _lineMatchesFilter(String line, String filter) {
 }
 
 // Detect the first absolute path in a log line.
-final _pathRe = RegExp(r'(/[^\s\x00-\x1f]+)');
+// The pattern matches an absolute path (starts with /) made up of characters
+// valid in Unix paths; trailing punctuation common in prose is excluded to
+// avoid accidentally capturing it as part of the path.
+final _pathRe = RegExp(r'(/[^\s\x00-\x1f\)\]\x22\x27,:;]+)');
 
 String? _firstPath(String line) => _pathRe.firstMatch(line)?.group(1);
 
@@ -192,12 +195,23 @@ class _LogcatDialogState extends State<LogcatDialog> {
 
   // ── path open ───────────────────────────────────────────────────────────────
 
+  void _openPath(String path) {
+    final opener = Platform.isMacOS ? 'open' : 'xdg-open';
+    Process.run(opener, [path]).then((result) {
+      if (result.exitCode != 0) {
+        setState(() {
+          _lines.add('[simutil] Could not open "$path": ${result.stderr}');
+          _rebuildFiltered();
+        });
+      }
+    });
+  }
+
   void _handleOpenPath() {
     if (_filteredLines.isEmpty || _scrollIndex >= _filteredLines.length) return;
     final path = _firstPath(_filteredLines[_scrollIndex]);
     if (path == null) return;
-    final opener = Platform.isMacOS ? 'open' : 'xdg-open';
-    Process.run(opener, [path]);
+    _openPath(path);
   }
 
   // ── styling ─────────────────────────────────────────────────────────────────
@@ -258,14 +272,47 @@ class _LogcatDialogState extends State<LogcatDialog> {
     return ListView.builder(
       controller: _scrollController,
       itemCount: _filteredLines.length,
-      itemBuilder: (context, index) {
-        final line = _filteredLines[index];
-        final isSelected = index == _scrollIndex;
-        return Text(
-          line,
-          style: isSelected ? st.selected : _lineStyle(line, st),
-        );
-      },
+      itemBuilder: (context, index) =>
+          _buildLogLine(_filteredLines[index], index, st),
+    );
+  }
+
+  /// Builds a single log line.  Lines that contain an absolute path are
+  /// rendered as rich text with the path underlined and styled as a link; the
+  /// entire line row is wrapped in a [GestureDetector] so that a click opens
+  /// the path (equivalent to Cmd+Click in GUI editors).
+  Component _buildLogLine(String line, int index, SimutilTheme st) {
+    final isSelected = index == _scrollIndex;
+    final match = _pathRe.firstMatch(line);
+
+    if (match == null) {
+      return Text(line, style: isSelected ? st.selected : _lineStyle(line, st));
+    }
+
+    final path = match.group(1)!;
+    final before = line.substring(0, match.start);
+    final after = line.substring(match.end);
+
+    final baseStyle = isSelected ? st.selected : _lineStyle(line, st);
+    final linkStyle = isSelected
+        ? st.selected.copyWith(decoration: TextDecoration.underline)
+        : TextStyle(
+            color: st.primary,
+            decoration: TextDecoration.underline,
+          );
+
+    return GestureDetector(
+      onTap: () => _openPath(path),
+      child: RichText(
+        text: TextSpan(
+          style: baseStyle,
+          children: [
+            if (before.isNotEmpty) TextSpan(text: before),
+            TextSpan(text: path, style: linkStyle),
+            if (after.isNotEmpty) TextSpan(text: after),
+          ],
+        ),
+      ),
     );
   }
 
@@ -301,7 +348,7 @@ class _LogcatDialogState extends State<LogcatDialog> {
 
   Component _buildHints(SimutilTheme st) => Text(
     ' <↑/↓> scroll | a auto-scroll [${_autoScroll ? "ON" : "OFF"}]'
-    ' | / filter | o open path | c clear | <esc> close',
+    ' | / filter | click path to open | o open selected path | c clear | <esc> close',
     style: st.dimmed,
   );
 
