@@ -353,68 +353,63 @@ class _SimutilAppState extends State<SimutilApp> {
   }
 
   Future<void> _handleWirelessPairing() async {
-    final input = await showWirelessPairingDialog(context: context);
-
-    if (input == null) return;
-
-    setState(() => _statusMessage = 'Pairing with ${input.host}…');
-
-    final result = await _di.adbService.pairDevice(
-      input.host,
-      input.pairingCode,
+    final request = await showWirelessConnectDialog(
+      context: context,
+      discoveryService: _di.wifiDiscoveryService,
     );
 
-    if (result.success) {
+    if (request == null) return;
+
+    // When a pairing code is provided, pair the device first.
+    if (request.pairingCode != null) {
+      setState(() => _statusMessage = 'Pairing with ${request.host}…');
+
+      final pairResult = await _di.adbService.pairDevice(
+        request.host,
+        request.pairingCode!,
+      );
+
+      if (!pairResult.success) {
+        await showErrorDialog(
+          context,
+          title: 'Pairing Failed',
+          message: pairResult.message,
+        );
+        setState(() => _statusMessage = 'Pairing failed');
+        return;
+      }
+
       await showSuccessDialog(
         context: context,
         title: 'Paired Successfully',
-        message: '${result.message}\n\nYou can now connect to the device.',
+        message: pairResult.message,
       );
-
-      final connectHost = await showInputDialog(
-        context: context,
-        title: 'Connect to Device',
-        label: 'Enter device IP:Port for connection',
-        hint: 'Usually same IP with port 5555',
-      );
-
-      if (connectHost != null && connectHost.isNotEmpty) {
-        await _handleAdbConnectDirect(connectHost);
-      }
-    } else {
-      await showErrorDialog(
-        context,
-        title: 'Pairing Failed',
-        message: result.message,
-      );
-      setState(() => _statusMessage = 'Pairing failed');
     }
-  }
 
-  Future<void> _handleQrConnect() async {
-    await showQrConnectDialog(context);
-  }
+    // Connect to the device.
+    setState(() => _statusMessage = 'Connecting to ${request.host}…');
 
-  Future<void> _handleAdbConnectDirect(String host) async {
-    setState(() => _statusMessage = 'Connecting to $host…');
-
-    final result = await _di.adbService.connectDevice(host);
+    final result = await _di.adbService.connectDevice(request.host);
 
     if (result.success) {
-      showSuccessDialog(
+      await showSuccessDialog(
         context: context,
         title: 'Connected',
         message: result.message,
       );
       await _refreshDevices();
     } else {
-      showErrorDialog(
+      await showErrorDialog(
         context,
         title: 'Connection Failed',
         message: result.message,
       );
       setState(() => _statusMessage = 'Connection failed');
     }
+  }
+
+  Future<void> _handleQrConnect() async {
+    await showQrConnectDialog(context);
   }
 
   Future<void> _onDeviceDefaultLaunch(Device device) async {

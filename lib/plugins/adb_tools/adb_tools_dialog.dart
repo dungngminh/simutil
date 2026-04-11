@@ -11,8 +11,9 @@ enum AdbToolOption {
     description: 'Connect to already-paired device (e.g., 192.168.1.100:5555)',
   ),
   connectViaPairCode(
-    label: 'Connect via Pair Code',
-    description: 'Pair with 6-digit code (Android 11+)',
+    label: 'Connect via Wi-Fi',
+    description:
+        'Auto-discover devices or enter IP:Port (+ optional pair code) manually',
   ),
   connectViaQr(
     label: 'Connect via QR Code',
