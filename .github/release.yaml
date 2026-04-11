@@ -11,7 +11,7 @@ changelog:
         - enhancement
     - title: Fixes 🔧
       labels:
-        - bug
+        - fixbug
     - title: Docs 📖
       labels:
         - docs

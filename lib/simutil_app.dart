@@ -297,7 +297,8 @@ class _SimutilAppState extends State<SimutilApp> {
       case LogicalKey.keyS:
         return true;
       case LogicalKey.keyQ:
-        exit(0);
+        shutdownApp();
+        return true;
       default:
         return false;
     }
