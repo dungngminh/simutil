@@ -1,0 +1,47 @@
+name: Test Windows PowerShell Installer
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "install.ps1"
+      - ".github/workflows/test-install-ps1.yaml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "install.ps1"
+      - ".github/workflows/test-install-ps1.yaml"
+  workflow_dispatch:
+
+jobs:
+  test-install-ps1:
+    name: Run install.ps1 on Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Execute installer script
+        shell: pwsh
+        run: |
+          .\install.ps1
+
+      - name: Verify installed binary and PATH
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:LOCALAPPDATA "simutil"
+          $exePath = Join-Path $installDir "simutil.exe"
+
+          if (-not (Test-Path $exePath)) {
+            throw "Expected binary not found at $exePath"
+          }
+
+          Write-Host "Running '$exePath version'..."
+          & $exePath version
+
+          $cmd = Get-Command simutil -ErrorAction SilentlyContinue
+          if (-not $cmd) {
+            throw "simutil is not available in PATH after installation."
+          }
+
+          Write-Host "simutil resolves to: $($cmd.Source)"

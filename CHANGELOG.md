@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add Windows PowerShell installer command (`install.ps1`) to README installation section.
+
 ## [0.4.1] - 2026-04-11
 
 ### Fixed

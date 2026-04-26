@@ -42,6 +42,12 @@ Simutil is written with [Nocterm](https://nocterm.dev/), a terminal UI framework
 curl -fsSL https://raw.githubusercontent.com/dungngminh/simutil/main/install.sh | bash
 ```
 
+### Binary Install (Windows PowerShell)
+
+```powershell
+powershell -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/dungngminh/simutil/main/install.ps1 | iex"
+```
+
 ### Using Homebrew (macOS/Linux)
 
 ```bash
