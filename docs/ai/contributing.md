@@ -5,7 +5,7 @@ code change itself.
 
 ## Per-PR checklist
 
-1. **Update the changelog.** Add an entry under `[Unreleased]` in
+1. **Update the changelog.** Add mainly user-visible changes under `[Unreleased]` in
    [CHANGELOG.md](../../CHANGELOG.md) using the existing
    [Keep-a-Changelog](https://keepachangelog.com/en/1.1.0/) sections
    (`Added` / `Changed` / `Fixed` / `Removed`). One bullet per user-visible change.

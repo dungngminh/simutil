@@ -5,7 +5,6 @@ import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
 class InputDialog extends StatefulComponent {
-
   const InputDialog({
     super.key,
     required this.title,
@@ -64,6 +63,7 @@ class _InputDialogState extends State<InputDialog> {
         focused: true,
         onKeyEvent: _handleKeyEvent,
         child: Container(
+          constraints: BoxConstraints(minWidth: 50, maxWidth: 120),
           margin: EdgeInsets.all(16),
           decoration: st.dialogPanel(component.title),
           child: Padding(

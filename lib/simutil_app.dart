@@ -18,7 +18,7 @@ import 'package:simutil/models/device.dart';
 import 'package:simutil/models/device_os.dart';
 import 'package:simutil/plugins/adb_tools/adb_tools_dialog.dart';
 import 'package:simutil/plugins/adb_tools/qr_connect_dialog.dart';
-import 'package:simutil/plugins/adb_tools/wireless_pairing_dialog.dart';
+import 'package:simutil/plugins/adb_tools/wireless_pairing/wireless_pairing_dialog.dart';
 import 'package:simutil/plugins/logcat/logcat_dialog.dart';
 import 'package:simutil/services/service_locator.dart';
 import 'package:simutil/utils/constant.dart';
@@ -312,10 +312,10 @@ class _SimutilAppState extends State<SimutilApp> {
       case AdbToolOption.connectViaIp:
         await _handleAdbConnect();
         break;
-      case AdbToolOption.connectViaPairCode:
+      case AdbToolOption.pairWithPairingCode:
         await _handleWirelessPairing();
         break;
-      case AdbToolOption.connectViaQr:
+      case AdbToolOption.pairWithQrCode:
         await _handleQrConnect();
         break;
     }
@@ -360,7 +360,6 @@ class _SimutilAppState extends State<SimutilApp> {
 
     if (request == null) return;
 
-    // When a pairing code is provided, pair the device first.
     if (request.pairingCode != null) {
       setState(() => _statusMessage = 'Pairing with ${request.host}…');
 
@@ -370,12 +369,11 @@ class _SimutilAppState extends State<SimutilApp> {
       );
 
       if (!pairResult.success) {
-        await showErrorDialog(
+        showErrorDialog(
           context,
           title: 'Pairing Failed',
           message: pairResult.message,
         );
-        setState(() => _statusMessage = 'Pairing failed');
         return;
       }
 
@@ -384,27 +382,7 @@ class _SimutilAppState extends State<SimutilApp> {
         title: 'Paired Successfully',
         message: pairResult.message,
       );
-    }
-
-    // Connect to the device.
-    setState(() => _statusMessage = 'Connecting to ${request.host}…');
-
-    final result = await _di.adbService.connectDevice(request.host);
-
-    if (result.success) {
-      await showSuccessDialog(
-        context: context,
-        title: 'Connected',
-        message: result.message,
-      );
-      await _refreshDevices();
-    } else {
-      await showErrorDialog(
-        context,
-        title: 'Connection Failed',
-        message: result.message,
-      );
-      setState(() => _statusMessage = 'Connection failed');
+      _refreshDevices();
     }
   }
 

@@ -3,30 +3,22 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:multicast_dns/multicast_dns.dart';
-
-// ---------- Model -------------------------------------------------------
-
-class WifiPairingDevice {
-  const WifiPairingDevice({
-    required this.name,
-    required this.host,
-    required this.port,
-  });
-
-  final String name;
-  final String host;
-  final int port;
-
-  String get hostPort => '$host:$port';
-}
+import 'package:simutil/models/wifi_pairing_device.dart';
 
 // ---------- Abstraction (DIP) -------------------------------------------
 
 abstract class WifiDiscoveryService {
-  /// Continuously watches for ADB-connectable devices via mDNS (`_adb-tls-connect._tcp`).
+  /// Continuously watches for ADB pairing endpoints via mDNS (`_adb-tls-pairing._tcp`).
   /// Emits each newly discovered device as it is found.
   /// Cancel the subscription to stop scanning.
-  Stream<WifiPairingDevice> watchConnectableDevices();
+  Stream<WifiPairingDevice> watchPairingDevices();
+
+  /// Resolves the first connect endpoint for [host] within [timeout].
+  /// Returns `null` if no endpoint is found in time.
+  Future<String?> findConnectHostForPairingHost(
+    String host, {
+    Duration timeout = const Duration(seconds: 8),
+  });
 }
 
 // ---------- Injectable factory typedef (for testability) ----------------
@@ -41,7 +33,10 @@ class MdnsWifiDiscoveryService implements WifiDiscoveryService {
 
   final MdnsClientFactory _clientFactory;
 
-  // Devices in wireless-debugging mode advertise this service.
+  // Devices in "pair using pairing code" mode advertise this service.
+  static const _pairingService = '_adb-tls-pairing._tcp';
+
+  // Devices that can be connected advertise this service.
   static const _connectService = '_adb-tls-connect._tcp';
 
   // Pause between successive mDNS scan cycles.
@@ -51,7 +46,10 @@ class MdnsWifiDiscoveryService implements WifiDiscoveryService {
       MDnsClient(rawDatagramSocketFactory: _socketFactory);
 
   @override
-  Stream<WifiPairingDevice> watchConnectableDevices() {
+  Stream<WifiPairingDevice> watchPairingDevices() =>
+      _watchDevices(_pairingService);
+
+  Stream<WifiPairingDevice> _watchDevices(String serviceType) {
     late StreamController<WifiPairingDevice> controller;
     var cancelled = false;
     final seen = <String>{};
@@ -64,7 +62,7 @@ class MdnsWifiDiscoveryService implements WifiDiscoveryService {
           await client.start();
 
           await for (final ptr in client.lookup<PtrResourceRecord>(
-            ResourceRecordQuery.serverPointer(_connectService),
+            ResourceRecordQuery.serverPointer(serviceType),
           )) {
             if (cancelled) break;
             try {
@@ -80,7 +78,7 @@ class MdnsWifiDiscoveryService implements WifiDiscoveryService {
             }
           }
         } catch (e) {
-          log('MdnsWifiDiscoveryService.watchConnectableDevices error: $e');
+          log('MdnsWifiDiscoveryService.watchDevices error: $e');
         } finally {
           client?.stop();
         }
@@ -98,6 +96,27 @@ class MdnsWifiDiscoveryService implements WifiDiscoveryService {
       onCancel: () => cancelled = true,
     );
     return controller.stream;
+  }
+
+  @override
+  Future<String?> findConnectHostForPairingHost(
+    String host, {
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    final normalizedHost = host.trim();
+    if (normalizedHost.isEmpty) return null;
+
+    try {
+      final stream = _watchDevices(_connectService);
+      await for (final device in stream.timeout(timeout)) {
+        if (device.host == normalizedHost) {
+          return device.hostPort;
+        }
+      }
+      return null;
+    } on TimeoutException {
+      return null;
+    }
   }
 
   /// Resolves PTR domain → SRV (port) → A (IPv4) and returns a [WifiPairingDevice],
@@ -144,12 +163,11 @@ class MdnsWifiDiscoveryService implements WifiDiscoveryService {
     bool reuseAddress = true,
     bool reusePort = true,
     int ttl = 1,
-  }) =>
-      RawDatagramSocket.bind(
-        host,
-        port,
-        reuseAddress: reuseAddress,
-        reusePort: reusePort,
-        ttl: ttl,
-      );
+  }) => RawDatagramSocket.bind(
+    host,
+    port,
+    reuseAddress: reuseAddress,
+    reusePort: reusePort,
+    ttl: ttl,
+  );
 }

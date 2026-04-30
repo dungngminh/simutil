@@ -9,7 +9,7 @@ viewer. Entry point: [bin/simutil.dart](bin/simutil.dart). Main app component:
 
 ## Stack (only the non-obvious bits)
 
-- Dart `^3.11.0`. UI framework is [`nocterm`](https://nocterm.dev/) — a Flutter-like
+- Dart `^3.11.0`. UI framework is `[nocterm](https://nocterm.dev/)` — a Flutter-like
   component model for terminals (`StatefulComponent`, `BuildContext`, `Focusable`,
   `setState`). Treat widgets as Flutter widgets.
 - CLI uses `args` `CommandRunner` — see [lib/cli/simutil_command_runner.dart](lib/cli/simutil_command_runner.dart).
@@ -55,10 +55,12 @@ per [build.yaml](build.yaml) — do not hand-edit. CI definition lives in
 
 ## When changing code
 
-- Bump [CHANGELOG.md](CHANGELOG.md) under `[Unreleased]` using Keep-a-Changelog
+- Bump mainly user-visible changes [CHANGELOG.md](CHANGELOG.md) under `[Unreleased]` using Keep-a-Changelog
   sections (`Added` / `Changed` / `Fixed`).
 - Follow [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) — fill
   the description and tick the Type-of-Change checkboxes.
+- For UI/dialog code, always split large widget trees into smaller focused components
+  (prefer reusable `StatelessComponent`/`StatefulComponent` units over monolithic build methods).
 - Before finishing: `dart analyze --fatal-infos` must pass.
 - More: [docs/ai/contributing.md](docs/ai/contributing.md),
   [docs/ai/running_tests.md](docs/ai/running_tests.md),

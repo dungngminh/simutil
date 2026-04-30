@@ -75,6 +75,12 @@ class SimutilTheme {
     color: Color.defaultColor
   );
 
+  BoxDecoration errorDialogPanel(String title) => BoxDecoration(
+    border: BoxBorder.all(style: BoxBorderStyle.rounded, color: error),
+    title: BorderTitle(text: title),
+    color: Color.defaultColor
+  );
+
   static TuiThemeData resolveTheme(String name) {
     return switch (name) {
       'light' => TuiThemeData.light,
