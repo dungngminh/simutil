@@ -33,11 +33,14 @@ class SimutilTheme {
 
   TextStyle get body => const TextStyle();
 
-  TextStyle get dimmed => const TextStyle(fontWeight: FontWeight.dim);
+  TextStyle get dimmed =>
+      const TextStyle(fontWeight: FontWeight.dim, color: Color.defaultColor);
 
-  TextStyle get bold => const TextStyle(fontWeight: FontWeight.bold);
+  TextStyle get bold =>
+      const TextStyle(fontWeight: FontWeight.bold, color: Color.defaultColor);
 
-  TextStyle get selected => const TextStyle(reverse: true);
+  TextStyle get selected =>
+      const TextStyle(reverse: true, color: Color.defaultColor);
 
   TextStyle get label => TextStyle(color: primary);
 

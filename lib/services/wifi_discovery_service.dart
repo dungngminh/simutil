@@ -5,27 +5,14 @@ import 'dart:io';
 import 'package:multicast_dns/multicast_dns.dart';
 import 'package:simutil/models/wifi_pairing_device.dart';
 
-// ---------- Abstraction (DIP) -------------------------------------------
-
 abstract class WifiDiscoveryService {
   /// Continuously watches for ADB pairing endpoints via mDNS (`_adb-tls-pairing._tcp`).
   /// Emits each newly discovered device as it is found.
   /// Cancel the subscription to stop scanning.
   Stream<WifiPairingDevice> watchPairingDevices();
-
-  /// Resolves the first connect endpoint for [host] within [timeout].
-  /// Returns `null` if no endpoint is found in time.
-  Future<String?> findConnectHostForPairingHost(
-    String host, {
-    Duration timeout = const Duration(seconds: 8),
-  });
 }
 
-// ---------- Injectable factory typedef (for testability) ----------------
-
 typedef MdnsClientFactory = MDnsClient Function();
-
-// ---------- Concrete mDNS implementation --------------------------------
 
 class MdnsWifiDiscoveryService implements WifiDiscoveryService {
   MdnsWifiDiscoveryService({MdnsClientFactory? clientFactory})
@@ -36,10 +23,6 @@ class MdnsWifiDiscoveryService implements WifiDiscoveryService {
   // Devices in "pair using pairing code" mode advertise this service.
   static const _pairingService = '_adb-tls-pairing._tcp';
 
-  // Devices that can be connected advertise this service.
-  static const _connectService = '_adb-tls-connect._tcp';
-
-  // Pause between successive mDNS scan cycles.
   static const _scanInterval = Duration(seconds: 2);
 
   static MDnsClient _defaultClientFactory() =>
@@ -98,34 +81,12 @@ class MdnsWifiDiscoveryService implements WifiDiscoveryService {
     return controller.stream;
   }
 
-  @override
-  Future<String?> findConnectHostForPairingHost(
-    String host, {
-    Duration timeout = const Duration(seconds: 8),
-  }) async {
-    final normalizedHost = host.trim();
-    if (normalizedHost.isEmpty) return null;
-
-    try {
-      final stream = _watchDevices(_connectService);
-      await for (final device in stream.timeout(timeout)) {
-        if (device.host == normalizedHost) {
-          return device.hostPort;
-        }
-      }
-      return null;
-    } on TimeoutException {
-      return null;
-    }
-  }
-
   /// Resolves PTR domain → SRV (port) → A (IPv4) and returns a [WifiPairingDevice],
   /// or `null` if any record is missing.
   Future<WifiPairingDevice?> _resolveDevice(
     MDnsClient client,
     String domainName,
   ) async {
-    // Resolve SRV record to get host + port.
     final srvStream = client.lookup<SrvResourceRecord>(
       ResourceRecordQuery.service(domainName),
     );
@@ -134,7 +95,6 @@ class MdnsWifiDiscoveryService implements WifiDiscoveryService {
       final port = srv.port;
       final target = srv.target;
 
-      // Only IPv4 addresses are queried by this implementation.
       final ipStream = client.lookup<IPAddressResourceRecord>(
         ResourceRecordQuery.addressIPv4(target),
       );

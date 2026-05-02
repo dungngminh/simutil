@@ -3,13 +3,24 @@ import 'dart:io';
 import 'package:simutil/models/app_settings.dart';
 import 'package:yaml/yaml.dart';
 
+abstract class SettingsService {
+  Future<AppSettings> load();
+  Future<void> save(AppSettings settings);
+  Future<AppSettings> update(AppSettings Function(AppSettings) updater);
+}
+
+typedef SettingsUpdater = AppSettings Function(AppSettings);
+
 /// Settings are stored at `~/.simutil/settings.yaml`.
-class SettingsService {
+class SettingsServiceImpl implements SettingsService {
+  const SettingsServiceImpl();
+
   static String get _settingsPath {
     final home = Platform.environment['HOME'] ?? '.';
     return '$home/.simutil/settings.yaml';
   }
 
+  @override
   Future<AppSettings> load() async {
     final file = File(_settingsPath);
     final dir = file.parent;
@@ -28,6 +39,7 @@ class SettingsService {
     }
   }
 
+  @override
   Future<void> save(AppSettings settings) async {
     final file = File(_settingsPath);
     final dir = file.parent;
@@ -37,7 +49,8 @@ class SettingsService {
     await file.writeAsString(_toYaml(settings));
   }
 
-  Future<AppSettings> update(AppSettings Function(AppSettings) updater) async {
+  @override
+  Future<AppSettings> update(SettingsUpdater updater) async {
     final current = await load();
     final updated = updater(current);
     await save(updated);

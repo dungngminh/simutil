@@ -20,7 +20,7 @@ class ServiceLocator {
     commandExec,
   );
   late final IOSDeviceService simctlService = IOSDeviceService(commandExec);
-  late final SettingsService settingsService = SettingsService();
+  late final SettingsService settingsService = SettingsServiceImpl();
   late final WifiDiscoveryService wifiDiscoveryService = MdnsWifiDiscoveryService();
 
   Future<void> init() async => isolateRunner.init();

@@ -5,6 +5,9 @@ class PinCodeFields extends StatelessComponent {
   const PinCodeFields({
     required this.label,
     required this.groupFocused,
+    this.crossAxisAlignment = CrossAxisAlignment.center,
+    this.spacing = 1.0,
+    this.cellSpacing = 1.0,
     required this.pinControllers,
     required this.focusedPinIndex,
     required this.onPinChanged,
@@ -14,6 +17,9 @@ class PinCodeFields extends StatelessComponent {
 
   final String label;
   final bool groupFocused;
+  final CrossAxisAlignment crossAxisAlignment;
+  final double spacing;
+  final double cellSpacing;
   final List<TextEditingController> pinControllers;
   final int focusedPinIndex;
   final void Function(int index, String value) onPinChanged;
@@ -24,10 +30,11 @@ class PinCodeFields extends StatelessComponent {
   Component build(BuildContext context) {
     final st = context.simutilTheme;
     return Column(
+      crossAxisAlignment: crossAxisAlignment,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(' $label', style: groupFocused ? st.label : st.body),
-        SizedBox(height: 1),
+        SizedBox(height: spacing),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -42,7 +49,8 @@ class PinCodeFields extends StatelessComponent {
                     onSubmitted: onSubmitted,
                     onKeyEvent: (event) => onPinKeyEvent(index, event),
                   ),
-                  if (index < pinControllers.length - 1) SizedBox(width: 1),
+                  if (index < pinControllers.length - 1)
+                    SizedBox(width: cellSpacing),
                 ],
               );
             }),

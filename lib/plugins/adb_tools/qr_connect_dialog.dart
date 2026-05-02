@@ -1,21 +1,28 @@
 import 'dart:async';
 
+import 'package:ascii_qr/ascii_qr.dart';
 import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
-class QrConnectDialog extends StatelessComponent {
+class QrConnectDialog extends StatefulComponent {
   const QrConnectDialog({super.key, required this.onClose});
 
   final VoidCallback onClose;
 
   @override
+  State<QrConnectDialog> createState() => _QrConnectDialogState();
+}
+
+class _QrConnectDialogState extends State<QrConnectDialog> {
+  @override
   Component build(BuildContext context) {
     final st = context.simutilTheme;
     return Center(
       child: Container(
-        margin: EdgeInsets.all(8),
-        decoration: st.dialogPanel('QR Code Pairing'),
+        width: 100,
+        margin: EdgeInsets.all(4),
+        decoration: st.dialogPanel('Pairing with QR Code'),
         child: Padding(
           padding: EdgeInsets.all(1),
           child: Focusable(
@@ -23,41 +30,16 @@ class QrConnectDialog extends StatelessComponent {
             onKeyEvent: (event) {
               if (event.logicalKey == LogicalKey.escape ||
                   event.logicalKey == LogicalKey.enter) {
-                onClose();
+                component.onClose();
                 return true;
               }
               return false;
             },
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(' QR Code pairing is not yet supported.', style: st.label),
-                Divider(),
-                Text(
-                  '  True QR pairing requires this tool to act as an ADB\n'
-                  '  pairing server (mDNS advertisement + TLS/SPAKE2), which\n'
-                  '  is not implemented yet.',
-                  style: st.dimmed,
-                ),
-                SizedBox(height: 1),
-                Text(
-                  '  Use "Connect via Wi-Fi" instead:',
-                  style: st.body,
-                ),
-                Text(
-                  '    1. On your Android device, go to Developer Options',
-                  style: st.dimmed,
-                ),
-                Text('    2. Enable "Wireless debugging"', style: st.dimmed),
-                Text(
-                  '    3. Tap "Pair device with pairing code"',
-                  style: st.dimmed,
-                ),
-                Text(
-                  '    4. The device will be discovered automatically.',
-                  style: st.dimmed,
-                ),
+                _buildQrArt(),
                 Divider(),
                 Text(' Close: <enter> or <esc>', style: st.dimmed),
               ],
@@ -66,6 +48,11 @@ class QrConnectDialog extends StatelessComponent {
         ),
       ),
     );
+  }
+
+  Component _buildQrArt() {
+    final data = 'WIFI:T:ADB;S:simutil;P:123456;;';
+    return Text(AsciiQrGenerator.generate(data));
   }
 }
 

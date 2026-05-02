@@ -56,7 +56,7 @@ class _WirelessConnectDialogState extends State<WirelessConnectDialog> {
       (device) {
         setState(() => _pairingDevices.add(device));
       },
-      onError: (Object _) {
+      onError: (_) {
         setState(() => _hasError = true);
       },
     );
@@ -206,29 +206,27 @@ class _ScanningPhaseView extends StatelessComponent {
     return Center(
       child: Container(
         margin: EdgeInsets.all(6),
+        padding: EdgeInsets.all(1),
         width: 100,
         height: 30,
-        decoration: context.simutilTheme.dialogPanel('Pair using pairing code'),
-        child: Padding(
-          padding: EdgeInsets.all(1),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _AvailableDevicesPanel(
-                devices: devices,
-                selectedIndex: selectedIndex,
-                hasError: hasError,
-              ),
-              Divider(),
-              Text(
-                devices.isEmpty
-                    ? ' Manual entry: <m> | Close: <esc>'
-                    : ' Navigate: <↑/↓> | Pair: <enter> | Manual: <m> | Close: <esc>',
-                style: st.dimmed,
-              ),
-            ],
-          ),
+        decoration: st.dialogPanel('Pair using Pairing Code'),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _AvailableDevicesPanel(
+              devices: devices,
+              selectedIndex: selectedIndex,
+              hasError: hasError,
+            ),
+            Divider(),
+            Text(
+              devices.isEmpty
+                  ? ' Manual connection: <m> | Close: <esc>'
+                  : ' Navigate: <↑/↓> | Pair: <enter> | Manual: <m> | Close: <esc>',
+              style: st.dimmed,
+            ),
+          ],
         ),
       ),
     );
@@ -250,19 +248,16 @@ class _AvailableDevicesPanel extends StatelessComponent {
   Component build(BuildContext context) {
     final st = context.simutilTheme;
     return Expanded(
-      child: hasError
-          ? Center(
-              child: Text(
-                'Device discovery is unavailable.',
-                style: st.errorStyle,
-              ),
-            )
-          : devices.isEmpty
-          ? _SearchingState()
-          : _DiscoveredDeviceList(
-              devices: devices,
-              selectedIndex: selectedIndex,
-            ),
+      child: switch ((hasError, devices.isEmpty)) {
+        (true, _) => Center(
+          child: Text('Device discovery is unavailable.', style: st.errorStyle),
+        ),
+        (false, true) => _SearchingState(),
+        (false, false) => _DiscoveredDeviceList(
+          devices: devices,
+          selectedIndex: selectedIndex,
+        ),
+      },
     );
   }
 }
@@ -541,7 +536,6 @@ class _EnterManualPhaseViewState extends State<_EnterManualPhaseView> {
       });
       return;
     }
-    // Paste support: distribute digits from the current slot forward.
     setState(() {
       var cursor = index;
       for (final digit in digits.split('')) {
@@ -606,33 +600,43 @@ class _EnterManualPhaseViewState extends State<_EnterManualPhaseView> {
     return Focusable(
       focused: true,
       onKeyEvent: _handleKeyEvent,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _LabeledInputField(
-            label: 'IP:Port',
-            controller: _hostController,
-            placeholder: '192.168.1.100:5555',
-            focused: _focusedField == 0,
-            onSubmitted: _trySubmit,
+      child: Center(
+        child: Container(
+          margin: EdgeInsets.all(6),
+          padding: EdgeInsets.all(1),
+          width: 100,
+          decoration: st.dialogPanel('Pair using Pairing Code'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _LabeledInputField(
+                label: 'IP:Port',
+                controller: _hostController,
+                placeholder: '192.168.1.100:5555',
+                focused: _focusedField == 0,
+                onSubmitted: _trySubmit,
+              ),
+              SizedBox(height: 1),
+              PinCodeFields(
+                label: 'Pairing Code (6 digits)',
+                crossAxisAlignment: CrossAxisAlignment.start,
+                groupFocused: _focusedField == 1,
+                spacing: 0,
+                pinControllers: _pinControllers,
+                focusedPinIndex: _focusedPinIndex,
+                onPinChanged: _handlePinChanged,
+                onPinKeyEvent: _handlePinKeyEvent,
+                onSubmitted: _trySubmit,
+              ),
+              Divider(),
+              Text(
+                ' Connect: <enter> | Switch field: <tab/↑/↓> | Back: <esc>',
+                style: st.dimmed,
+              ),
+            ],
           ),
-          SizedBox(height: 1),
-          PinCodeFields(
-            label: 'Pairing Code (6 digits)',
-            groupFocused: _focusedField == 1,
-            pinControllers: _pinControllers,
-            focusedPinIndex: _focusedPinIndex,
-            onPinChanged: _handlePinChanged,
-            onPinKeyEvent: _handlePinKeyEvent,
-            onSubmitted: _trySubmit,
-          ),
-          Divider(),
-          Text(
-            ' Switch: <tab> | Connect: <enter> | Back: <esc>',
-            style: st.dimmed,
-          ),
-        ],
+        ),
       ),
     );
   }

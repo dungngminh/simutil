@@ -10,7 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Add Windows PowerShell installer command (`install.ps1`) to README installation section.
+
 - Refactor Wi-Fi pairing flow to match Android Studio: discover pairing-code endpoints first, require code entry after selecting a discovered device, then resolve and connect to the post-pair ADB connect endpoint.
+
+### Fixed
+
+- Fix text color in dialogs and panels to avoid wrong overlay effect.
 
 ## [0.4.1] - 2026-04-11
 
