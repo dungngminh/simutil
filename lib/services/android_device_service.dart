@@ -11,37 +11,62 @@ import 'package:simutil/services/command_exec.dart';
 import 'package:simutil/services/device_service.dart';
 
 class AndroidDeviceService implements DeviceService {
-  AndroidDeviceService(this._exec, {String? androidHomeOverride})
-    : _androidHomeOverride = androidHomeOverride;
+  AndroidDeviceService(
+    this._exec, {
+    String? androidHomeOverride,
+    Map<String, String>? environment,
+    bool Function(String path)? fileExists,
+  }) : _androidHomeOverride = androidHomeOverride,
+       _environment = environment,
+       _fileExists = fileExists;
 
   static const Duration _deviceListTimeout = Duration(seconds: 15);
 
   final CommandExec _exec;
-
   final String? _androidHomeOverride;
+  final Map<String, String>? _environment;
+  final bool Function(String path)? _fileExists;
 
-  bool get _hasSdkAdb => File(adbPath).existsSync();
+  Map<String, String> get _env => _environment ?? Platform.environment;
 
-  bool get _hasSdkEmulator => File(emulatorPath).existsSync();
+  bool _pathExists(String path) =>
+      _fileExists?.call(path) ?? File(path).existsSync();
+
+  bool get _hasSdkAdb => _pathExists('${getAndroidHome()}/platform-tools/adb');
+
+  bool get _hasAdb => adbPath == 'adb' || _pathExists(adbPath);
+
+  bool get _hasSdkEmulator => _pathExists(emulatorPath);
 
   String getAndroidHome() {
     final override = _androidHomeOverride;
     if (override != null && override.isNotEmpty) return override;
-    final env =
-        Platform.environment['ANDROID_HOME'] ??
-        Platform.environment['ANDROID_SDK_ROOT'];
+
+    final env = _env['ANDROID_HOME'] ?? _env['ANDROID_SDK_ROOT'];
     if (env != null && env.isNotEmpty) return env;
-    final home = Platform.environment['HOME'] ?? '';
+
+    final home = _env['HOME'] ?? '';
+    if (Platform.isLinux) return '$home/Android/Sdk';
     return '$home/Library/Android/sdk';
   }
 
-  String get adbPath => '${getAndroidHome()}/platform-tools/adb';
+  String get adbPath {
+    final envAndroidHome = _env['ANDROID_HOME'] ?? _env['ANDROID_SDK_ROOT'];
+    if (envAndroidHome != null && envAndroidHome.isNotEmpty) {
+      return '$envAndroidHome/platform-tools/adb';
+    }
+
+    final sdkAdbPath = '${getAndroidHome()}/platform-tools/adb';
+    if (_pathExists(sdkAdbPath)) return sdkAdbPath;
+
+    return 'adb';
+  }
 
   String get emulatorPath => '${getAndroidHome()}/emulator/emulator';
 
   @override
   Future<bool> isAvailable() async {
-    if (!_hasSdkAdb || !_hasSdkEmulator) return false;
+    if (!_hasAdb || !_hasSdkEmulator) return false;
     try {
       final adbOk = await _exec.run(adbPath, arguments: ['version']);
       final emuOk = await _exec.run(emulatorPath, arguments: ['-list-avds']);
@@ -92,7 +117,7 @@ class AndroidDeviceService implements DeviceService {
   }
 
   Future<Map<String, String>> _getRunningAvdMap() async {
-    if (!_hasSdkAdb) return {};
+    if (!_hasAdb) return {};
 
     try {
       final result = await _exec.run(
@@ -289,6 +314,7 @@ class AndroidDeviceService implements DeviceService {
           .map((line) {
             final parts = line.split(RegExp(r'\s+'));
             final id = parts.isNotEmpty ? parts.first : '';
+            final adbState = parts.length > 1 ? parts[1] : '';
 
             var name = id;
             for (final part in parts) {
@@ -302,7 +328,14 @@ class AndroidDeviceService implements DeviceService {
               id: id,
               name: name,
               type: DeviceType.physical,
-              state: DeviceState.booted,
+              state: switch (adbState) {
+                'device' => DeviceState.booted,
+                'unauthorized' ||
+                'offline' ||
+                'recovery' ||
+                'sideload' => DeviceState.booting,
+                _ => DeviceState.shutdown,
+              },
             );
           })
           .where((d) => d.id.isNotEmpty)

@@ -357,6 +357,9 @@ class _SimutilAppState extends State<SimutilApp> {
         _openSettingsFile();
         return true;
       case LogicalKey.keyQ:
+        // On Linux/SSH we restore the terminal from a parent supervisor process
+        // after the TUI child exits, so here we want the child to terminate
+        // promptly instead of only stopping the Nocterm event loop.
         shutdownApp();
         return true;
       default:
