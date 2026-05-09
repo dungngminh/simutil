@@ -7,6 +7,7 @@ class IsolateRequest {
     required this.executable,
     this.arguments = const [],
     this.workingDirectory,
+    this.timeoutMs,
   });
 
   final int id;
@@ -14,6 +15,7 @@ class IsolateRequest {
   final String executable;
   final List<String> arguments;
   final String? workingDirectory;
+  final int? timeoutMs;
 }
 
 class IsolateResponse {

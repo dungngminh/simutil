@@ -20,22 +20,26 @@ abstract class CommandExec {
     String command, {
     List<String> arguments,
     String? workingDirectory,
+    Duration? timeout,
   });
 }
 
 class CommandExecImpl implements CommandExec {
-  
   @override
   Future<CommandResult> run(
     String command, {
     List<String> arguments = const [],
     String? workingDirectory,
+    Duration? timeout,
   }) async {
-    final result = await Process.run(
+    final resultFuture = Process.run(
       command,
       arguments,
       workingDirectory: workingDirectory,
     );
+    final result = timeout == null
+        ? await resultFuture
+        : await resultFuture.timeout(timeout);
     return CommandResult(
       stdout: result.stdout as String,
       stderr: result.stderr as String,
@@ -54,11 +58,13 @@ class IsolateCommandExec implements CommandExec {
     String command, {
     List<String> arguments = const [],
     String? workingDirectory,
+    Duration? timeout,
   }) {
     return _runner.execute(
       command,
       arguments,
       workingDirectory: workingDirectory,
+      timeout: timeout,
     );
   }
 }

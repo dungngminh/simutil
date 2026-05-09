@@ -31,6 +31,8 @@ class SimutilApp extends StatefulComponent {
 }
 
 class _SimutilAppState extends State<SimutilApp> {
+  static const _refreshTimeout = Duration(seconds: 15);
+
   final _di = ServiceLocator.instance;
 
   AppSettings _settings = const AppSettings();
@@ -116,35 +118,41 @@ class _SimutilAppState extends State<SimutilApp> {
     }
 
     try {
-      final results = await Future.wait([
-        _di.adbService.getPhysicalDevices().catchError((e, st) {
-          log('Failed to load Android devices: $e');
-          return <Device>[];
-        }),
-        _di.adbService.getSimulators().catchError((e, st) {
-          log('Failed to load Android emulators: $e');
-          return <Device>[];
-        }),
-        _di.simctlService.getSimulators().catchError((e, st) {
-          log('Failed to load iOS simulators: $e');
-          return <Device>[];
-        }),
-        _di.simctlService.getPhysicalDevices().catchError((e, st) {
-          log('Failed to load iOS devices: $e');
-          return <Device>[];
-        }),
-      ]);
+      final shouldLoadIos = Platform.isMacOS;
+      final androidDevices = await _loadDevicesWithTimeout(
+        label: 'Android devices',
+        silent: silent,
+        loader: _di.adbService.getPhysicalDevices,
+      );
+      final androidEmulators = await _loadDevicesWithTimeout(
+        label: 'Android emulators',
+        silent: silent,
+        loader: _di.adbService.getSimulators,
+      );
+      final iosSimulators = shouldLoadIos
+          ? await _loadDevicesWithTimeout(
+              label: 'iOS simulators',
+              silent: silent,
+              loader: _di.simctlService.getSimulators,
+            )
+          : <Device>[];
+      final iosDevices = shouldLoadIos
+          ? await _loadDevicesWithTimeout(
+              label: 'iOS devices',
+              silent: silent,
+              loader: _di.simctlService.getPhysicalDevices,
+            )
+          : <Device>[];
 
       setState(() {
-        _androidDevices = results[0];
-        _androidEmulators = results[1];
-        _iosSimulators = results[2];
-        _iosDevices = results[3];
+        _androidDevices = androidDevices;
+        _androidEmulators = androidEmulators;
+        _iosSimulators = iosSimulators;
+        _iosDevices = iosDevices;
         _loadingAndroidDevices = false;
         _loadingAndroidEmulators = false;
         _loadingIosSimulators = false;
         _loadingIosDevices = false;
-
         // Make sure index in range
         _androidDeviceSelectedIndex = _androidDevices.isEmpty
             ? 0
@@ -161,9 +169,6 @@ class _SimutilAppState extends State<SimutilApp> {
         _iosSimulatorSelectedIndex = _iosSimulators.isEmpty
             ? 0
             : _iosSimulatorSelectedIndex.clamp(0, _iosSimulators.length - 1);
-
-        _statusMessage = _buildIdleStatusMessage();
-
         // By default always keep focus on simulators / emulator list
         final hasAndroidDevices = _androidDevices.isNotEmpty;
         final hasIosDevices = _iosDevices.isNotEmpty;
@@ -187,9 +192,42 @@ class _SimutilAppState extends State<SimutilApp> {
           if (hasIosDevices) 'ios',
           'ios-simulators',
         ];
+
+        _statusMessage = _buildIdleStatusMessage();
       });
     } finally {
       _isRefreshing = false;
+    }
+  }
+
+  Future<List<Device>> _loadDevicesWithTimeout({
+    required String label,
+    required bool silent,
+    required Future<List<Device>> Function() loader,
+  }) async {
+    try {
+      if (!silent) {
+        setState(() {
+          _statusMessage = 'Refreshing $label...';
+        });
+      }
+      return await loader().timeout(_refreshTimeout);
+    } on TimeoutException {
+      log('Timed out while loading $label after $_refreshTimeout');
+      if (!silent) {
+        setState(() {
+          _statusMessage = 'Timed out while refreshing $label';
+        });
+      }
+      return <Device>[];
+    } catch (e, st) {
+      log('Failed to load $label: $e\n$st');
+      if (!silent) {
+        setState(() {
+          _statusMessage = 'Failed to refresh $label';
+        });
+      }
+      return <Device>[];
     }
   }
 
@@ -204,6 +242,9 @@ class _SimutilAppState extends State<SimutilApp> {
   }
 
   String _buildIdleStatusMessageForIosSimulators() {
+    if (_iosSimulators.isEmpty) {
+      return 'ADB Tools: n | Refresh: r | Switch: <tab> | Quit: q';
+    }
     final device = _iosSimulators[_iosSimulatorSelectedIndex];
     final parts = <String>[
       'Launch: <space> or <enter>',
@@ -227,6 +268,9 @@ class _SimutilAppState extends State<SimutilApp> {
   }
 
   String _buildIdleStatusMessageForAndroidEmulators() {
+    if (_androidEmulators.isEmpty) {
+      return 'ADB Tools: n | Refresh: r | Switch: <tab> | Quit: q';
+    }
     final device = _androidEmulators[_androidEmulatorSelectedIndex];
     final parts = <String>[
       'Launch: <space>',

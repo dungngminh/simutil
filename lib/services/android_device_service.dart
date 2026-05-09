@@ -11,9 +11,15 @@ import 'package:simutil/services/command_exec.dart';
 import 'package:simutil/services/device_service.dart';
 
 class AndroidDeviceService implements DeviceService {
-  const AndroidDeviceService(this._exec);
+  AndroidDeviceService(this._exec);
+
+  static const Duration _deviceListTimeout = Duration(seconds: 15);
 
   final CommandExec _exec;
+
+  bool get _hasSdkAdb => File(adbPath).existsSync();
+
+  bool get _hasSdkEmulator => File(emulatorPath).existsSync();
 
   String getAndroidHome() {
     final env =
@@ -30,6 +36,7 @@ class AndroidDeviceService implements DeviceService {
 
   @override
   Future<bool> isAvailable() async {
+    if (!_hasSdkAdb || !_hasSdkEmulator) return false;
     try {
       final adbOk = await _exec.run(adbPath, arguments: ['version']);
       final emuOk = await _exec.run(emulatorPath, arguments: ['-list-avds']);
@@ -43,8 +50,14 @@ class AndroidDeviceService implements DeviceService {
   Future<List<Device>> getSimulators() => _listEmulators();
 
   Future<List<Device>> _listEmulators() async {
+    if (!_hasSdkEmulator) return [];
+
     try {
-      final result = await _exec.run(emulatorPath, arguments: ['-list-avds']);
+      final result = await _exec.run(
+        emulatorPath,
+        arguments: ['-list-avds'],
+        timeout: _deviceListTimeout,
+      );
       if (!result.success) return [];
 
       final avdNames = result.stdout
@@ -74,8 +87,14 @@ class AndroidDeviceService implements DeviceService {
   }
 
   Future<Map<String, String>> _getRunningAvdMap() async {
+    if (!_hasSdkAdb) return {};
+
     try {
-      final result = await _exec.run(adbPath, arguments: ['devices']);
+      final result = await _exec.run(
+        adbPath,
+        arguments: ['devices'],
+        timeout: _deviceListTimeout,
+      );
       if (!result.success) return {};
 
       final serials = result.stdout
@@ -95,6 +114,7 @@ class AndroidDeviceService implements DeviceService {
             final nameResult = await _exec.run(
               adbPath,
               arguments: ['-s', serial, 'emu', 'avd', 'name'],
+              timeout: _deviceListTimeout,
             );
             if (nameResult.success) {
               final name = nameResult.stdout.split('\n').first.trim();
@@ -245,7 +265,11 @@ class AndroidDeviceService implements DeviceService {
   @override
   Future<List<Device>> getPhysicalDevices() async {
     try {
-      final result = await _exec.run(adbPath, arguments: ['devices', '-l']);
+      final result = await _exec.run(
+        adbPath,
+        arguments: ['devices', '-l'],
+        timeout: _deviceListTimeout,
+      );
       if (!result.success) return [];
 
       final stdout = result.stdout;

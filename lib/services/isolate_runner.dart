@@ -39,6 +39,7 @@ class IsolateRunner {
     String executable,
     List<String> arguments, {
     String? workingDirectory,
+    Duration? timeout,
   }) {
     assert(isReady, 'IsolateRunner.init() must be called before execute()');
 
@@ -53,6 +54,7 @@ class IsolateRunner {
         executable: executable,
         arguments: arguments,
         workingDirectory: workingDirectory,
+        timeoutMs: timeout?.inMilliseconds,
       ),
     );
 
@@ -117,18 +119,40 @@ class IsolateRunner {
       }
 
       try {
-        final result = await Process.run(
+        final process = await Process.start(
           message.executable,
           message.arguments,
           workingDirectory: message.workingDirectory,
         );
+        final stdoutFuture = process.stdout
+            .transform(SystemEncoding().decoder)
+            .join();
+        final stderrFuture = process.stderr
+            .transform(SystemEncoding().decoder)
+            .join();
+        final timeout = message.timeoutMs == null
+            ? null
+            : Duration(milliseconds: message.timeoutMs!);
+        final exitCode = timeout == null
+            ? await process.exitCode
+            : await process.exitCode.timeout(
+                timeout,
+                onTimeout: () {
+                  process.kill(ProcessSignal.sigkill);
+                  throw TimeoutException(
+                    'Command timed out after ${timeout.inSeconds} seconds',
+                  );
+                },
+              );
+        final stdout = await stdoutFuture;
+        final stderr = await stderrFuture;
 
         mainSendPort.send(
           IsolateResponse(
             id: message.id,
-            stdout: result.stdout as String,
-            stderr: result.stderr as String,
-            exitCode: result.exitCode,
+            stdout: stdout,
+            stderr: stderr,
+            exitCode: exitCode,
           ),
         );
       } catch (e) {

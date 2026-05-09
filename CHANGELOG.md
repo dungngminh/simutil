@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent device refresh from hanging forever when a simulator or device lookup stalls.
+
 ## [0.5.0] - 2026-05-02
 
 ### Changed
