@@ -22,6 +22,7 @@ import 'package:simutil/plugins/adb_tools/wireless_pairing/wireless_pairing_dial
 import 'package:simutil/plugins/logcat/logcat_dialog.dart';
 import 'package:simutil/services/service_locator.dart';
 import 'package:simutil/utils/constant.dart';
+import 'package:simutil/utils/terminal_cleanup.dart';
 
 class SimutilApp extends StatefulComponent {
   const SimutilApp({super.key});
@@ -297,11 +298,16 @@ class _SimutilAppState extends State<SimutilApp> {
       case LogicalKey.keyS:
         return true;
       case LogicalKey.keyQ:
-        shutdownApp();
+        _shutdownApp();
         return true;
       default:
         return false;
     }
+  }
+
+  void _shutdownApp() {
+    TerminalBinding.instance.shutdown();
+    recoverTerminalState();
   }
 
   Future<void> _showAdbTools() async {

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Restore terminal cursor and input modes when quitting with `q` to prevent invisible typing in bash sessions.
+
 ## [0.5.0] - 2026-05-02
 
 ### Changed
