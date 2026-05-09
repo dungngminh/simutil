@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix Android ADB discovery on Linux by checking `$HOME/Android/Sdk` and falling back to `adb` on `PATH` when no SDK-managed binary is present.
 - Stop treating all Android physical devices as fully booted when `adb devices -l` reports intermediate states such as `unauthorized` or `offline`.
+- Restore SSH terminal and TTY state on Linux after quitting remote sessions.
 
 ## [0.6.0] - 2026-06-26
 

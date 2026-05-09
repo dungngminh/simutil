@@ -21,6 +21,7 @@ class AndroidDeviceService implements DeviceService {
        _fileExists = fileExists;
 
   static const Duration _deviceListTimeout = Duration(seconds: 15);
+  static final RegExp _physicalDeviceIdPattern = RegExp(r'^[A-Za-z0-9._:-]+$');
 
   final CommandExec _exec;
   final String? _androidHomeOverride;
@@ -306,9 +307,18 @@ class AndroidDeviceService implements DeviceService {
 
       final rawDevices = stdout
           .split('\n')
-          .skip(1)
           .map((l) => l.trim())
-          .where((l) => l.isNotEmpty && !l.startsWith('emulator-'));
+          .where((l) => l.isNotEmpty)
+          .where((l) => l != 'List of devices attached')
+          .where((l) => !l.startsWith('*'))
+          .where((l) => !l.startsWith('daemon'))
+          .where((l) => !l.startsWith('adb-'))
+          .where((l) => !l.startsWith('emulator-'))
+          .where((l) {
+            final parts = l.split(RegExp(r'\s+'));
+            return parts.length >= 2 &&
+                _physicalDeviceIdPattern.hasMatch(parts.first);
+          });
 
       return rawDevices
           .map((line) {

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:nocterm/nocterm.dart';
 import 'package:simutil/cli/simutil_command_runner.dart';
@@ -21,6 +22,7 @@ Future<void> main(List<String> arguments) async {
 
 Future<void> _runTuiSupervisor() async {
   final ttyState = await _captureTerminalState();
+  final signalSubscriptions = <StreamSubscription<ProcessSignal>>[];
   try {
     final child = await Process.start(
       _currentExecutableCommand(),
@@ -28,8 +30,12 @@ Future<void> _runTuiSupervisor() async {
       mode: ProcessStartMode.inheritStdio,
       environment: {...Platform.environment, _tuiChildEnvVar: '1'},
     );
+    signalSubscriptions.addAll(_forwardSignalsToChild(child.pid));
     exitCode = await child.exitCode;
   } finally {
+    for (final subscription in signalSubscriptions) {
+      await subscription.cancel();
+    }
     await _restoreTerminalState(ttyState);
   }
 }
@@ -86,7 +92,6 @@ Future<ProcessResult> _runStty(List<String> arguments) {
 }
 
 Future<void> _restoreTerminalScreenState() async {
-  final shell = Platform.environment['SHELL'] ?? '/bin/sh';
   final term = Platform.environment['TERM'];
 
   if (term != null && term.isNotEmpty) {
@@ -95,8 +100,31 @@ Future<void> _restoreTerminalScreenState() async {
     await Process.run('tput', ['sgr0']);
   }
 
-  await Process.run(shell, [
-    '-lc',
-    "printf '\\033[?1049l\\033[?25h\\033[0m\\r' > /dev/tty",
-  ]);
+  try {
+    final tty = File('/dev/tty').openSync(mode: FileMode.writeOnlyAppend);
+    try {
+      tty.writeStringSync('\x1b[?1049l\x1b[?25h\x1b[0m\r');
+    } finally {
+      tty.closeSync();
+    }
+  } catch (_) {}
+}
+
+List<StreamSubscription<ProcessSignal>> _forwardSignalsToChild(int pid) {
+  if (!(Platform.isLinux || Platform.isMacOS)) return const [];
+
+  return [
+    ProcessSignal.sigwinch.watch().listen((_) {
+      Process.killPid(pid, ProcessSignal.sigwinch);
+    }),
+    ProcessSignal.sigterm.watch().listen((_) {
+      Process.killPid(pid, ProcessSignal.sigterm);
+    }),
+    ProcessSignal.sighup.watch().listen((_) {
+      Process.killPid(pid, ProcessSignal.sighup);
+    }),
+    ProcessSignal.sigint.watch().listen((_) {
+      Process.killPid(pid, ProcessSignal.sigint);
+    }),
+  ];
 }
