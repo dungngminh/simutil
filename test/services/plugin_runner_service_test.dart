@@ -1,11 +1,12 @@
 import 'dart:io';
 
 import 'package:simutil/models/plugin_config.dart';
+import 'package:simutil/services/command_exec.dart';
 import 'package:simutil/services/plugin_runner_service.dart';
 import 'package:test/test.dart';
 
 void main() {
-  const service = PluginRunnerServiceImpl();
+  final service = PluginRunnerServiceImpl(CommandExecImpl());
   final dart = Platform.resolvedExecutable;
 
   PluginConfig pluginWith(

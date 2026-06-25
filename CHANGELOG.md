@@ -7,13 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-26
+
 ### Added
 
-- Add custom plugin support via `~/.simutil/plugins.yaml`: register external shell-command tools (each with one or more commands) and run them from the app with `p` (plugin → command → execute) or a direct command shortcut, without changing code.
+- Add custom plugin support via the `plugins:` section of `~/.simutil/settings.yaml`: register external shell-command tools (each with one or more commands) and run them from the app with `p` (plugin → command → execute) or a direct command shortcut, without changing code.
+- Add `e` key to open `~/.simutil/settings.yaml` in the OS default editor (macOS, Linux, Windows).
 
 ### Changed
 
-- Migrate the built-in scrcpy integration to the new YAML plugin registry (a default `plugins.yaml` with scrcpy is generated on first launch).
+- Route plugin availability probes through `CommandExec` instead of calling `Process.run` directly.
+- Merge plugin configuration into `~/.simutil/settings.yaml` (settings scalars + `plugins:` section in one file).
+- Migrate the built-in scrcpy integration to the YAML plugin registry (a default config with scrcpy is generated on first launch).
 
 ### Fixed
 

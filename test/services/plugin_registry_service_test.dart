@@ -37,13 +37,34 @@ void main() {
     return PluginRegistryServiceImpl(pluginsFilePath: pluginsPath);
   }
 
-  test('creates a default plugins.yaml when missing', () async {
+  test('creates a default settings.yaml when missing', () async {
     final service = PluginRegistryServiceImpl(pluginsFilePath: pluginsPath);
     final plugins = await service.load();
 
     expect(File(pluginsPath).existsSync(), isTrue);
     expect(plugins, isNotEmpty);
     expect(plugins.any((p) => p.id == 'scrcpy'), isTrue);
+    expect(File(pluginsPath).readAsStringSync(), contains('theme: dark'));
+  });
+
+  test('loads plugins from a combined settings file with theme section', () async {
+    final service = serviceWith('''
+theme: light
+last_selected_device_id: ~
+
+plugins:
+  - id: scrcpy
+    label: scrcpy
+    commands:
+      - id: mirror
+        label: Screen Mirror
+        command: scrcpy
+        platforms: [android]
+        shortcut: s
+''');
+    final plugins = await service.load();
+    expect(plugins, hasLength(1));
+    expect(plugins.first.id, 'scrcpy');
   });
 
   test('loads and caches plugins from file', () async {

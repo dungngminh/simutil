@@ -22,11 +22,12 @@ class ServiceLocator {
     commandExec,
   );
   late final IOSDeviceService simctlService = IOSDeviceService(commandExec);
-  late final SettingsService settingsService = SettingsServiceImpl();
+  late final SettingsService settingsService = SettingsServiceImpl(commandExec);
   late final WifiDiscoveryService wifiDiscoveryService =
       MdnsWifiDiscoveryService();
   late final PluginRegistryService pluginRegistry = PluginRegistryServiceImpl();
-  late final PluginRunnerService pluginRunner = const PluginRunnerServiceImpl();
+  late final PluginRunnerService pluginRunner =
+      PluginRunnerServiceImpl(commandExec);
 
   Future<void> init() async => isolateRunner.init();
 

@@ -5,9 +5,10 @@ adb, custom scripts, …) without any code changes. You describe each tool in a
 single YAML file and SimUtil shows it in the UI, scoped to the device you have
 selected.
 
-- File location: `~/.simutil/plugins.yaml`
-- A default file (containing `scrcpy`) is created automatically on first launch.
-- Edit the file, then restart SimUtil (or reload) to pick up changes.
+- File location: `~/.simutil/settings.yaml` (plugins live under the top-level `plugins:` key in the same file)
+- A default file (containing `theme`, `last_selected_device_id`, and `scrcpy`) is created automatically on first launch.
+- Press `e` in the app to open the file in your default editor (macOS, Linux, Windows).
+- Edit the file, then restart SimUtil to pick up changes.
 
 ## Concepts
 
@@ -37,18 +38,22 @@ flowchart TD
 
 ## Quick start
 
-1. Launch SimUtil once to generate `~/.simutil/plugins.yaml`.
-2. Open it in your editor and add a plugin (see examples below).
-3. Restart SimUtil.
-4. Select a device, press `p`, choose your plugin, then a command.
+1. Launch SimUtil once to generate `~/.simutil/settings.yaml`.
+2. Press `e` to open it in your default editor (or edit it manually).
+3. Add a plugin under the `plugins:` section (see examples below).
+4. Restart SimUtil.
+5. Select a device, press `p`, choose your plugin, then a command.
 
 ## File format
 
-The file has a single top-level `plugins:` list. Each entry is a plugin with a
-nested `commands:` list.
+The config file holds app settings (`theme`, `last_selected_device_id`) and a
+top-level `plugins:` list. Each entry is a plugin with a nested `commands:` list.
 
 ```yaml
-# ~/.simutil/plugins.yaml
+# ~/.simutil/settings.yaml
+theme: dark
+last_selected_device_id: ~
+
 plugins:
   - id: scrcpy
     label: scrcpy

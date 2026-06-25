@@ -247,13 +247,14 @@ class _SimutilAppState extends State<SimutilApp> {
 
   String _buildIdleStatusMessageForIosSimulators() {
     if (_iosSimulators.isEmpty) {
-      return 'ADB Tools: n | Refresh: r | Switch: <tab> | Quit: q';
+      return 'Edit config: e | ADB Tools: n | Refresh: r | Switch: <tab> | Quit: q';
     }
     final device = _iosSimulators[_iosSimulatorSelectedIndex];
     final parts = <String>[
       'Launch: <space> or <enter>',
       if (device.isRunning) 'Shutdown: t',
       'Plugins: p',
+      'Edit config: e',
       'ADB Tools: n',
       'Refresh: r',
       'Switch: <tab>',
@@ -265,6 +266,7 @@ class _SimutilAppState extends State<SimutilApp> {
   String _buildIdleStatusMessageForIos() {
     final parts = <String>[
       'Plugins: p',
+      'Edit config: e',
       'ADB Tools: n',
       'Refresh: r',
       'Switch: <tab>',
@@ -275,7 +277,7 @@ class _SimutilAppState extends State<SimutilApp> {
 
   String _buildIdleStatusMessageForAndroidEmulators() {
     if (_androidEmulators.isEmpty) {
-      return 'ADB Tools: n | Refresh: r | Switch: <tab> | Quit: q';
+      return 'Edit config: e | ADB Tools: n | Refresh: r | Switch: <tab> | Quit: q';
     }
     final device = _androidEmulators[_androidEmulatorSelectedIndex];
     final parts = <String>[
@@ -284,6 +286,7 @@ class _SimutilAppState extends State<SimutilApp> {
       if (device.isRunning) 'Shutdown: t',
       if (device.isRunning) 'Logcat: l',
       'Plugins: p',
+      'Edit config: e',
       'ADB Tools: n',
       'Refresh: r',
       'Switch: <tab>',
@@ -296,6 +299,7 @@ class _SimutilAppState extends State<SimutilApp> {
     final parts = <String>[
       'Plugins: p',
       'Logcat: l',
+      'Edit config: e',
       'ADB Tools: n',
       'Refresh: r',
       'Switch: <tab>',
@@ -348,6 +352,9 @@ class _SimutilAppState extends State<SimutilApp> {
         return true;
       case LogicalKey.keyP:
         _showPluginMenu();
+        return true;
+      case LogicalKey.keyE:
+        _openSettingsFile();
         return true;
       case LogicalKey.keyQ:
         shutdownApp();
@@ -535,6 +542,15 @@ class _SimutilAppState extends State<SimutilApp> {
       return true;
     }
     return false;
+  }
+
+  Future<void> _openSettingsFile() async {
+    await _di.settingsService.openInEditor();
+    if (!mounted) return;
+    setState(
+      () => _statusMessage =
+          'Opened ${_di.settingsService.configFilePath} (changes apply on restart)',
+    );
   }
 
   Future<void> _showPluginMenu() async {

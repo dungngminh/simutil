@@ -14,10 +14,52 @@ viewer. Entry point: [bin/simutil.dart](bin/simutil.dart). Main app component:
   `setState`). Treat widgets as Flutter widgets.
 - CLI uses `args` `CommandRunner` — see [lib/cli/simutil_command_runner.dart](lib/cli/simutil_command_runner.dart).
   `bin/simutil.dart` runs the TUI when called with no arguments and the runner otherwise.
-- All external commands (`adb`, `emulator`, `xcrun simctl`) go through
-  `CommandExec` → `IsolateRunner` (see [lib/services/command_exec.dart](lib/services/command_exec.dart)
+- All external shell commands in **services** go through `CommandExec` →
+  `IsolateRunner` (see [lib/services/command_exec.dart](lib/services/command_exec.dart)
   and [lib/services/service_locator.dart](lib/services/service_locator.dart)).
-  Do not call `Process.run` directly inside services.
+  Do not call `Process.run` or `Process.start` directly inside `lib/services/`.
+  See **CommandExec** below for when exceptions apply.
+
+## CommandExec
+
+Shell work must not block the Nocterm UI isolate. `ServiceLocator` wires
+`IsolateCommandExec(isolateRunner)` and passes it into services that spawn
+subprocesses (e.g. `AndroidDeviceService`, `IOSDeviceService`, `SettingsService`,
+`PluginRunnerService` for availability probes).
+
+**Use `CommandExec.run`** when the service needs a one-shot command and may wait
+for exit + stdout/stderr (adb, emulator, xcrun, `open` / `xdg-open`, `--version`
+probes). Inject `CommandExec` via constructor; resolve the exec from
+`ServiceLocator.instance.commandExec` only when wiring in the locator — not in
+widgets or ad-hoc service construction.
+
+```dart
+class MyService {
+  MyService(this._exec);
+  final CommandExec _exec;
+
+  Future<bool> probe() async {
+    final result = await _exec.run('tool', arguments: ['--version']);
+    return result.success;
+  }
+}
+```
+
+**Do not use `CommandExec`** when the process must outlive the call or share
+stdio with the user:
+
+- Plugin **launch** (GUI / long-running): `Process.start` with
+  `ProcessStartMode.detached` or `inheritStdio` in
+  [lib/services/plugin_runner_service.dart](lib/services/plugin_runner_service.dart).
+- Logcat streaming: `Process.start` in plugin code under `lib/plugins/`.
+
+**Testing:** use [test/services/fake_command_exec.dart](test/services/fake_command_exec.dart)
+(`FakeCommandExec`) instead of spawning real processes. Never call `Process.run`
+inside service unit tests when the production path goes through `CommandExec`.
+
+**Docs:** full data-flow diagram and invariants in
+[docs/ai/architecture.md](docs/ai/architecture.md); plugin launch exception in
+[docs/ai/plugins.md](docs/ai/plugins.md).
 
 ## Layout
 

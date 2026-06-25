@@ -103,7 +103,7 @@ class PluginCommandConfig {
       args.map((arg) => _interpolate(arg, device)).toList();
 }
 
-/// A plugin loaded from `~/.simutil/plugins.yaml`. Groups one or more
+/// A plugin loaded from the `plugins:` section of `~/.simutil/settings.yaml`.
 /// [commands] under a shared identity and availability probe.
 class PluginConfig {
   const PluginConfig({

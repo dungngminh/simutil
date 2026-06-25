@@ -3,9 +3,11 @@ import 'dart:io';
 
 import 'package:simutil/models/device.dart';
 import 'package:simutil/models/plugin_config.dart';
+import 'package:simutil/services/user_config.dart';
 import 'package:yaml/yaml.dart';
 
-/// Loads and queries user-defined plugins from `~/.simutil/plugins.yaml`.
+/// Loads and queries user-defined plugins from the `plugins:` section of
+/// `~/.simutil/settings.yaml`.
 ///
 /// Plugins are shell commands grouped under a plugin identity. The registry
 /// caches parsed [PluginConfig]s in memory after [load].
@@ -13,10 +15,10 @@ abstract class PluginRegistryService {
   /// Currently cached plugins. Empty until [load] completes.
   List<PluginConfig> get plugins;
 
-  /// Reads and parses the plugins file, creating a default one if missing.
+  /// Reads and parses the config file, creating a default one if missing.
   Future<List<PluginConfig>> load();
 
-  /// Re-reads the plugins file from disk, refreshing the cache.
+  /// Re-reads the config file from disk, refreshing the cache.
   Future<List<PluginConfig>> reload();
 
   /// Plugins that expose at least one command runnable for [device].
@@ -31,34 +33,25 @@ abstract class PluginRegistryService {
 
 class PluginRegistryServiceImpl implements PluginRegistryService {
   PluginRegistryServiceImpl({String? pluginsFilePath})
-    : _pluginsFilePath = pluginsFilePath;
+    : _configFilePath = pluginsFilePath;
 
-  final String? _pluginsFilePath;
+  final String? _configFilePath;
 
   List<PluginConfig> _plugins = const [];
 
   @override
   List<PluginConfig> get plugins => _plugins;
 
-  String get _pluginsPath {
-    final override = _pluginsFilePath;
-    if (override != null) return override;
-    final home = Platform.environment['HOME'] ?? '.';
-    return '$home/.simutil/plugins.yaml';
-  }
+  String get _configPath => resolveConfigPath(_configFilePath);
 
   @override
   Future<List<PluginConfig>> load() async {
-    final file = File(_pluginsPath);
-    if (!await file.exists()) {
-      await file.parent.create(recursive: true);
-      await file.writeAsString(_defaultPluginsYaml);
-    }
-    return _parseFile(file);
+    await ensureConfigFile(_configPath);
+    return _parseFile(File(_configPath));
   }
 
   @override
-  Future<List<PluginConfig>> reload() => _parseFile(File(_pluginsPath));
+  Future<List<PluginConfig>> reload() => _parseFile(File(_configPath));
 
   Future<List<PluginConfig>> _parseFile(File file) async {
     try {
@@ -96,7 +89,7 @@ class PluginRegistryServiceImpl implements PluginRegistryService {
       _plugins = parsed;
       return _plugins;
     } catch (e) {
-      log('Failed to parse plugins.yaml: $e', name: 'plugins');
+      log('Failed to parse settings.yaml plugins: $e', name: 'plugins');
       _plugins = const [];
       return _plugins;
     }
@@ -130,50 +123,3 @@ class PluginRegistryServiceImpl implements PluginRegistryService {
     return null;
   }
 }
-
-const _defaultPluginsYaml = '''
-# Simutil Plugins
-#
-# Define external shell-command plugins here. Each plugin groups one or more
-# commands. In the app press <p> on a selected device to pick a plugin and then
-# a command to run. You can also give a command a "shortcut" to run it directly.
-#
-# Template variables available in "args":
-#   {device.id}, {device.name}, {device.platform}, {device.os}, {device.state}
-#
-# Command fields:
-#   id, label            (required) identity shown in the menu
-#   command              (required) executable to run
-#   args                 (optional) list of arguments, supports templates
-#   description          (optional) help text shown under the label
-#   platforms            (optional) [android, ios] filter; empty = any
-#   requires_running     (optional) only show when the device is running
-#   mode                 (optional) detached (default) | inherit
-#   shortcut             (optional) single key to run this command directly
-
-plugins:
-  - id: scrcpy
-    label: scrcpy
-    description: Screen mirroring and control for Android
-    availability:
-      command: scrcpy
-      args: [--version]
-    commands:
-      - id: mirror
-        label: Screen Mirror
-        description: Mirror the device screen
-        command: scrcpy
-        args: [-s, "{device.id}"]
-        platforms: [android]
-        requires_running: true
-        mode: detached
-        shortcut: s
-      - id: mirror-no-audio
-        label: Screen Mirror (No Audio)
-        description: Mirror without forwarding audio
-        command: scrcpy
-        args: [-s, "{device.id}", --no-audio]
-        platforms: [android]
-        requires_running: true
-        mode: detached
-''';

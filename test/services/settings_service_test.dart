@@ -4,6 +4,8 @@ import 'package:simutil/models/app_settings.dart';
 import 'package:simutil/services/settings_service.dart';
 import 'package:test/test.dart';
 
+import 'fake_command_exec.dart';
+
 void main() {
   late Directory dir;
   late String settingsPath;
@@ -17,8 +19,10 @@ void main() {
     dir.deleteSync(recursive: true);
   });
 
-  SettingsServiceImpl service() =>
-      SettingsServiceImpl(settingsFilePath: settingsPath);
+  SettingsServiceImpl service() => SettingsServiceImpl(
+    FakeCommandExec((_, _) => FakeCommandExec.ok()),
+    settingsFilePath: settingsPath,
+  );
 
   test('load creates a default settings file when missing', () async {
     final settings = await service().load();
@@ -84,5 +88,38 @@ void main() {
 
     expect(settings.themeName, 'dark');
     expect(settings.lastSelectedDeviceId, isNull);
+  });
+
+  test('configFilePath returns the injected path', () {
+    expect(service().configFilePath, settingsPath);
+  });
+
+  test('save preserves plugins block and comments', () async {
+    File(settingsPath)
+      ..createSync(recursive: true)
+      ..writeAsStringSync('''
+# Simutil configuration
+theme: dark
+last_selected_device_id: ~
+
+# My plugins
+plugins:
+  - id: custom
+    label: Custom
+    commands:
+      - id: run
+        label: Run
+        command: echo
+''');
+
+    await service().save(
+      const AppSettings(themeName: 'light', lastSelectedDeviceId: 'dev-1'),
+    );
+
+    final content = File(settingsPath).readAsStringSync();
+    expect(content, contains('theme: light'));
+    expect(content, contains('last_selected_device_id: dev-1'));
+    expect(content, contains('# My plugins'));
+    expect(content, contains('id: custom'));
   });
 }

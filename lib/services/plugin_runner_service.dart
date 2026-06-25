@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:simutil/models/device.dart';
 import 'package:simutil/models/plugin_config.dart';
+import 'package:simutil/services/command_exec.dart';
 
 /// Outcome of launching a plugin command.
 class PluginRunResult {
@@ -21,7 +22,9 @@ abstract class PluginRunnerService {
 }
 
 class PluginRunnerServiceImpl implements PluginRunnerService {
-  const PluginRunnerServiceImpl();
+  PluginRunnerServiceImpl(this._commandExec);
+
+  final CommandExec _commandExec;
 
   @override
   Future<bool> isAvailable(
@@ -37,8 +40,8 @@ class PluginRunnerServiceImpl implements PluginRunnerService {
 
   Future<bool> _probe(String executable, List<String> args) async {
     try {
-      final result = await Process.run(executable, args);
-      return result.exitCode == 0;
+      final result = await _commandExec.run(executable, arguments: args);
+      return result.success;
     } catch (_) {
       return false;
     }

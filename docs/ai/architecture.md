@@ -28,9 +28,12 @@ drift but paths are stable.
   - `isolate_runner.dart` — runs shell commands off the UI isolate.
   - `android_device_service.dart` / `ios_device_service.dart` — device discovery,
     launch, shutdown.
-  - `settings_service.dart` — load/save `AppSettings` from disk.
-  - `plugin_registry_service.dart` — load/parse `~/.simutil/plugins.yaml`, filter
-    plugins/commands per device, resolve shortcuts.
+  - `settings_service.dart` — load/save `AppSettings` scalars from
+    `~/.simutil/settings.yaml`; `openInEditor()` for key `e`.
+  - `user_config.dart` — shared config path, default template, preserving scalar
+    merge on save.
+  - `plugin_registry_service.dart` — load/parse `plugins:` from
+    `~/.simutil/settings.yaml`, filter plugins/commands per device, resolve shortcuts.
   - `plugin_runner_service.dart` — probe availability and launch plugin commands
     as external processes (`detached` / `inherit`).
 - `lib/utils/` — small extensions, constants. **`version.dart` is generated**
@@ -54,7 +57,7 @@ flowchart LR
     IOS --> Exec
     Exec --> Runner["IsolateRunner"]
     Runner --> Shell["adb / emulator / xcrun simctl"]
-    PluginReg --> PluginsYaml["~/.simutil/plugins.yaml"]
+    PluginReg --> SettingsYaml["~/.simutil/settings.yaml"]
     PluginRun --> PluginShell["external plugin commands"]
 ```
 
