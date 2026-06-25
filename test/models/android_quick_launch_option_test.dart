@@ -19,5 +19,24 @@ void main() {
       expect(coldBootOption.args, isA<List<String>>());
       expect(coldBootOption.args, ['-no-snapshot-load']);
     });
+
+    test('every value exposes its label', () {
+      expect(AndroidQuickLaunchOption.normal.label, 'Normal');
+      expect(AndroidQuickLaunchOption.coldBoot.label, 'Cold Boot');
+      expect(AndroidQuickLaunchOption.noAudio.label, 'No Audio');
+      expect(
+        AndroidQuickLaunchOption.coldBootNoAudio.label,
+        'Cold Boot + No Audio',
+      );
+    });
+
+    test('every value exposes its args', () {
+      expect(AndroidQuickLaunchOption.normal.args, isEmpty);
+      expect(AndroidQuickLaunchOption.noAudio.args, ['-no-audio']);
+      expect(AndroidQuickLaunchOption.coldBootNoAudio.args, [
+        '-no-snapshot-load',
+        '-no-audio',
+      ]);
+    });
   });
 }
