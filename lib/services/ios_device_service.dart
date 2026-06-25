@@ -41,38 +41,44 @@ class IOSDeviceService implements DeviceService {
       );
       if (!result.success) return [];
 
-      final json = jsonDecode(result.stdout) as Map<String, dynamic>;
-      final devicesMap = json['devices'] as Map<String, dynamic>? ?? {};
-      final devices = <Device>[];
-
-      for (final entry in devicesMap.entries) {
-        final runtime = entry.key;
-        final platformName = _extractPlatformName(runtime);
-        final deviceList = entry.value as List<dynamic>;
-
-        for (final d in deviceList) {
-          final map = d as Map<String, dynamic>;
-          if (map['isAvailable'] == true) {
-            devices.add(
-              Device.ios(
-                id: map['udid'] as String,
-                name: map['name'] as String,
-                platform: platformName,
-                type: DeviceType.simulator,
-                state: DeviceState.fromString(
-                  map['state'] as String? ?? DeviceState.shutdown.label,
-                ),
-              ),
-            );
-          }
-        }
-      }
-
-      return devices;
+      return parseSimulators(result.stdout);
     } catch (e, st) {
       log('IOSDeviceService._listSimulators error: $e\n$st');
       return [];
     }
+  }
+
+  /// Parses the JSON output of `xcrun simctl list devices -j` into devices.
+  /// Pure function (no I/O) so it is unit-testable on any platform.
+  static List<Device> parseSimulators(String jsonStr) {
+    final json = jsonDecode(jsonStr) as Map<String, dynamic>;
+    final devicesMap = json['devices'] as Map<String, dynamic>? ?? {};
+    final devices = <Device>[];
+
+    for (final entry in devicesMap.entries) {
+      final runtime = entry.key;
+      final platformName = extractPlatformName(runtime);
+      final deviceList = entry.value as List<dynamic>;
+
+      for (final d in deviceList) {
+        final map = d as Map<String, dynamic>;
+        if (map['isAvailable'] == true) {
+          devices.add(
+            Device.ios(
+              id: map['udid'] as String,
+              name: map['name'] as String,
+              platform: platformName,
+              type: DeviceType.simulator,
+              state: DeviceState.fromString(
+                map['state'] as String? ?? DeviceState.shutdown.label,
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    return devices;
   }
 
   @override
@@ -116,7 +122,9 @@ class IOSDeviceService implements DeviceService {
     }
   }
 
-  String _extractPlatformName(String runtime) {
+  /// Derives a human-readable platform name from a simctl runtime key, e.g.
+  /// `com.apple.CoreSimulator.SimRuntime.iOS-17-2` -> `iOS 17.2`.
+  static String extractPlatformName(String runtime) {
     final parts = runtime.split('.');
     if (parts.isEmpty) return runtime;
     final last = parts.last;
@@ -146,7 +154,7 @@ class IOSDeviceService implements DeviceService {
       final json =
           jsonDecode(await outputFile.readAsString()) as Map<String, dynamic>;
 
-      return _parsePhysicalDevices(json);
+      return parsePhysicalDevices(json);
     } catch (e, st) {
       log('IOSDeviceService.getPhysicalDevices error: $e\n$st');
       return [];
@@ -157,7 +165,9 @@ class IOSDeviceService implements DeviceService {
     }
   }
 
-  List<Device> _parsePhysicalDevices(Map<String, dynamic> json) {
+  /// Parses the JSON written by `xcrun devicectl list devices -j` into devices.
+  /// Pure function (no I/O) so it is unit-testable on any platform.
+  static List<Device> parsePhysicalDevices(Map<String, dynamic> json) {
     final result = json['result'] as Map<String, dynamic>? ?? {};
     final deviceList = result['devices'] as List<dynamic>? ?? [];
 

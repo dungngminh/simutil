@@ -39,6 +39,42 @@ Simutil is written with [Nocterm](https://nocterm.dev/), a terminal UI framework
   - Connect via IP address
   - Pair with 6-digit code (Android 11+)
   - QR code pairing (Android 11+)
+- **Custom Plugins** — Add your own external tools (scrcpy, Maestro, etc.) via a YAML file, no code changes needed. Press `p` to pick a plugin and a command to run on the selected device.
+
+## Custom Plugins
+
+SimUtil can run external shell-command tools (scrcpy, Maestro, custom scripts, …)
+defined in `~/.simutil/plugins.yaml` — no code changes needed. A default file
+(with `scrcpy`) is created automatically on first launch.
+
+Each plugin groups one or more **commands**. In the app, press `p` on a selected
+device to choose a plugin, then a command. A command can also define a single-key
+`shortcut` to run it directly. Commands are filtered to the selected device, and
+`args` support template variables like `{device.id}` and `{device.name}`.
+
+```yaml
+# ~/.simutil/plugins.yaml
+plugins:
+  - id: scrcpy
+    label: scrcpy
+    description: Screen mirroring and control for Android
+    availability:
+      command: scrcpy
+      args: [--version]
+    commands:
+      - id: mirror
+        label: Screen Mirror
+        command: scrcpy
+        args: [-s, "{device.id}"]
+        platforms: [android]   # android | ios; empty = any
+        requires_running: true # only show when the device is running
+        mode: detached         # detached (default) | inherit
+        shortcut: s            # optional single key to run directly
+```
+
+See the full reference — all fields, template variables, run modes, availability
+probes, shortcuts, examples, and troubleshooting — in
+**[docs/plugins.md](docs/plugins.md)**.
 
 ## Installation
 

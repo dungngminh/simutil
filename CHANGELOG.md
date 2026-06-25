@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add custom plugin support via `~/.simutil/plugins.yaml`: register external shell-command tools (each with one or more commands) and run them from the app with `p` (plugin → command → execute) or a direct command shortcut, without changing code.
+
+### Changed
+
+- Migrate the built-in scrcpy integration to the new YAML plugin registry (a default `plugins.yaml` with scrcpy is generated on first launch).
+
 ### Fixed
 
 - Prevent device refresh from hanging forever when a simulator or device lookup stalls.
+- Fix `Device.fromJson` reading the `os` field from the wrong key, which made deserialization always throw.
 
 ## [0.5.0] - 2026-05-02
 

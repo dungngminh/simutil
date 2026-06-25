@@ -15,11 +15,13 @@ drift but paths are stable.
 - `lib/components/` — reusable TUI widgets: panels, dialogs, theme
   (`SimutilTheme`), status bar, header.
 - `lib/models/` — plain data: `Device`, `DeviceOs`, `DeviceState`, `DeviceType`,
-  `AppSettings`, `AndroidQuickLaunchOption`, `IsolateMessage`.
+  `AppSettings`, `AndroidQuickLaunchOption`, `IsolateMessage`, `PluginConfig`.
 - `lib/plugins/` — self-contained features.
   - `adb_tools/` — IP connect, pair-code wireless pairing, QR pairing dialogs.
   - `logcat/` — logcat dialog, filter bar, parsing helpers.
-  - `scrcpy/` — placeholder for future screen mirroring support.
+  - `registry/` — UI for user-defined YAML plugins (`plugin_menu_dialog.dart`,
+    `command_menu_dialog.dart`, shared `menu_option_row.dart`). Internals:
+    [docs/ai/plugins.md](plugins.md); user-facing guide: [docs/plugins.md](../plugins.md).
 - `lib/services/` — business logic and side-effects.
   - `service_locator.dart` — singleton DI; the only place services are wired up.
   - `command_exec.dart` — `CommandExec` interface + `IsolateCommandExec` impl.
@@ -27,6 +29,10 @@ drift but paths are stable.
   - `android_device_service.dart` / `ios_device_service.dart` — device discovery,
     launch, shutdown.
   - `settings_service.dart` — load/save `AppSettings` from disk.
+  - `plugin_registry_service.dart` — load/parse `~/.simutil/plugins.yaml`, filter
+    plugins/commands per device, resolve shortcuts.
+  - `plugin_runner_service.dart` — probe availability and launch plugin commands
+    as external processes (`detached` / `inherit`).
 - `lib/utils/` — small extensions, constants. **`version.dart` is generated**
   by `build_runner` + `build_version` per [build.yaml](../../build.yaml).
 - `test/` — unit tests using `test` + `mocktail`.
@@ -42,10 +48,14 @@ flowchart LR
     Locator --> Settings["SettingsService"]
     Locator --> Android["AndroidDeviceService"]
     Locator --> IOS["IOSDeviceService"]
+    Locator --> PluginReg["PluginRegistryService"]
+    Locator --> PluginRun["PluginRunnerService"]
     Android --> Exec["IsolateCommandExec"]
     IOS --> Exec
     Exec --> Runner["IsolateRunner"]
     Runner --> Shell["adb / emulator / xcrun simctl"]
+    PluginReg --> PluginsYaml["~/.simutil/plugins.yaml"]
+    PluginRun --> PluginShell["external plugin commands"]
 ```
 
 Key invariants:

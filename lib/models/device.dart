@@ -49,7 +49,7 @@ class Device {
     return Device(
       id: json['id'] as String,
       name: json['name'] as String,
-      os: DeviceOs.values.byName(json['type'] as String),
+      os: DeviceOs.values.byName(json['os'] as String),
       platform: json['platform'] as String? ?? '',
       state: DeviceState.fromString(json['state'] as String? ?? 'Shutdown'),
       type: DeviceType.values.byName(json['type'] as String),

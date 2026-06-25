@@ -11,17 +11,22 @@ import 'package:simutil/services/command_exec.dart';
 import 'package:simutil/services/device_service.dart';
 
 class AndroidDeviceService implements DeviceService {
-  AndroidDeviceService(this._exec);
+  AndroidDeviceService(this._exec, {String? androidHomeOverride})
+    : _androidHomeOverride = androidHomeOverride;
 
   static const Duration _deviceListTimeout = Duration(seconds: 15);
 
   final CommandExec _exec;
+
+  final String? _androidHomeOverride;
 
   bool get _hasSdkAdb => File(adbPath).existsSync();
 
   bool get _hasSdkEmulator => File(emulatorPath).existsSync();
 
   String getAndroidHome() {
+    final override = _androidHomeOverride;
+    if (override != null && override.isNotEmpty) return override;
     final env =
         Platform.environment['ANDROID_HOME'] ??
         Platform.environment['ANDROID_SDK_ROOT'];

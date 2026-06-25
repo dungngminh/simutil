@@ -64,4 +64,5 @@ per [build.yaml](build.yaml) — do not hand-edit. CI definition lives in
 - Before finishing: `dart analyze --fatal-infos` must pass.
 - More: [docs/ai/contributing.md](docs/ai/contributing.md),
   [docs/ai/running_tests.md](docs/ai/running_tests.md),
-  [docs/ai/deployment.md](docs/ai/deployment.md) (release pipeline).
+  [docs/ai/deployment.md](docs/ai/deployment.md) (release pipeline),
+  [docs/ai/plugins.md](docs/ai/plugins.md) (YAML plugin system internals).

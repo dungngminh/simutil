@@ -13,9 +13,14 @@ typedef SettingsUpdater = AppSettings Function(AppSettings);
 
 /// Settings are stored at `~/.simutil/settings.yaml`.
 class SettingsServiceImpl implements SettingsService {
-  const SettingsServiceImpl();
+  const SettingsServiceImpl({String? settingsFilePath})
+    : _settingsFilePath = settingsFilePath;
 
-  static String get _settingsPath {
+  final String? _settingsFilePath;
+
+  String get _settingsPath {
+    final override = _settingsFilePath;
+    if (override != null) return override;
     final home = Platform.environment['HOME'] ?? '.';
     return '$home/.simutil/settings.yaml';
   }
