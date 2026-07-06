@@ -22,6 +22,7 @@ Future<void> main(List<String> arguments) async {
 
 Future<void> _runTuiSupervisor() async {
   final ttyState = await _captureTerminalState();
+  var childExited = false;
   final signalSubscriptions = <StreamSubscription<ProcessSignal>>[];
   try {
     final child = await Process.start(
@@ -30,9 +31,14 @@ Future<void> _runTuiSupervisor() async {
       mode: ProcessStartMode.inheritStdio,
       environment: {...Platform.environment, _tuiChildEnvVar: '1'},
     );
-    signalSubscriptions.addAll(_forwardSignalsToChild(child.pid));
-    exitCode = await child.exitCode;
+    signalSubscriptions.addAll(
+      _forwardSignalsToChild(child.pid, isChildExited: () => childExited),
+    );
+    final childExitCode = await child.exitCode;
+    childExited = true;
+    exitCode = childExitCode;
   } finally {
+    childExited = true;
     for (final subscription in signalSubscriptions) {
       await subscription.cancel();
     }
@@ -110,20 +116,27 @@ Future<void> _restoreTerminalScreenState() async {
   } catch (_) {}
 }
 
-List<StreamSubscription<ProcessSignal>> _forwardSignalsToChild(int pid) {
+List<StreamSubscription<ProcessSignal>> _forwardSignalsToChild(
+  int pid, {
+  required bool Function() isChildExited,
+}) {
   if (!(Platform.isLinux || Platform.isMacOS)) return const [];
 
   return [
     ProcessSignal.sigwinch.watch().listen((_) {
+      if (isChildExited()) return;
       Process.killPid(pid, ProcessSignal.sigwinch);
     }),
     ProcessSignal.sigterm.watch().listen((_) {
+      if (isChildExited()) return;
       Process.killPid(pid, ProcessSignal.sigterm);
     }),
     ProcessSignal.sighup.watch().listen((_) {
+      if (isChildExited()) return;
       Process.killPid(pid, ProcessSignal.sighup);
     }),
     ProcessSignal.sigint.watch().listen((_) {
+      if (isChildExited()) return;
       Process.killPid(pid, ProcessSignal.sigint);
     }),
   ];

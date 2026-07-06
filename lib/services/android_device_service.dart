@@ -33,8 +33,6 @@ class AndroidDeviceService implements DeviceService {
   bool _pathExists(String path) =>
       _fileExists?.call(path) ?? File(path).existsSync();
 
-  bool get _hasSdkAdb => _pathExists('${getAndroidHome()}/platform-tools/adb');
-
   bool get _hasAdb => adbPath == 'adb' || _pathExists(adbPath);
 
   bool get _hasSdkEmulator => _pathExists(emulatorPath);
@@ -52,11 +50,6 @@ class AndroidDeviceService implements DeviceService {
   }
 
   String get adbPath {
-    final envAndroidHome = _env['ANDROID_HOME'] ?? _env['ANDROID_SDK_ROOT'];
-    if (envAndroidHome != null && envAndroidHome.isNotEmpty) {
-      return '$envAndroidHome/platform-tools/adb';
-    }
-
     final sdkAdbPath = '${getAndroidHome()}/platform-tools/adb';
     if (_pathExists(sdkAdbPath)) return sdkAdbPath;
 
@@ -317,6 +310,9 @@ class AndroidDeviceService implements DeviceService {
           .where((l) {
             final parts = l.split(RegExp(r'\s+'));
             return parts.length >= 2 &&
+                !(parts.length >= 3 &&
+                    parts[1] == 'no' &&
+                    parts[2].startsWith('permissions')) &&
                 _physicalDeviceIdPattern.hasMatch(parts.first);
           });
 
