@@ -63,9 +63,61 @@ jobs:
           name: simutil-${{ matrix.target }}
           path: simutil-${{ matrix.target }}.${{ runner.os == 'Windows' && 'zip' || 'tar.gz' }}
 
+  test-install:
+    name: Test Install ${{ matrix.target }}
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            archive: simutil-linux-x64.tar.gz
+            binary: simutil-linux-x64
+          - os: macos-15-intel
+            target: macos-x64
+            archive: simutil-macos-x64.tar.gz
+            binary: simutil-macos-x64
+          - os: macos-14
+            target: macos-arm64
+            archive: simutil-macos-arm64.tar.gz
+            binary: simutil-macos-arm64
+          - os: windows-latest
+            target: windows-x64
+            archive: simutil-windows-x64.zip
+            binary: simutil-windows-x64.exe
+    steps:
+      - name: Download archive
+        uses: actions/download-artifact@v4
+        with:
+          name: simutil-${{ matrix.target }}
+          path: dist
+
+      - name: Install archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "dist/${{ matrix.archive }}" -C "$HOME/.local/bin"
+          mv "$HOME/.local/bin/${{ matrix.binary }}" "$HOME/.local/bin/simutil"
+          chmod +x "$HOME/.local/bin/simutil"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:LOCALAPPDATA "simutil"
+          New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+          Expand-Archive -Path "dist/${{ matrix.archive }}" -DestinationPath $installDir -Force
+          Move-Item -Path (Join-Path $installDir "${{ matrix.binary }}") -Destination (Join-Path $installDir "simutil.exe") -Force
+          Add-Content -Path $env:GITHUB_PATH -Value $installDir
+
+      - name: Verify installed binary
+        run: simutil version
+
   release:
     name: Create Release
-    needs: build
+    needs: test-install
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

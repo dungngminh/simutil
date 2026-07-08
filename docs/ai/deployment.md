@@ -28,7 +28,8 @@ flowchart TD
 
     subgraph release [release.yaml]
         Build["build (matrix x4)"] --> Archive["tar.gz / zip"]
-        Archive --> Draft["Create Draft GitHub Release"]
+        Archive --> Install["test-install (matrix x4)"]
+        Install --> Draft["Create Draft GitHub Release"]
     end
     Release --> release
 
@@ -51,11 +52,13 @@ flowchart TD
 | `macos-14`      | `macos-arm64` | `simutil-macos-arm64.tar.gz`      |
 | `windows-latest`| `windows-x64` | `simutil-windows-x64.zip`         |
 
-Each runner: `dart pub get` → `dart run build_runner build --delete-conflicting-outputs`
+Each build runner: `dart pub get` → `dart run build_runner build --delete-conflicting-outputs`
 → `dart compile exe bin/simutil.dart -o <artifact>` → archive (`tar -czvf` on Unix,
-`Compress-Archive` on Windows). The `release` job downloads all artifacts,
-generates `checksums.txt` via `sha256sum`, and creates a **draft** GitHub
-Release with auto-generated notes (categorized per [.github/release.yaml](../../.github/release.yaml)).
+`Compress-Archive` on Windows). The `test-install` job downloads each archive,
+extracts it into a temporary install location, puts it on `PATH`, and runs
+`simutil version`. The `release` job then downloads all artifacts, generates
+`checksums.txt` via `sha256sum`, and creates a **draft** GitHub Release with
+auto-generated notes (categorized per [.github/release.yaml](../../.github/release.yaml)).
 
 ## Workflows in detail
 
@@ -64,6 +67,8 @@ Release with auto-generated notes (categorized per [.github/release.yaml](../../
 - **Trigger**: `push` of a tag matching `v*`.
 - **Output**: draft GitHub Release with four archives + `checksums.txt`.
 - **Secret**: `GH_PAT` (used by `softprops/action-gh-release@v2` to create the release).
+- Gates the draft release behind `test-install`, which verifies Linux, macOS
+  Intel, macOS Apple Silicon, and Windows archives can be installed and run.
 - The two `deploy-homebrew` / `deploy-winget` jobs at the bottom are intentionally
   commented out — Homebrew is wired to fire on `release: released` instead, and
   WinGet is manual.
@@ -82,10 +87,11 @@ Release with auto-generated notes (categorized per [.github/release.yaml](../../
 - **Trigger**: GitHub `release: released` (when a draft release is published) or
   `workflow_dispatch`.
 - Reads `${GITHUB_REF_NAME}` (e.g. `v0.4.1`) → `VERSION=0.4.1`.
-- Downloads the two macOS archives from the release, computes their `sha256`,
+- Downloads the macOS and Linux archives from the release, computes their `sha256`,
   renders [.github/homebrew/simutil.rb.template](../../.github/homebrew/simutil.rb.template)
-  with `{{VERSION}}`, `{{ARM64_SHA256}}`, `{{X64_SHA256}}`, and pushes
-  `Formula/simutil.rb` to the `dungngminh/homebrew-simutil` tap.
+  with `{{VERSION}}`, `{{ARM64_SHA256}}`, `{{X64_SHA256}}`,
+  `{{LINUX_X64_SHA256}}`, and pushes `Formula/simutil.rb` to the
+  `dungngminh/homebrew-simutil` tap.
 - **Secret**: `HOMEBREW_TAP_TOKEN` — a PAT with `contents: write` on the tap repo.
 
 ### deploy-winget.yaml

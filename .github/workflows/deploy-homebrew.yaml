@@ -27,12 +27,16 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
           # Download macOS ARM64 artifact and get SHA256
-          curl -sL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/simutil-macos-arm64.tar.gz" -o macos-arm64.tar.gz
+          curl -fsL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/simutil-macos-arm64.tar.gz" -o macos-arm64.tar.gz
           ARM64_SHA=$(sha256sum macos-arm64.tar.gz | cut -d ' ' -f 1)
 
           # Download macOS x64 artifact and get SHA256
-          curl -sL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/simutil-macos-x64.tar.gz" -o macos-x64.tar.gz
+          curl --fail -sL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/simutil-macos-x64.tar.gz" -o macos-x64.tar.gz
           X64_SHA=$(sha256sum macos-x64.tar.gz | cut -d ' ' -f 1)
+
+          # Download Linux x64 artifact and get SHA256
+          curl --fail -sL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/simutil-linux-x64.tar.gz" -o linux-x64.tar.gz
+          LINUX_X64_SHA=$(sha256sum linux-x64.tar.gz | cut -d ' ' -f 1)
 
           # Generate formula from template
           mkdir -p homebrew-tap/Formula
@@ -40,6 +44,7 @@ jobs:
           sed -i "s/{{VERSION}}/$VERSION/g" homebrew-tap/Formula/simutil.rb
           sed -i "s/{{ARM64_SHA256}}/$ARM64_SHA/g" homebrew-tap/Formula/simutil.rb
           sed -i "s/{{X64_SHA256}}/$X64_SHA/g" homebrew-tap/Formula/simutil.rb
+          sed -i "s/{{LINUX_X64_SHA256}}/$LINUX_X64_SHA/g" homebrew-tap/Formula/simutil.rb
 
       - name: Commit and push formula
         run: |
