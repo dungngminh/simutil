@@ -19,6 +19,8 @@
 
 Browse your available emulators and simulators side-by-side, launch with custom options and connect to physical devices wirelessly.
 
+SimUtil runs on macOS, Linux, and Windows. **iOS Simulator support requires macOS** (Xcode / `simctl`); on Linux and Windows the TUI focuses on Android emulators and devices.
+
 Simutil is written with [Nocterm](https://nocterm.dev/), a terminal UI framework for Dart with similar syntax to Flutter.
 
 <p align="center">
@@ -126,9 +128,15 @@ simutil
 
 ## Supported platforms
 
-- [x] macOS
-- [x] Linux
-- [x] Windows
+SimUtil itself runs on macOS, Linux, and Windows. Feature support depends on the host OS:
+
+| Host OS | Android emulators & devices | iOS simulators & devices |
+| ------- | --------------------------- | ------------------------ |
+| macOS   | Yes                         | Yes (requires Xcode)     |
+| Linux   | Yes                         | No                       |
+| Windows | Yes                         | No                       |
+
+iOS support depends on Apple’s tools (`xcrun simctl` for simulators, `xcrun devicectl` for physical devices), which are only available on macOS. On Linux and Windows, the iOS panels indicate they are not supported; Android launch, ADB tools, Logcat, and plugins still work.
 
 ## Contributing
 
