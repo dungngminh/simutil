@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add first-run Welcome and post-update Changelog dialogs backed by internal app state.
+
 ### Changed
 
 - Clarify in the README that iOS simulators and devices require macOS; Linux and Windows support Android only.

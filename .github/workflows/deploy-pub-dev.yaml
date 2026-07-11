@@ -16,16 +16,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-
-      - name: Install dependencies
-        run: dart pub get
-
-      - name: Run build_runner
-        run: dart run build_runner build --delete-conflicting-outputs
+      - uses: ./.github/actions/setup-dart
 
       - name: Publish to pub.dev
         run: dart pub publish --force

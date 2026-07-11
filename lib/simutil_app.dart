@@ -6,12 +6,15 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/android_launch_dialog.dart';
 import 'package:simutil/components/app_header.dart';
 import 'package:simutil/components/app_status_bar.dart';
+import 'package:simutil/components/changelog_dialog.dart';
 import 'package:simutil/components/device_detail_panel.dart';
 import 'package:simutil/components/device_list_component.dart';
 import 'package:simutil/components/error_dialog.dart';
 import 'package:simutil/components/input_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil/components/success_dialog.dart';
+import 'package:simutil/components/welcome_dialog.dart';
+import 'package:simutil/data/changelog_entries.dart';
 import 'package:simutil/models/android_quick_launch_option.dart';
 import 'package:simutil/models/app_settings.dart';
 import 'package:simutil/models/device.dart';
@@ -25,6 +28,7 @@ import 'package:simutil/plugins/registry/command_menu_dialog.dart';
 import 'package:simutil/plugins/registry/plugin_menu_dialog.dart';
 import 'package:simutil/services/service_locator.dart';
 import 'package:simutil/utils/constant.dart';
+import 'package:simutil/utils/version.dart';
 
 class SimutilApp extends StatefulComponent {
   const SimutilApp({super.key});
@@ -83,6 +87,24 @@ class _SimutilAppState extends State<SimutilApp> {
     await _di.pluginRegistry.load();
     await _refreshDevices();
     _initRefreshTimer();
+    await _checkFirstRunOrChangelog();
+  }
+
+  Future<void> _checkFirstRunOrChangelog() async {
+    final state = await _di.appStateService.load();
+    final lastSeen = state.lastSeenVersion;
+    if (lastSeen == null) {
+      await showWelcomeDialog(context: context);
+    } else if (lastSeen != packageVersion) {
+      final entry = changelogEntryForVersion(packageVersion);
+      if (entry == null) return;
+      await showChangelogDialog(context: context, entries: [entry]);
+    } else {
+      return;
+    }
+    await _di.appStateService.update(
+      (state) => state.copyWith(lastSeenVersion: packageVersion),
+    );
   }
 
   void _initRefreshTimer() {

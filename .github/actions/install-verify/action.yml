@@ -1,0 +1,59 @@
+name: Install and Verify
+description: Install a simutil binary or archive to PATH and run simutil version
+
+inputs:
+  mode:
+    description: Install mode — binary or archive
+    required: true
+  source:
+    description: Path to compiled binary (mode=binary) or archive file (mode=archive)
+    required: true
+  binary-name:
+    description: Inner binary filename to rename to simutil (mode=archive only)
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Install binary (Unix)
+      if: runner.os != 'Windows' && inputs.mode == 'binary'
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.local/bin"
+        cp "${{ inputs.source }}" "$HOME/.local/bin/simutil"
+        chmod +x "$HOME/.local/bin/simutil"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+    - name: Install archive (Unix)
+      if: runner.os != 'Windows' && inputs.mode == 'archive'
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.local/bin"
+        tar -xzf "${{ inputs.source }}" -C "$HOME/.local/bin"
+        mv "$HOME/.local/bin/${{ inputs.binary-name }}" "$HOME/.local/bin/simutil"
+        chmod +x "$HOME/.local/bin/simutil"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+    - name: Install binary (Windows)
+      if: runner.os == 'Windows' && inputs.mode == 'binary'
+      shell: pwsh
+      run: |
+        $installDir = Join-Path $env:LOCALAPPDATA "simutil"
+        New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+        Copy-Item -Path "${{ inputs.source }}" -Destination (Join-Path $installDir "simutil.exe") -Force
+        Add-Content -Path $env:GITHUB_PATH -Value $installDir
+
+    - name: Install archive (Windows)
+      if: runner.os == 'Windows' && inputs.mode == 'archive'
+      shell: pwsh
+      run: |
+        $installDir = Join-Path $env:LOCALAPPDATA "simutil"
+        New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+        Expand-Archive -Path "${{ inputs.source }}" -DestinationPath $installDir -Force
+        Move-Item -Path (Join-Path $installDir "${{ inputs.binary-name }}") -Destination (Join-Path $installDir "simutil.exe") -Force
+        Add-Content -Path $env:GITHUB_PATH -Value $installDir
+
+    - name: Verify installed binary
+      shell: bash
+      run: simutil version

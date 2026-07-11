@@ -22,13 +22,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
+      - uses: ./.github/actions/setup-dart
         with:
-          sdk: stable
-
-      - name: Install dependencies
-        run: dart pub get
+          run-codegen: 'false'
 
       - name: Analyze
         run: dart analyze --fatal-infos
@@ -51,39 +47,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-
-      - name: Install dependencies
-        run: dart pub get
-
-      - name: Run build_runner
-        run: dart run build_runner build --delete-conflicting-outputs
+      - uses: ./.github/actions/setup-dart
 
       - name: Build executable
         run: dart compile exe bin/simutil.dart -o ${{ matrix.artifact }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
-      - name: Install binary (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          mkdir -p "$HOME/.local/bin"
-          cp "${{ matrix.artifact }}" "$HOME/.local/bin/simutil"
-          chmod +x "$HOME/.local/bin/simutil"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Install binary (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $installDir = Join-Path $env:LOCALAPPDATA "simutil"
-          New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-          Copy-Item -Path "${{ matrix.artifact }}.exe" -Destination (Join-Path $installDir "simutil.exe") -Force
-          Add-Content -Path $env:GITHUB_PATH -Value $installDir
-
-      - name: Verify installed binary
-        run: simutil version
+      - uses: ./.github/actions/install-verify
+        with:
+          mode: binary
+          source: ${{ matrix.artifact }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

@@ -32,16 +32,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-
-      - name: Install dependencies
-        run: dart pub get
-
-      - name: Run build_runner
-        run: dart run build_runner build --delete-conflicting-outputs
+      - uses: ./.github/actions/setup-dart
 
       - name: Build executable
         run: dart compile exe bin/simutil.dart -o ${{ matrix.artifact }}
@@ -87,33 +78,19 @@ jobs:
             archive: simutil-windows-x64.zip
             binary: simutil-windows-x64.exe
     steps:
+      - uses: actions/checkout@v6
+
       - name: Download archive
         uses: actions/download-artifact@v4
         with:
           name: simutil-${{ matrix.target }}
           path: dist
 
-      - name: Install archive (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          mkdir -p "$HOME/.local/bin"
-          tar -xzf "dist/${{ matrix.archive }}" -C "$HOME/.local/bin"
-          mv "$HOME/.local/bin/${{ matrix.binary }}" "$HOME/.local/bin/simutil"
-          chmod +x "$HOME/.local/bin/simutil"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Install archive (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $installDir = Join-Path $env:LOCALAPPDATA "simutil"
-          New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-          Expand-Archive -Path "dist/${{ matrix.archive }}" -DestinationPath $installDir -Force
-          Move-Item -Path (Join-Path $installDir "${{ matrix.binary }}") -Destination (Join-Path $installDir "simutil.exe") -Force
-          Add-Content -Path $env:GITHUB_PATH -Value $installDir
-
-      - name: Verify installed binary
-        run: simutil version
+      - uses: ./.github/actions/install-verify
+        with:
+          mode: archive
+          source: dist/${{ matrix.archive }}
+          binary-name: ${{ matrix.binary }}
 
   release:
     name: Create Release

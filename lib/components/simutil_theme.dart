@@ -31,7 +31,7 @@ class SimutilTheme {
   
   Color get onBackground => _theme.onBackground;
 
-  TextStyle get body => const TextStyle();
+  TextStyle get body => const TextStyle(color: Color.defaultColor);
 
   TextStyle get dimmed =>
       const TextStyle(fontWeight: FontWeight.dim, color: Color.defaultColor);
