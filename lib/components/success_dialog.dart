@@ -33,14 +33,7 @@ class SuccessDialog extends StatelessComponent {
         },
         child: Container(
           margin: EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: BoxBorder.all(
-              style: BoxBorderStyle.rounded,
-              color: st.success,
-            ),
-            title: BorderTitle(text: title),
-            color: st.background,
-          ),
+          decoration: st.successDialogPanel(title),
           child: Padding(
             padding: EdgeInsets.all(1),
             child: Column(

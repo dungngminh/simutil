@@ -7,6 +7,7 @@ import 'package:simutil/services/plugin_registry_service.dart';
 import 'package:simutil/services/plugin_runner_service.dart';
 import 'package:simutil/services/settings_service.dart';
 import 'package:simutil/services/wifi_discovery_service.dart';
+import 'package:simutil/services/xcode_cache_service.dart';
 
 class ServiceLocator {
   ServiceLocator._();
@@ -30,6 +31,9 @@ class ServiceLocator {
   late final PluginRegistryService pluginRegistry = PluginRegistryServiceImpl();
   late final PluginRunnerService pluginRunner =
       PluginRunnerServiceImpl(commandExec);
+  late final XcodeCacheService xcodeCacheService = XcodeCacheService(
+    commandExec,
+  );
 
   Future<void> init() async => isolateRunner.init();
 

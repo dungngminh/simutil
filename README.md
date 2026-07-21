@@ -43,6 +43,7 @@ Simutil is written with [Nocterm](https://nocterm.dev/), a terminal UI framework
   - QR code pairing (Android 11+)
 - **Custom Plugins** — Add your own external tools (scrcpy, Maestro, etc.) via a YAML file, no code changes needed. Press `p` to pick a plugin and a command to run on the selected device.
 - **Edit Config** — Press `e` to open `~/.simutil/settings.yaml` in your default editor (macOS, Linux, Windows).
+- **Xcode Tools** — Press `x` (macOS) to clear Xcode Derived Data after a size preview and confirmation.
 
 ## Custom Plugins
 

@@ -31,7 +31,6 @@ class ErrorDialog extends StatelessComponent {
           return false;
         },
         child: Container(
-          width: 100,
           margin: EdgeInsets.all(16),
           decoration: st.errorDialogPanel(title),
           child: Padding(

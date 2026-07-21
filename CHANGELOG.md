@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-21
+
+### Added
+
+- Add confirmation dialog.
+- Add Xcode Tools (`x`) with Clear Derived Data — measure size, confirm, then wipe `~/Library/Developer/Xcode/DerivedData` (macOS only).
+
+## Fixed
+
+- Fix background color of some dialogs.
+
 ## [0.7.0] - 2026-07-11
 
 ### Added

@@ -7,6 +7,7 @@ import 'package:simutil/components/android_launch_dialog.dart';
 import 'package:simutil/components/app_header.dart';
 import 'package:simutil/components/app_status_bar.dart';
 import 'package:simutil/components/changelog_dialog.dart';
+import 'package:simutil/components/confirm_dialog.dart';
 import 'package:simutil/components/device_detail_panel.dart';
 import 'package:simutil/components/device_list_component.dart';
 import 'package:simutil/components/error_dialog.dart';
@@ -26,8 +27,10 @@ import 'package:simutil/plugins/adb_tools/wireless_pairing/wireless_pairing_dial
 import 'package:simutil/plugins/logcat/logcat_dialog.dart';
 import 'package:simutil/plugins/registry/command_menu_dialog.dart';
 import 'package:simutil/plugins/registry/plugin_menu_dialog.dart';
+import 'package:simutil/plugins/xcode_tools/xcode_tools_dialog.dart';
 import 'package:simutil/services/service_locator.dart';
 import 'package:simutil/utils/constant.dart';
+import 'package:simutil/utils/int_extension.dart';
 import 'package:simutil/utils/version.dart';
 
 class SimutilApp extends StatefulComponent {
@@ -269,40 +272,54 @@ class _SimutilAppState extends State<SimutilApp> {
 
   String _buildIdleStatusMessageForIosSimulators() {
     if (_iosSimulators.isEmpty) {
-      return 'Edit config: e | ADB Tools: n | Refresh: r | Switch: <tab> | Quit: q';
+      return _joinStatusHints([
+        'Edit config: e',
+        'ADB Tools: n',
+        if (Platform.isMacOS) 'Xcode Tools: x',
+        'Refresh: r',
+        'Switch: <tab>',
+        'Quit: q',
+      ]);
     }
     final device = _iosSimulators[_iosSimulatorSelectedIndex];
-    final parts = <String>[
+    return _joinStatusHints([
       'Launch: <space> or <enter>',
       if (device.isRunning) 'Shutdown: t',
       'Plugins: p',
       'Edit config: e',
       'ADB Tools: n',
+      if (Platform.isMacOS) 'Xcode Tools: x',
       'Refresh: r',
       'Switch: <tab>',
       'Quit: q',
-    ];
-    return parts.join(' | ');
+    ]);
   }
 
   String _buildIdleStatusMessageForIos() {
-    final parts = <String>[
+    return _joinStatusHints([
       'Plugins: p',
       'Edit config: e',
       'ADB Tools: n',
+      if (Platform.isMacOS) 'Xcode Tools: x',
       'Refresh: r',
       'Switch: <tab>',
       'Quit: q',
-    ];
-    return parts.join(' | ');
+    ]);
   }
 
   String _buildIdleStatusMessageForAndroidEmulators() {
     if (_androidEmulators.isEmpty) {
-      return 'Edit config: e | ADB Tools: n | Refresh: r | Switch: <tab> | Quit: q';
+      return _joinStatusHints([
+        'Edit config: e',
+        'ADB Tools: n',
+        if (Platform.isMacOS) 'Xcode Tools: x',
+        'Refresh: r',
+        'Switch: <tab>',
+        'Quit: q',
+      ]);
     }
     final device = _androidEmulators[_androidEmulatorSelectedIndex];
-    final parts = <String>[
+    return _joinStatusHints([
       'Launch: <space>',
       'Launch with option: <enter>',
       if (device.isRunning) 'Shutdown: t',
@@ -310,25 +327,27 @@ class _SimutilAppState extends State<SimutilApp> {
       'Plugins: p',
       'Edit config: e',
       'ADB Tools: n',
+      if (Platform.isMacOS) 'Xcode Tools: x',
       'Refresh: r',
       'Switch: <tab>',
       'Quit: q',
-    ];
-    return parts.join(' | ');
+    ]);
   }
 
   String _buildIdleStatusMessageForAndroidDevices() {
-    final parts = <String>[
+    return _joinStatusHints([
       'Plugins: p',
       'Logcat: l',
       'Edit config: e',
       'ADB Tools: n',
+      if (Platform.isMacOS) 'Xcode Tools: x',
       'Refresh: r',
       'Switch: <tab>',
       'Quit: q',
-    ];
-    return parts.join(' | ');
+    ]);
   }
+
+  String _joinStatusHints(List<String> parts) => parts.join(' | ');
 
   Device? get _currentSelectedDevice {
     if (_focusKey == 'android' && _androidDevices.isNotEmpty) {
@@ -378,6 +397,10 @@ class _SimutilAppState extends State<SimutilApp> {
       case LogicalKey.keyE:
         _openSettingsFile();
         return true;
+      case LogicalKey.keyX:
+        if (!Platform.isMacOS) return false;
+        _showXcodeTools();
+        return true;
       case LogicalKey.keyQ:
         // On Linux/SSH we restore the terminal from a parent supervisor process
         // after the TUI child exits, so here we want the child to terminate
@@ -409,6 +432,65 @@ class _SimutilAppState extends State<SimutilApp> {
       case AdbToolOption.pairWithQrCode:
         await _handleQrConnect();
         break;
+    }
+  }
+
+  Future<void> _showXcodeTools() async {
+    // Only wired from the macOS key binding; keep a hard guard for safety.
+    if (!Platform.isMacOS) return;
+
+    final option = await showXcodeToolsDialog(context);
+    if (option == null) return;
+
+    switch (option) {
+      case XcodeToolOption.clearDerivedData:
+        await _clearDerivedData();
+    }
+  }
+
+  Future<void> _clearDerivedData() async {
+    final service = _di.xcodeCacheService;
+    final path = service.derivedDataPath;
+
+    setState(() => _statusMessage = 'Measuring Derived Data…');
+    final sizeBytes = await service.getDerivedDataSizeBytes();
+    final sizeLabel = sizeBytes == null ? 'unknown size' : sizeBytes.formatBytes;
+
+    if (!mounted) return;
+
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Clear Derived Data',
+      message:
+          'Delete all of'
+          ' $path'
+          ' ($sizeLabel)\n\n'
+          ' Xcode may rebuild indexes on next open.\n'
+          ' Close Xcode first for the cleanest result.',
+    );
+    if (!confirmed) {
+      setState(() => _statusMessage = _buildIdleStatusMessage());
+      return;
+    }
+
+    setState(() => _statusMessage = 'Clearing Derived Data…');
+    final result = await service.clearDerivedData();
+    if (!mounted) return;
+
+    if (result.success) {
+      await showSuccessDialog(
+        context: context,
+        title: 'Derived Data Cleared',
+        message: result.message,
+      );
+      setState(() => _statusMessage = result.message);
+    } else {
+      await showErrorDialog(
+        context,
+        title: 'Clear Failed',
+        message: result.message,
+      );
+      setState(() => _statusMessage = 'Failed to clear Derived Data');
     }
   }
 

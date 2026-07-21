@@ -78,6 +78,12 @@ class SimutilTheme {
     color: Color.defaultColor
   );
 
+  BoxDecoration successDialogPanel(String title) => BoxDecoration(
+    border: BoxBorder.all(style: BoxBorderStyle.rounded, color: success),
+    title: BorderTitle(text: title),
+    color: Color.defaultColor
+  );
+
   BoxDecoration errorDialogPanel(String title) => BoxDecoration(
     border: BoxBorder.all(style: BoxBorderStyle.rounded, color: error),
     title: BorderTitle(text: title),
