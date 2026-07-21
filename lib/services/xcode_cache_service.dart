@@ -27,14 +27,16 @@ class XcodeCacheService {
   final CommandExec _exec;
   final String? _homeDirectory;
 
-  /// Absolute path to Derived Data for [home] (or `$HOME` / user home).
+  /// Absolute path to Derived Data for [home].
   static String derivedDataPathFor(String home) =>
       '$home/Library/Developer/Xcode/DerivedData';
 
   /// Default Derived Data path under the current user home.
-  String get derivedDataPath {
-    final home =
-        _homeDirectory ?? Platform.environment['HOME'] ?? Platform.pathSeparator;
+  ///
+  /// Returns `null` when neither [homeDirectory] nor `$HOME` is available.
+  String? get derivedDataPath {
+    final home = _homeDirectory ?? Platform.environment['HOME'];
+    if (home == null || home.isEmpty) return null;
     return derivedDataPathFor(home);
   }
 
@@ -42,6 +44,7 @@ class XcodeCacheService {
   Future<int?> getDerivedDataSizeBytes() async {
     if (!Platform.isMacOS) return null;
     final path = derivedDataPath;
+    if (path == null) return null;
     try {
       final result = await _exec.run('du', arguments: ['-sk', path]);
       if (!result.success) return null;
@@ -68,6 +71,14 @@ class XcodeCacheService {
     }
 
     final path = derivedDataPath;
+    if (path == null) {
+      return const XcodeCacheClearResult(
+        success: false,
+        message:
+            'Home directory is unavailable (set HOME or pass homeDirectory)',
+      );
+    }
+
     final sizeBefore = await getDerivedDataSizeBytes();
 
     try {

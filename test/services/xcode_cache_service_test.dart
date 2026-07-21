@@ -16,6 +16,46 @@ void main() {
     });
   });
 
+  group('XcodeCacheService.derivedDataPath', () {
+    test('uses injected homeDirectory', () {
+      final service = XcodeCacheService(
+        FakeCommandExec((command, args) => null),
+        homeDirectory: '/Users/dev',
+      );
+      expect(
+        service.derivedDataPath,
+        '/Users/dev/Library/Developer/Xcode/DerivedData',
+      );
+    });
+
+    test('returns null when home is empty', () {
+      final service = XcodeCacheService(
+        FakeCommandExec((command, args) => null),
+        homeDirectory: '',
+      );
+      expect(service.derivedDataPath, isNull);
+    });
+  });
+
+  group('XcodeCacheService.clearDerivedData home resolution', () {
+    test('fails when home is unavailable', () async {
+      final exec = FakeCommandExec((command, args) => null);
+      final service = XcodeCacheService(exec, homeDirectory: '');
+
+      if (!Platform.isMacOS) {
+        final result = await service.clearDerivedData();
+        expect(result.success, isFalse);
+        expect(result.message, contains('macOS'));
+        return;
+      }
+
+      final result = await service.clearDerivedData();
+      expect(result.success, isFalse);
+      expect(result.message, contains('Home directory is unavailable'));
+      expect(exec.calls, isEmpty);
+    });
+  });
+
   group('XcodeCacheService.getDerivedDataSizeBytes', () {
     test('parses du -sk output to bytes', () async {
       final exec = FakeCommandExec((command, args) {

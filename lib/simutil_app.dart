@@ -451,6 +451,17 @@ class _SimutilAppState extends State<SimutilApp> {
   Future<void> _clearDerivedData() async {
     final service = _di.xcodeCacheService;
     final path = service.derivedDataPath;
+    if (path == null) {
+      if (!mounted) return;
+      await showErrorDialog(
+        context,
+        title: 'Clear Failed',
+        message:
+            'Home directory is unavailable (set HOME or pass homeDirectory)',
+      );
+      setState(() => _statusMessage = 'Failed to clear Derived Data');
+      return;
+    }
 
     setState(() => _statusMessage = 'Measuring Derived Data…');
     final sizeBytes = await service.getDerivedDataSizeBytes();

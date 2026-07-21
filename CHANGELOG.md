@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-07-21
+
+### Fixed
+
+- Stop resolving Xcode Derived Data under `/` when `$HOME` is missing; require an explicit home directory and fail clearly instead.
+
 ## [0.8.0] - 2026-07-21
 
 ### Added
@@ -14,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add confirmation dialog.
 - Add Xcode Tools (`x`) with Clear Derived Data — measure size, confirm, then wipe `~/Library/Developer/Xcode/DerivedData` (macOS only).
 
-## Fixed
+### Fixed
 
 - Fix background color of some dialogs.
 
