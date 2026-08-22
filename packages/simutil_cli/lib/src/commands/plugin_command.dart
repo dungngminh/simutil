@@ -1,7 +1,7 @@
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
-import 'package:simutil/cli/cli_device_services.dart';
-import 'package:simutil/cli/commands/simutil_command.dart';
+import 'package:simutil_cli/src/cli_device_services.dart';
+import 'package:simutil_cli/src/commands/simutil_command.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_plugins/simutil_plugins.dart';
 
@@ -64,16 +64,14 @@ class PluginListCommand extends SimutilCommand {
   String get description => 'List configured plugins';
 
   @override
-  ArgParser get argParser {
-    final parser = super.argParser;
+  ArgParser get argParser => configuredArgParser((parser) {
     addPlatformFlags(parser);
     parser.addOption(
       'device',
       abbr: 'd',
       help: 'Filter commands by device id.',
     );
-    return parser;
-  }
+  });
 
   @override
   Future<int> run() async {
@@ -133,16 +131,14 @@ class PluginRunCommand extends SimutilCommand {
   String get description => 'Run a plugin command';
 
   @override
-  ArgParser get argParser {
-    final parser = super.argParser;
+  ArgParser get argParser => configuredArgParser((parser) {
     addPlatformFlags(parser);
     parser.addOption(
       'device',
       abbr: 'd',
       help: 'Target device id for templated args.',
     );
-    return parser;
-  }
+  });
 
   @override
   Future<int> run() async {

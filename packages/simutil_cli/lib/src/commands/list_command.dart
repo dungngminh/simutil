@@ -1,7 +1,7 @@
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
-import 'package:simutil/cli/cli_device_services.dart';
-import 'package:simutil/cli/commands/simutil_command.dart';
+import 'package:simutil_cli/src/cli_device_services.dart';
+import 'package:simutil_cli/src/commands/simutil_command.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// Lists emulators, simulators, and connected hardware.
@@ -22,8 +22,7 @@ class ListCommand extends SimutilCommand {
   String get description => 'List devices';
 
   @override
-  ArgParser get argParser {
-    final parser = super.argParser;
+  ArgParser get argParser => configuredArgParser((parser) {
     addPlatformFlags(parser);
     parser
       ..addFlag(
@@ -44,8 +43,7 @@ class ListCommand extends SimutilCommand {
         help: 'Show only running devices.',
         negatable: false,
       );
-    return parser;
-  }
+  });
 
   @override
   Future<int> run() async {

@@ -1,7 +1,7 @@
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
-import 'package:simutil/cli/cli_device_services.dart';
-import 'package:simutil/cli/commands/simutil_command.dart';
+import 'package:simutil_cli/src/cli_device_services.dart';
+import 'package:simutil_cli/src/commands/simutil_command.dart';
 
 /// Shuts down a running emulator or simulator.
 class ShutdownCommand extends SimutilCommand {
@@ -21,11 +21,8 @@ class ShutdownCommand extends SimutilCommand {
   String get description => 'Shut down a device by id';
 
   @override
-  ArgParser get argParser {
-    final parser = super.argParser;
-    addPlatformFlags(parser);
-    return parser;
-  }
+  ArgParser get argParser =>
+      configuredArgParser(addPlatformFlags);
 
   @override
   Future<int> run() async {

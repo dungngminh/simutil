@@ -1,7 +1,7 @@
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
-import 'package:simutil/cli/cli_device_services.dart';
-import 'package:simutil/cli/commands/simutil_command.dart';
+import 'package:simutil_cli/src/cli_device_services.dart';
+import 'package:simutil_cli/src/commands/simutil_command.dart';
 
 /// Boots an emulator or simulator by device id.
 class LaunchCommand extends SimutilCommand {
@@ -21,8 +21,7 @@ class LaunchCommand extends SimutilCommand {
   String get description => 'Launch a device by id';
 
   @override
-  ArgParser get argParser {
-    final parser = super.argParser;
+  ArgParser get argParser => configuredArgParser((parser) {
     addPlatformFlags(parser);
     parser
       ..addFlag(
@@ -36,8 +35,7 @@ class LaunchCommand extends SimutilCommand {
         help: 'Disable emulator audio (Android).',
         negatable: false,
       );
-    return parser;
-  }
+  });
 
   @override
   Future<int> run() async {
