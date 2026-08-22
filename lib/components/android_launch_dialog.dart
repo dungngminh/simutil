@@ -7,7 +7,9 @@ import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_core/simutil_core.dart';
 
+/// Android emulator quick-launch option picker.
 class AndroidLaunchDialog extends StatefulComponent {
+  /// Creates a launch-options dialog for [device].
   const AndroidLaunchDialog({
     super.key,
     required this.device,
@@ -15,10 +17,13 @@ class AndroidLaunchDialog extends StatefulComponent {
     required this.onCancel,
   });
 
+  /// Emulator to launch.
   final Device device;
 
+  /// Called with the chosen launch option on Enter.
   final void Function(AndroidQuickLaunchOption option) onLaunch;
 
+  /// Called when the user cancels.
   final VoidCallback onCancel;
 
   @override
@@ -113,6 +118,7 @@ class _LaunchDialogState extends State<AndroidLaunchDialog> {
   }
 }
 
+/// Shows an [AndroidLaunchDialog]; returns the chosen option or `null`.
 Future<AndroidQuickLaunchOption?> showLaunchDialog({
   required BuildContext context,
   required Device device,

@@ -1,7 +1,9 @@
 import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
+/// Row of single-character PIN input cells.
 class PinCodeFields extends StatelessComponent {
+  /// Creates a labeled PIN entry row.
   const PinCodeFields({
     required this.label,
     required this.groupFocused,
@@ -15,15 +17,34 @@ class PinCodeFields extends StatelessComponent {
     required this.onSubmitted,
   });
 
+  /// Label shown above the PIN cells.
   final String label;
+
+  /// Whether the PIN group is focused in the parent form.
   final bool groupFocused;
+
+  /// Horizontal alignment of the label and cells.
   final CrossAxisAlignment crossAxisAlignment;
+
+  /// Vertical gap between label and cells.
   final double spacing;
+
+  /// Horizontal gap between PIN cells.
   final double cellSpacing;
+
+  /// One controller per PIN digit cell.
   final List<TextEditingController> pinControllers;
+
+  /// Index of the cell that should show focus styling.
   final int focusedPinIndex;
+
+  /// Called when a cell's value changes.
   final void Function(int index, String value) onPinChanged;
+
+  /// Called for key events on a cell; return `true` if handled.
   final bool Function(int index, KeyboardEvent event) onPinKeyEvent;
+
+  /// Called when the user submits the full PIN.
   final VoidCallback onSubmitted;
 
   @override

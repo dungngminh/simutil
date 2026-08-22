@@ -4,16 +4,23 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
+/// Success overlay. Enter or Escape dismisses.
 class SuccessDialog extends StatelessComponent {
-
+  /// Creates a success dialog.
   const SuccessDialog({
     super.key,
     required this.title,
     required this.message,
     required this.onDismiss,
   });
+
+  /// Dialog title.
   final String title;
+
+  /// Success body.
   final String message;
+
+  /// Called when the user closes the dialog.
   final VoidCallback onDismiss;
 
   @override
@@ -53,6 +60,7 @@ class SuccessDialog extends StatelessComponent {
   }
 }
 
+/// Shows a [SuccessDialog] and completes when dismissed.
 Future<void> showSuccessDialog({
   required BuildContext context,
   required String title,

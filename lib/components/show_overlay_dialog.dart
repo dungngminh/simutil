@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:nocterm/nocterm.dart';
 
+/// Builds an overlay dialog widget with a [Completer] for the result.
 typedef OverlayDialogBuilder<T> =
     Component Function(
       BuildContext context,
@@ -9,6 +10,7 @@ typedef OverlayDialogBuilder<T> =
       OverlayEntry? entry,
     );
 
+/// Inserts a modal overlay and returns when [builder] completes the future.
 Future<T?> showOverlayDialog<T>({
   required BuildContext context,
   required OverlayDialogBuilder<T> builder,

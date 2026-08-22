@@ -1,8 +1,11 @@
 import 'package:nocterm/nocterm.dart';
 
+/// One-line footer showing the latest status [message].
 class AppStatusBar extends StatelessComponent {
+  /// Creates a status bar.
   const AppStatusBar({super.key, required this.message});
 
+  /// Text shown in the footer.
   final String message;
 
   @override

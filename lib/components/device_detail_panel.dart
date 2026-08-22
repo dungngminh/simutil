@@ -2,10 +2,15 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil_core/simutil_core.dart';
 
+/// Side panel showing metadata for the selected [device].
 class DeviceDetailPanel extends StatelessComponent {
+  /// Creates a detail panel; pass `null` [device] for the empty state.
   const DeviceDetailPanel({super.key, this.device, this.focused = false});
 
+  /// Currently selected device, if any.
   final Device? device;
+
+  /// Whether this panel is the active focus target.
   final bool focused;
 
   @override

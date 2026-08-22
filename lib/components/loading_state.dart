@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:nocterm/nocterm.dart';
 
+/// Animated spinner with optional status text.
 class LoadingState extends StatefulComponent {
+  /// Creates a loading indicator.
   const LoadingState({
     this.spinnerFrames = defaultSpinnerFrames,
     this.message,
@@ -10,13 +12,22 @@ class LoadingState extends StatefulComponent {
     this.style = const TextStyle(fontWeight: FontWeight.dim),
   });
 
+  /// Braille frames cycled by the spinner animation.
   final List<String> spinnerFrames;
+
+  /// Optional message shown beside the spinner.
   final String? message;
+
+  /// Delay between spinner frame updates.
   final Duration duration;
+
+  /// Text style for the spinner line.
   final TextStyle style;
 
+  /// Default frame interval for [LoadingState].
   static const defaultDuration = Duration(milliseconds: 150);
 
+  /// Default braille spinner frames.
   static const defaultSpinnerFrames = [
     '⠋',
     '⠙',

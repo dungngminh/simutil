@@ -1,3 +1,4 @@
+/// Byte-size formatting for status text.
 extension IntExtension on int {
   /// Formats this value as a short human-readable byte size (e.g. `3.9G`, `512K`).
   ///

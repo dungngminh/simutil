@@ -4,15 +4,23 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
+/// Error overlay. Enter or Escape dismisses.
 class ErrorDialog extends StatelessComponent {
+  /// Creates an error dialog.
   const ErrorDialog({
     super.key,
     required this.title,
     required this.message,
     required this.onDismiss,
   });
+
+  /// Dialog title.
   final String title;
+
+  /// Error body.
   final String message;
+
+  /// Called when the user closes the dialog.
   final VoidCallback onDismiss;
 
   @override
@@ -52,6 +60,7 @@ class ErrorDialog extends StatelessComponent {
   }
 }
 
+/// Shows an [ErrorDialog] and completes when dismissed.
 Future<void> showErrorDialog(
   BuildContext context, {
   required String title,

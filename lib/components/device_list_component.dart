@@ -3,7 +3,9 @@ import 'package:simutil/components/simutil_icons.dart';
 import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil_core/simutil_core.dart';
 
+/// Scrollable, keyboard-navigable list of [Device] rows.
 class DeviceListComponent extends StatefulComponent {
+  /// Creates a device list panel.
   const DeviceListComponent({
     super.key,
     required this.devices,
@@ -20,17 +22,40 @@ class DeviceListComponent extends StatefulComponent {
     this.emptyMessage = 'No devices found',
   });
 
+  /// Devices to render.
   final List<Device> devices;
+
+  /// Whether this panel receives keyboard focus.
   final bool focused;
+
+  /// Index of the highlighted row.
   final int selectedIndex;
+
+  /// Extra rows kept visible above/below the selection when scrolling.
   final int scrollBufferItems;
+
+  /// Called when arrow keys change the selection.
   final void Function(int)? onSelectionChanged;
+
+  /// Called on Space to launch the selected device.
   final void Function(Device)? onDeviceLaunchRequested;
+
+  /// Called on Enter to open options for the selected device.
   final void Function(Device)? onDeviceShowOptions;
+
+  /// Called on `t` to shut down the selected device.
   final void Function(Device)? onDeviceShutdownRequested;
+
+  /// Called on `l` to open logcat for a running device.
   final void Function(Device)? onDeviceLogcatRequested;
+
+  /// When true, shows [loadingMessage] instead of the list.
   final bool isLoading;
+
+  /// Text shown while [isLoading] is true.
   final String loadingMessage;
+
+  /// Text shown when [devices] is empty.
   final String emptyMessage;
 
   @override

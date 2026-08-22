@@ -8,6 +8,7 @@ import 'package:simutil/components/simutil_theme.dart';
 ///
 /// Enter confirms; Escape cancels.
 class ConfirmDialog extends StatelessComponent {
+  /// Creates a confirmation dialog.
   const ConfirmDialog({
     super.key,
     required this.title,
@@ -16,9 +17,16 @@ class ConfirmDialog extends StatelessComponent {
     required this.onCancel,
   });
 
+  /// Dialog title.
   final String title;
+
+  /// Confirmation prompt body.
   final String message;
+
+  /// Called when the user confirms.
   final VoidCallback onConfirm;
+
+  /// Called when the user cancels.
   final VoidCallback onCancel;
 
   @override
@@ -63,6 +71,7 @@ class ConfirmDialog extends StatelessComponent {
   }
 }
 
+/// Shows a [ConfirmDialog]; returns `true` if confirmed.
 Future<bool> showConfirmDialog({
   required BuildContext context,
   required String title,

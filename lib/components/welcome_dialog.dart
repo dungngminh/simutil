@@ -4,9 +4,12 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
+/// First-run welcome overlay with keyboard shortcuts.
 class WelcomeDialog extends StatelessComponent {
+  /// Creates a welcome dialog.
   const WelcomeDialog({super.key, required this.onDismiss});
 
+  /// Called when the user closes the dialog.
   final VoidCallback onDismiss;
 
   @override
@@ -67,6 +70,7 @@ class WelcomeDialog extends StatelessComponent {
   }
 }
 
+/// Shows a [WelcomeDialog] and completes when dismissed.
 Future<void> showWelcomeDialog({required BuildContext context}) =>
     showOverlayDialog<void>(
       context: context,

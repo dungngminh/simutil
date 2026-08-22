@@ -8,12 +8,14 @@ analyzer:
     - lib/generated/**/*.dart
     - lib/generated/*.dart
     - lib/*.g.dart
+    - lib/utils/version.dart
+    - lib/data/changelog_entries.dart
   language:
     strict-raw-types: false
 
 linter:
   rules:
-    public_member_api_docs: false
+    public_member_api_docs: true
     avoid_print: true
     require_trailing_commas: true
     prefer_single_quotes: true

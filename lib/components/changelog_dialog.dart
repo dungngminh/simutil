@@ -5,14 +5,19 @@ import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil/data/changelog_entries.dart';
 
+/// Scrollable release-notes overlay.
 class ChangelogDialog extends StatefulComponent {
+  /// Creates a changelog dialog.
   const ChangelogDialog({
     super.key,
     required this.entries,
     required this.onDismiss,
   });
 
+  /// Changelog sections to display.
   final List<ChangelogEntry> entries;
+
+  /// Called when the user closes the dialog.
   final VoidCallback onDismiss;
 
   @override
@@ -111,6 +116,7 @@ class _ChangelogLine {
   final bool isHeader;
 }
 
+/// Shows a [ChangelogDialog] and completes when dismissed.
 Future<void> showChangelogDialog({
   required BuildContext context,
   required List<ChangelogEntry> entries,

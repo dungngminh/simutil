@@ -4,7 +4,9 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
+/// Single-line text input overlay.
 class InputDialog extends StatefulComponent {
+  /// Creates an input dialog.
   const InputDialog({
     super.key,
     required this.title,
@@ -14,11 +16,23 @@ class InputDialog extends StatefulComponent {
     required this.onSubmit,
     required this.onCancel,
   });
+
+  /// Dialog title.
   final String title;
+
+  /// Label above the text field.
   final String label;
+
+  /// Optional hint shown below the field.
   final String hint;
+
+  /// Initial text field value.
   final String initialValue;
+
+  /// Called with the trimmed value on Enter.
   final void Function(String value) onSubmit;
+
+  /// Called when the user cancels.
   final VoidCallback onCancel;
 
   @override
@@ -107,6 +121,7 @@ class _InputDialogState extends State<InputDialog> {
   }
 }
 
+/// Shows an [InputDialog]; returns the submitted value or `null`.
 Future<String?> showInputDialog({
   required BuildContext context,
   required String title,
