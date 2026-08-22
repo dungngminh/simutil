@@ -2,10 +2,15 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:simutil_adb/src/models/adb_connect_result.dart';
-import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_adb/src/models/wireless_pairing_info.dart';
+import 'package:simutil_core/simutil_core.dart';
 
+/// Android emulators and hardware devices via `adb` and the SDK emulator.
 class AndroidDeviceService implements DeviceService {
+  /// Creates a service using [CommandExec] for all shell work.
+  ///
+  /// [androidHomeOverride] wins over `ANDROID_HOME` / `ANDROID_SDK_ROOT`.
+  /// [environment] and [fileExists] are test seams.
   AndroidDeviceService(
     this._exec, {
     String? androidHomeOverride,
@@ -32,6 +37,7 @@ class AndroidDeviceService implements DeviceService {
 
   bool get _hasSdkEmulator => _pathExists(emulatorPath);
 
+  /// Resolved Android SDK root.
   String getAndroidHome() {
     final override = _androidHomeOverride;
     if (override != null && override.isNotEmpty) return override;
@@ -44,6 +50,7 @@ class AndroidDeviceService implements DeviceService {
     return '$home/Library/Android/sdk';
   }
 
+  /// Path to `adb` (SDK `platform-tools` or `PATH`).
   String get adbPath {
     final sdkAdbPath = '${getAndroidHome()}/platform-tools/adb';
     if (_pathExists(sdkAdbPath)) return sdkAdbPath;
@@ -51,6 +58,7 @@ class AndroidDeviceService implements DeviceService {
     return 'adb';
   }
 
+  /// Path to the SDK `emulator` binary.
   String get emulatorPath => '${getAndroidHome()}/emulator/emulator';
 
   @override
@@ -159,6 +167,7 @@ class AndroidDeviceService implements DeviceService {
     await _exec.run(emulatorPath, arguments: launchArgs);
   }
 
+  /// Runs `adb connect [host]`.
   Future<AdbConnectResult> connectDevice(String host) async {
     try {
       final result = await _exec.run(adbPath, arguments: ['connect', host]);
@@ -177,6 +186,7 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
+  /// Runs `adb disconnect [host]`.
   Future<bool> disconnectDevice(String host) async {
     try {
       final result = await _exec.run(adbPath, arguments: ['disconnect', host]);
@@ -186,6 +196,7 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
+  /// Enables `adb tcpip` on [serial].
   Future<bool> enableTcpIp(String serial, {int port = 5555}) async {
     try {
       final result = await _exec.run(
@@ -198,6 +209,7 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
+  /// Reads the device LAN IP via `ip route` / `ifconfig`.
   Future<String?> getDeviceIpAddress(String serial) async {
     try {
       final result = await _exec.run(
@@ -234,6 +246,7 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
+  /// Wireless debugging info when the device SDK is 30+.
   Future<WirelessPairingInfo?> getWirelessPairingInfo(String serial) async {
     try {
       final versionResult = await _exec.run(
@@ -261,6 +274,7 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
+  /// Runs `adb pair [host] [pairingCode]`.
   Future<AdbConnectResult> pairDevice(String host, String pairingCode) async {
     try {
       final result = await _exec.run(

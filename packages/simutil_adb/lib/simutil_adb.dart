@@ -1,4 +1,15 @@
 /// Android emulator and device APIs for SimUtil via adb.
+///
+/// Lists AVDs and hardware, launches the emulator, and handles wireless
+/// `adb connect` / `adb pair`.
+///
+/// ```dart
+/// import 'package:simutil_adb/simutil_adb.dart';
+/// import 'package:simutil_core/simutil_core.dart';
+///
+/// final adb = AndroidDeviceService(CommandExecImpl());
+/// final avds = await adb.getSimulators();
+/// ```
 library;
 
 export 'src/android_device_service.dart';

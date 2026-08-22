@@ -5,16 +5,21 @@ import 'dart:io';
 import 'package:multicast_dns/multicast_dns.dart';
 import 'package:simutil_adb/src/models/wifi_pairing_device.dart';
 
+/// Discovers ADB wireless pairing endpoints on the local network.
 abstract class WifiDiscoveryService {
   /// Continuously watches for ADB pairing endpoints via mDNS (`_adb-tls-pairing._tcp`).
+  ///
   /// Emits each newly discovered device as it is found.
   /// Cancel the subscription to stop scanning.
   Stream<WifiPairingDevice> watchPairingDevices();
 }
 
+/// Builds an [MDnsClient], used to inject fakes in tests.
 typedef MdnsClientFactory = MDnsClient Function();
 
+/// mDNS implementation of [WifiDiscoveryService].
 class MdnsWifiDiscoveryService implements WifiDiscoveryService {
+  /// Creates a service. Pass [clientFactory] in tests.
   MdnsWifiDiscoveryService({MdnsClientFactory? clientFactory})
     : _clientFactory = clientFactory ?? _defaultClientFactory;
 
