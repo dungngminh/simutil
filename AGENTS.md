@@ -15,10 +15,10 @@ viewer. Entry point: [bin/simutil.dart](bin/simutil.dart). Main app component:
 - CLI uses `args` `CommandRunner` — see [lib/cli/simutil_command_runner.dart](lib/cli/simutil_command_runner.dart).
   `bin/simutil.dart` runs the TUI when called with no arguments and the runner otherwise.
 - All external shell commands in **services** go through `CommandExec` →
-  `IsolateRunner` (see [lib/services/command_exec.dart](lib/services/command_exec.dart)
+  `IsolateRunner` (see [packages/simutil_core](../../packages/simutil_core/)
   and [lib/services/service_locator.dart](lib/services/service_locator.dart)).
-  Do not call `Process.run` or `Process.start` directly inside `lib/services/`.
-  See **CommandExec** below for when exceptions apply.
+  Do not call `Process.run` or `Process.start` directly inside workspace
+  services. See **CommandExec** below for when exceptions apply.
 
 ## CommandExec
 
@@ -53,9 +53,9 @@ stdio with the user:
   [lib/services/plugin_runner_service.dart](lib/services/plugin_runner_service.dart).
 - Logcat streaming: `Process.start` in plugin code under `lib/plugins/`.
 
-**Testing:** use [test/services/fake_command_exec.dart](test/services/fake_command_exec.dart)
-(`FakeCommandExec`) instead of spawning real processes. Never call `Process.run`
-inside service unit tests when the production path goes through `CommandExec`.
+**Testing:** use `package:simutil_core/testing.dart` (`FakeCommandExec`) instead
+of spawning real processes. Never call `Process.run` inside service unit tests
+when the production path goes through `CommandExec`.
 
 **Docs:** full data-flow diagram and invariants in
 [docs/ai/architecture.md](docs/ai/architecture.md); plugin launch exception in
@@ -63,10 +63,13 @@ inside service unit tests when the production path goes through `CommandExec`.
 
 ## Layout
 
+Monorepo: `packages/simutil_{core,adb,apple,plugins}` + root app. See
+[docs/ai/architecture.md](docs/ai/architecture.md).
+
 `lib/cli/` (CLI runner + subcommands), `lib/components/` (TUI widgets, dialogs,
-theme), `lib/models/`, `lib/plugins/{adb_tools,logcat,scrcpy}/` (feature plugins),
-`lib/services/` (device services, DI, isolate runner), `lib/utils/`. Tests in `test/`.
-For a full subtree map and data flow, see [docs/ai/architecture.md](docs/ai/architecture.md).
+theme), `lib/models/` (app settings), `lib/plugins/{adb_tools,logcat,registry}/`
+(TUI feature plugins), `lib/services/` (ServiceLocator, settings, app state),
+`lib/utils/`. Tests in `test/` and each `packages/*/test/`.
 
 ## Build / run / verify
 
