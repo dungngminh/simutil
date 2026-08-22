@@ -166,8 +166,9 @@ Headless libraries (pub workspace, all `1.0.0`):
 | `simutil_adb` | `AndroidDeviceService`, wireless ADB |
 | `simutil_apple` | `IOSDeviceService`, `XcodeCacheService` |
 | `simutil_plugins` | YAML plugin registry and runner |
+| `simutil_cli` | Headless CLI (`list`, `launch`, `shutdown`, `plugin`) |
 
-The root `simutil` package is the TUI + CLI app only; it does not re-export the libraries.
+The root `simutil` package is the TUI app and binary entry; it does not re-export the libraries.
 
 ## Contributing
 

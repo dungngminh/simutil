@@ -12,8 +12,8 @@ viewer. Entry point: [bin/simutil.dart](bin/simutil.dart). Main app component:
 - Dart `^3.11.0`. UI framework is `[nocterm](https://nocterm.dev/)` — a Flutter-like
   component model for terminals (`StatefulComponent`, `BuildContext`, `Focusable`,
   `setState`). Treat widgets as Flutter widgets.
-- CLI uses `args` `CommandRunner` — see [lib/cli/simutil_command_runner.dart](lib/cli/simutil_command_runner.dart).
-  `bin/simutil.dart` runs the TUI when called with no arguments and the runner otherwise.
+- CLI uses `args` `CommandRunner` — see [packages/simutil_cli](packages/simutil_cli/).
+  `bin/simutil.dart` delegates to `SimutilCommandRunner` when args are present.
 - All external shell commands in **services** go through `CommandExec` →
   `IsolateRunner` (see [packages/simutil_core](../../packages/simutil_core/)
   and [lib/services/service_locator.dart](lib/services/service_locator.dart)).
@@ -66,10 +66,11 @@ when the production path goes through `CommandExec`.
 Monorepo: `packages/simutil_{core,adb,apple,plugins}` + root app. See
 [docs/ai/architecture.md](docs/ai/architecture.md).
 
-`lib/cli/` (CLI runner + subcommands), `lib/components/` (TUI widgets, dialogs,
+`lib/components/` (TUI widgets, dialogs,
 theme), `lib/models/` (app settings), `lib/plugins/{adb_tools,logcat,registry}/`
 (TUI feature plugins), `lib/services/` (ServiceLocator, settings, app state),
-`lib/utils/`. Tests in `test/` and each `packages/*/test/`.
+`lib/utils/`. CLI lives in `packages/simutil_cli/`. Tests in `test/` and each
+`packages/*/test/`.
 
 ## Build / run / verify
 

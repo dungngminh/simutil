@@ -6,8 +6,8 @@ drift but paths are stable.
 
 ## Monorepo layout
 
-Dart pub workspace (SDK `^3.11.0`). Root package `simutil` is the TUI + CLI app;
-headless libraries live under `packages/`. [Melos](https://melos.invertase.dev/)
+Dart pub workspace (SDK `^3.11.0`). Root package `simutil` is the TUI app;
+headless libraries and CLI live under `packages/`. [Melos](https://melos.invertase.dev/)
 scripts in the root `pubspec.yaml` (`melos run analyze`, `test`, `check`, …)
 run commands across all workspace members.
 
@@ -17,7 +17,8 @@ run commands across all workspace members.
 | [packages/simutil_adb](../../packages/simutil_adb/) | `AndroidDeviceService`, wireless pairing, mDNS discovery |
 | [packages/simutil_apple](../../packages/simutil_apple/) | `IOSDeviceService` (simctl + devicectl), `XcodeCacheService` |
 | [packages/simutil_plugins](../../packages/simutil_plugins/) | YAML plugin registry + command runner |
-| Root [simutil](../../pubspec.yaml) | Nocterm TUI, CLI, settings/app state, built-in plugin UIs |
+| [packages/simutil_cli](../../packages/simutil_cli/) | `SimutilCommandRunner`, `CliDeviceServices` (`CommandExecImpl`) |
+| Root [simutil](../../pubspec.yaml) | Nocterm TUI, settings/app state, built-in plugin UIs; binary entry |
 
 Import headless APIs directly (`package:simutil_adb/simutil_adb.dart`, etc.).
 The app does not re-export library packages.
@@ -25,11 +26,10 @@ The app does not re-export library packages.
 ## Subtree purpose (app)
 
 - [bin/simutil.dart](../../bin/simutil.dart) — entry point. Routes to the TUI
-  when called without arguments, otherwise delegates to `SimutilCommandRunner`.
+  when called without arguments, otherwise delegates to `simutil_cli`.
 - [lib/simutil_app.dart](../../lib/simutil_app.dart) — root `StatefulComponent`.
   Owns device lists, focus state, the periodic refresh timer, and orchestrates
   every dialog (launch options, ADB tools, logcat).
-- `lib/cli/` — `args`-based command runner and subcommands.
 - `lib/components/` — reusable TUI widgets: panels, dialogs, theme
   (`SimutilTheme`), status bar, header.
 - `lib/models/` — app-only data: `AppSettings` (plugin models live in
@@ -53,7 +53,11 @@ The app does not re-export library packages.
 flowchart LR
     User[User] --> Bin["bin/simutil.dart"]
     Bin -->|"no args"| App["SimutilApp (Nocterm)"]
-    Bin -->|"with args"| CLI["SimutilCommandRunner"]
+    Bin -->|"with args"| CLI["simutil_cli"]
+    CLI --> Core
+    CLI --> Adb
+    CLI --> Apple
+    CLI --> Plugins
     App --> Locator["ServiceLocator"]
     Locator --> Core["simutil_core"]
     Locator --> Adb["simutil_adb"]
@@ -73,6 +77,8 @@ Key invariants:
 
 - Services never call `Process.run` directly — they go through `CommandExec` so
   shell work happens on a background isolate and the TUI stays responsive.
+- The CLI uses `CommandExecImpl` (sync) via `CliDeviceServices`; the TUI uses
+  `IsolateCommandExec`.
 - The TUI mutates state via `setState` and refreshes devices on a timer
   (`kReloadInterval`, see [lib/utils/constant.dart](../../lib/utils/constant.dart))
   plus a short follow-up after user actions (`kReloadAfterActionInterval`).

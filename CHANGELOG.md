@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add [Melos](https://melos.invertase.dev/) workspace scripts (`analyze`, `test`, `check`, `codegen`, `compile`, `tui`).
+- Extract headless CLI into `simutil_cli` (`SimutilCommandRunner`, device/plugin commands).
+
+### Changed
+
+- Root app depends on `simutil_cli` for CLI; `args` / `mason_logger` moved to that package.
 
 ## [1.0.0] - 2026-08-22
 

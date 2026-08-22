@@ -24,4 +24,5 @@ jobs:
           dart pub publish --directory packages/simutil_adb --force
           dart pub publish --directory packages/simutil_apple --force
           dart pub publish --directory packages/simutil_plugins --force
+          dart pub publish --directory packages/simutil_cli --force
           dart pub publish --force
