@@ -85,7 +85,7 @@ void main() {
 
       expect(svc.getAndroidHome(), '/home/test/Android/Sdk');
       expect(svc.adbPath, '/home/test/Android/Sdk/platform-tools/adb');
-    });
+    }, skip: !Platform.isLinux);
 
     test('falls back to adb on PATH when SDK adb is missing', () {
       final svc = AndroidDeviceService(
