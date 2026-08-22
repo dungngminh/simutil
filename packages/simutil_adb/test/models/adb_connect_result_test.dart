@@ -1,4 +1,4 @@
-import 'package:simutil/models/adb_connect_result.dart';
+import 'package:simutil_adb/src/models/adb_connect_result.dart';
 import 'package:test/test.dart';
 
 void main() {

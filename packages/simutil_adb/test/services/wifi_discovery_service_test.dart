@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:multicast_dns/multicast_dns.dart';
-import 'package:simutil/models/wifi_pairing_device.dart';
-import 'package:simutil/services/wifi_discovery_service.dart';
+import 'package:simutil_adb/src/models/wifi_pairing_device.dart';
+import 'package:simutil_adb/src/wifi_discovery_service.dart';
 import 'package:test/test.dart';
 
 void main() {

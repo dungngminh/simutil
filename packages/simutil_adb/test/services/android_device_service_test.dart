@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:simutil_core/simutil_core.dart';
-import 'package:simutil/services/android_device_service.dart';
+import 'package:simutil_adb/src/android_device_service.dart';
 import 'package:test/test.dart';
 
 import 'package:simutil_core/testing.dart';

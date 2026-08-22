@@ -4,7 +4,7 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_icons.dart';
 import 'package:simutil/components/simutil_theme.dart';
-import 'package:simutil/models/android_quick_launch_option.dart';
+import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 class AndroidLaunchDialog extends StatefulComponent {

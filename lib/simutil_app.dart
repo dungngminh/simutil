@@ -16,7 +16,7 @@ import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil/components/success_dialog.dart';
 import 'package:simutil/components/welcome_dialog.dart';
 import 'package:simutil/data/changelog_entries.dart';
-import 'package:simutil/models/android_quick_launch_option.dart';
+import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil/models/app_settings.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil/models/plugin_config.dart';

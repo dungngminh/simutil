@@ -6,9 +6,7 @@ import 'package:simutil/components/pin_code_fields.dart';
 import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_icons.dart';
 import 'package:simutil/components/simutil_theme.dart';
-import 'package:simutil/models/wifi_pairing_device.dart';
-import 'package:simutil/models/wireless_connect_request.dart';
-import 'package:simutil/services/wifi_discovery_service.dart';
+import 'package:simutil_adb/simutil_adb.dart';
 
 const _requiredPinCodeLength = 6;
 final _pinCodeRegex = RegExp(r'^\d{6}$');

@@ -1,4 +1,4 @@
-import 'package:simutil/models/android_quick_launch_option.dart';
+import 'package:simutil_adb/src/models/android_quick_launch_option.dart';
 import 'package:test/test.dart';
 
 void main() {

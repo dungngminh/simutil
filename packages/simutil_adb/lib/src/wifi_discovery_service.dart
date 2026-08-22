@@ -3,7 +3,7 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:multicast_dns/multicast_dns.dart';
-import 'package:simutil/models/wifi_pairing_device.dart';
+import 'package:simutil_adb/src/models/wifi_pairing_device.dart';
 
 abstract class WifiDiscoveryService {
   /// Continuously watches for ADB pairing endpoints via mDNS (`_adb-tls-pairing._tcp`).

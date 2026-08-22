@@ -1,4 +1,4 @@
-import 'package:simutil/models/wireless_pairing_info.dart';
+import 'package:simutil_adb/src/models/wireless_pairing_info.dart';
 import 'package:test/test.dart';
 
 void main() {
