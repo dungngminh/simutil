@@ -29,6 +29,13 @@ jobs:
       - name: Analyze
         run: dart analyze --fatal-infos
 
+      - name: Test workspace
+        run: |
+          dart test
+          dart test packages/simutil_core
+          dart test packages/simutil_adb
+          dart test packages/simutil_apple
+
   build:
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
