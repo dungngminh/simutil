@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:simutil_core/simutil_core.dart';
-import 'package:simutil/utils/int_extension.dart';
 
 /// Result of clearing Xcode Derived Data.
 class XcodeCacheClearResult {
@@ -117,7 +116,7 @@ class XcodeCacheService {
 
       return XcodeCacheClearResult(
         success: true,
-        message: 'Cleared ${sizeBefore.formatBytes} of Derived Data',
+        message: 'Cleared ${_formatBytes(sizeBefore)} of Derived Data',
         freedBytes: sizeBefore,
       );
     } catch (e) {
@@ -128,4 +127,19 @@ class XcodeCacheService {
       );
     }
   }
+}
+
+String _formatBytes(int bytes) {
+  var value = bytes < 0 ? 0 : bytes.toDouble();
+  const units = ['B', 'K', 'M', 'G', 'T'];
+  var unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+  if (unitIndex == 0) return '${value.round()}B';
+  final fixed = value >= 10
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(1);
+  return '$fixed${units[unitIndex]}';
 }

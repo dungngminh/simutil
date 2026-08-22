@@ -1,11 +1,10 @@
 import 'package:simutil_adb/simutil_adb.dart';
+import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil/services/app_state.dart';
 import 'package:simutil_core/simutil_core.dart';
-import 'package:simutil/services/ios_device_service.dart';
 import 'package:simutil/services/plugin_registry_service.dart';
 import 'package:simutil/services/plugin_runner_service.dart';
 import 'package:simutil/services/settings_service.dart';
-import 'package:simutil/services/xcode_cache_service.dart';
 
 class ServiceLocator {
   ServiceLocator._();

@@ -1,10 +1,8 @@
 import 'dart:io';
 
-import 'package:simutil/services/xcode_cache_service.dart';
-import 'package:simutil/utils/int_extension.dart';
-import 'package:test/test.dart';
-
+import 'package:simutil_apple/src/xcode_cache_service.dart';
 import 'package:simutil_core/testing.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('XcodeCacheService.derivedDataPathFor', () {
@@ -137,7 +135,8 @@ void main() {
       final result = await service.clearDerivedData();
       expect(result.success, isTrue);
       expect(result.freedBytes, 2048 * 1024);
-      expect(result.message, contains((2048 * 1024).formatBytes));
+      expect(result.message, contains('Cleared'));
+      expect(result.freedBytes, 2048 * 1024);
 
       final commands = exec.calls.map((c) => c.command).toList();
       expect(commands, containsAllInOrder(['du', 'rm', 'mkdir']));

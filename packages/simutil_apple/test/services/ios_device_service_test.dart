@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:simutil_apple/src/ios_device_service.dart';
 import 'package:simutil_core/simutil_core.dart';
-import 'package:simutil/services/ios_device_service.dart';
-import 'package:test/test.dart';
-
 import 'package:simutil_core/testing.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('extractPlatformName', () {
