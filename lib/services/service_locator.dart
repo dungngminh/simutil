@@ -1,10 +1,9 @@
 import 'package:simutil/services/app_state.dart';
-import 'package:simutil/services/plugin_registry_service.dart';
-import 'package:simutil/services/plugin_runner_service.dart';
 import 'package:simutil/services/settings_service.dart';
 import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
+import 'package:simutil_plugins/simutil_plugins.dart';
 
 /// Wires TUI services: core exec, adb, Apple, settings, and plugins.
 class ServiceLocator {

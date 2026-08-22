@@ -19,7 +19,7 @@ import 'package:simutil/data/changelog_entries.dart';
 import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil/models/app_settings.dart';
 import 'package:simutil_core/simutil_core.dart';
-import 'package:simutil/models/plugin_config.dart';
+import 'package:simutil_plugins/simutil_plugins.dart';
 import 'package:simutil/plugins/adb_tools/adb_tools_dialog.dart';
 import 'package:simutil/plugins/adb_tools/qr_connect_dialog.dart';
 import 'package:simutil/plugins/adb_tools/wireless_pairing/wireless_pairing_dialog.dart';

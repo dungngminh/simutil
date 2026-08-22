@@ -1,7 +1,7 @@
 import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
-import 'package:simutil/models/plugin_config.dart';
+import 'package:simutil_plugins/simutil_plugins.dart';
 import 'package:simutil/plugins/registry/menu_option_row.dart';
 
 /// Menu dialog listing runnable commands for a plugin.
