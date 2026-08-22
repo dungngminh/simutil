@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-22
+
+### Added
+
+- Split headless APIs into workspace packages: `simutil_core`, `simutil_adb`, `simutil_apple`, and `simutil_plugins` (all `1.0.0`).
+- CLI subcommands: `list`/`ls`, `launch`/`start`, `shutdown`/`stop`, and `plugin list` / `plugin run` with short flags (`-a`, `-i`, `-e`, `-p`, `-r`, `-c`, `--no-audio`, `-d`).
+
+### Changed
+
+- **Breaking:** device services, `CommandExec`, and plugin registry now live under `package:simutil_*` imports instead of `package:simutil/services/...`.
+- TUI still uses `IsolateCommandExec`; CLI uses `CommandExecImpl`.
+
 ## [0.9.0] - 2026-09-25
 
 ### Fixed

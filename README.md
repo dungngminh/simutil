@@ -139,6 +139,36 @@ SimUtil itself runs on macOS, Linux, and Windows. Feature support depends on the
 
 iOS support depends on Apple’s tools (`xcrun simctl` for simulators, `xcrun devicectl` for physical devices), which are only available on macOS. On Xcode 27+, launching a simulator opens DeviceHub.app; earlier Xcode versions still open Simulator.app. On Linux and Windows, the iOS panels indicate they are not supported; Android launch, ADB tools, Logcat, and plugins still work.
 
+## CLI
+
+With arguments, `simutil` runs headless commands (no TUI). The TUI starts when you run `simutil` with no arguments.
+
+```bash
+simutil -V                         # print version
+simutil list                       # list devices (alias: ls)
+simutil list -a -r                 # running Android devices only
+simutil launch <device-id>         # boot emulator/simulator (alias: start)
+simutil launch <id> -c --no-audio  # cold boot, no audio (Android)
+simutil shutdown <device-id>       # shut down (alias: stop)
+simutil plugin list                # YAML plugins from ~/.simutil/settings.yaml
+simutil plugin run scrcpy mirror -d emulator-5554
+```
+
+Short flags: `-a`/`--android`, `-i`/`--ios`, `-e`/`--emulator`, `-p`/`--physical`, `-r`/`--running`, `-c`/`--cold`, `-d`/`--device`.
+
+## Packages
+
+Headless libraries (pub workspace, all `1.0.0`):
+
+| Package | Import |
+| ------- | ------ |
+| `simutil_core` | Models, `CommandExec`, `DeviceService`, config helpers |
+| `simutil_adb` | `AndroidDeviceService`, wireless ADB |
+| `simutil_apple` | `IOSDeviceService`, `XcodeCacheService` |
+| `simutil_plugins` | YAML plugin registry and runner |
+
+The root `simutil` package is the TUI + CLI app only; it does not re-export the libraries.
+
 ## Contributing
 
 ```bash
