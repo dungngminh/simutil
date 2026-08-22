@@ -175,8 +175,9 @@ The root `simutil` package is the TUI + CLI app only; it does not re-export the 
 git clone https://github.com/dungngminh/simutil.git
 cd simutil
 dart pub get
-dart run bin/simutil.dart   # Run locally
+dart run melos run tui   # TUI locally
 
+dart run melos run check          # analyze + test (CI parity)
 dart --enable-vm-service bin/simutil.dart # Run with hot reload
 ```
 

@@ -27,14 +27,10 @@ jobs:
           run-codegen: 'false'
 
       - name: Analyze
-        run: dart analyze --fatal-infos
+        run: dart run melos run analyze --no-select
 
       - name: Test workspace
-        run: |
-          dart test
-          dart test packages/simutil_core
-          dart test packages/simutil_adb
-          dart test packages/simutil_apple
+        run: dart run melos run test --no-select
 
   build:
     name: Build ${{ matrix.os }}

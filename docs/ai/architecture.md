@@ -7,7 +7,9 @@ drift but paths are stable.
 ## Monorepo layout
 
 Dart pub workspace (SDK `^3.11.0`). Root package `simutil` is the TUI + CLI app;
-headless libraries live under `packages/`:
+headless libraries live under `packages/`. [Melos](https://melos.invertase.dev/)
+scripts in the root `pubspec.yaml` (`melos run analyze`, `test`, `check`, …)
+run commands across all workspace members.
 
 | Package | Role |
 | --- | --- |

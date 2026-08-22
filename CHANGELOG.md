@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add [Melos](https://melos.invertase.dev/) workspace scripts (`analyze`, `test`, `check`, `codegen`, `compile`, `tui`).
+
 ## [1.0.0] - 2026-08-22
 
 ### Added

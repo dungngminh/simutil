@@ -9,13 +9,14 @@ code change itself.
    [CHANGELOG.md](../../CHANGELOG.md) using the existing
    [Keep-a-Changelog](https://keepachangelog.com/en/1.1.0/) sections
    (`Added` / `Changed` / `Fixed` / `Removed`). One bullet per user-visible change.
-2. **Run the same checks CI runs** (see [docs/ai/running_tests.md](running_tests.md)
-   and [.github/workflows/ci.yaml](../../.github/workflows/ci.yaml)):
+2. **Run the same checks CI runs** (see [.github/workflows/ci.yaml](../../.github/workflows/ci.yaml)):
 
    ```bash
-   dart analyze --fatal-infos
-   dart test
+   dart pub get
+   dart run melos run check
    ```
+
+   Or individually: `dart run melos run analyze`, `dart run melos run test`.
 
 3. **Fill in the PR template** at
    [.github/PULL_REQUEST_TEMPLATE.md](../../.github/PULL_REQUEST_TEMPLATE.md):
@@ -23,7 +24,7 @@ code change itself.
 4. **Touch generated code only via its generator.** If you bumped the version in
    [pubspec.yaml](../../pubspec.yaml), regenerate
    [lib/utils/version.dart](../../lib/utils/version.dart) with
-   `dart run build_runner build`. Never edit it by hand.
+   `dart run melos run codegen`. Never edit it by hand.
 
 ## Branching & commits
 
