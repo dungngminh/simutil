@@ -15,11 +15,11 @@ a tool. Plugins cannot add custom TUI screens — they are command launchers onl
 
 | File | Role |
 | --- | --- |
-| [lib/models/plugin_config.dart](../../lib/models/plugin_config.dart) | Data + parsing. `PluginConfig`, `PluginCommandConfig`, `PluginRunMode`, `PluginAvailabilityCheck`, `PluginCommandRef`. Pure Dart, no I/O. |
-| [lib/services/user_config.dart](../../lib/services/user_config.dart) | Shared config path, default YAML template, scalar merge helper. |
-| [lib/services/plugin_registry_service.dart](../../lib/services/plugin_registry_service.dart) | Load/parse/cache the `plugins:` section; filter by device; resolve shortcuts. |
+| [packages/simutil_plugins/lib/src/models/plugin_config.dart](../../packages/simutil_plugins/lib/src/models/plugin_config.dart) | Data + parsing. `PluginConfig`, `PluginCommandConfig`, `PluginRunMode`, `PluginAvailabilityCheck`, `PluginCommandRef`. Pure Dart, no I/O. |
+| [packages/simutil_core/lib/src/user_config.dart](../../packages/simutil_core/lib/src/user_config.dart) | Shared config path, default YAML template, scalar merge helper. |
+| [packages/simutil_plugins/lib/src/services/plugin_registry_service.dart](../../packages/simutil_plugins/lib/src/services/plugin_registry_service.dart) | Load/parse/cache the `plugins:` section; filter by device; resolve shortcuts. |
 | [lib/services/settings_service.dart](../../lib/services/settings_service.dart) | Load/save app settings scalars; `openInEditor()` opens config via OS default app. |
-| [lib/services/plugin_runner_service.dart](../../lib/services/plugin_runner_service.dart) | Availability probe + launch the process. |
+| [packages/simutil_plugins/lib/src/services/plugin_runner_service.dart](../../packages/simutil_plugins/lib/src/services/plugin_runner_service.dart) | Availability probe + launch the process. |
 | [lib/plugins/registry/](../../lib/plugins/registry/) | TUI: `plugin_menu_dialog.dart`, `command_menu_dialog.dart`, shared `menu_option_row.dart`. |
 | [lib/services/service_locator.dart](../../lib/services/service_locator.dart) | Wires `pluginRegistry` + `pluginRunner`. |
 | [lib/simutil_app.dart](../../lib/simutil_app.dart) | Loads the registry on init; handles `p`, dynamic shortcuts, and the two-step flow. |
