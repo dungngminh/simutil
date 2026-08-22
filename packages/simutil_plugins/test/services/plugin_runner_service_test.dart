@@ -1,8 +1,7 @@
 import 'dart:io';
 
-import 'package:simutil/models/plugin_config.dart';
 import 'package:simutil_core/simutil_core.dart';
-import 'package:simutil/services/plugin_runner_service.dart';
+import 'package:simutil_plugins/simutil_plugins.dart';
 import 'package:test/test.dart';
 
 void main() {
