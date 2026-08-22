@@ -1,0 +1,13 @@
+name: simutil_core
+description: Core models and process execution for SimUtil.
+version: 1.0.0
+repository: https://github.com/dungngminh/simutil
+
+environment:
+  sdk: ^3.11.0
+
+resolution: workspace
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
