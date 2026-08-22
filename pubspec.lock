@@ -42,7 +42,7 @@ packages:
     source: hosted
     version: "4.0.9"
   args:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: args
       sha256: d0481093c50b1da8910eb0bb301626d4d8eb7284aa739614d2b394ee09e3ea04
@@ -370,7 +370,7 @@ packages:
     source: hosted
     version: "7.3.1"
   mason_logger:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: mason_logger
       sha256: "1d46102c6f299c0df7fe986dd3dd3271d57c2ec7c00ae590660b7c3018810048"

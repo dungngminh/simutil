@@ -2,8 +2,9 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:nocterm/nocterm.dart';
-import 'package:simutil/cli/simutil_command_runner.dart';
 import 'package:simutil/simutil_app.dart';
+import 'package:simutil/utils/version.dart';
+import 'package:simutil_cli/simutil_cli.dart';
 
 const _tuiChildEnvVar = 'SIMUTIL_TUI_CHILD';
 
@@ -16,7 +17,7 @@ Future<void> main(List<String> arguments) async {
 
     await runApp(Navigator(home: const SimutilApp()));
   } else {
-    await SimutilCommandRunner().run(arguments);
+    await SimutilCommandRunner(version: packageVersion).run(arguments);
   }
 }
 
