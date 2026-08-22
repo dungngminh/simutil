@@ -18,8 +18,7 @@ import 'package:simutil/components/welcome_dialog.dart';
 import 'package:simutil/data/changelog_entries.dart';
 import 'package:simutil/models/android_quick_launch_option.dart';
 import 'package:simutil/models/app_settings.dart';
-import 'package:simutil/models/device.dart';
-import 'package:simutil/models/device_os.dart';
+import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil/models/plugin_config.dart';
 import 'package:simutil/plugins/adb_tools/adb_tools_dialog.dart';
 import 'package:simutil/plugins/adb_tools/qr_connect_dialog.dart';
@@ -465,7 +464,9 @@ class _SimutilAppState extends State<SimutilApp> {
 
     setState(() => _statusMessage = 'Measuring Derived Data…');
     final sizeBytes = await service.getDerivedDataSizeBytes();
-    final sizeLabel = sizeBytes == null ? 'unknown size' : sizeBytes.formatBytes;
+    final sizeLabel = sizeBytes == null
+        ? 'unknown size'
+        : sizeBytes.formatBytes;
 
     if (!mounted) return;
 

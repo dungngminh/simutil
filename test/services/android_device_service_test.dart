@@ -1,11 +1,10 @@
 import 'dart:io';
 
-import 'package:simutil/models/device_state.dart';
-import 'package:simutil/models/device_type.dart';
+import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil/services/android_device_service.dart';
 import 'package:test/test.dart';
 
-import 'fake_command_exec.dart';
+import 'package:simutil_core/testing.dart';
 
 void main() {
   late Directory sdkDir;

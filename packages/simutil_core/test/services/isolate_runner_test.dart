@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:simutil/services/isolate_runner.dart';
+import 'package:simutil_core/src/isolate_runner.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -15,19 +15,22 @@ void main() {
     expect(runner.isReady, isFalse);
   });
 
-  test('execute runs a command in the isolate and returns its result', () async {
-    final runner = IsolateRunner();
-    await runner.init();
+  test(
+    'execute runs a command in the isolate and returns its result',
+    () async {
+      final runner = IsolateRunner();
+      await runner.init();
 
-    final result = await runner.execute(Platform.resolvedExecutable, [
-      '--version',
-    ]);
+      final result = await runner.execute(Platform.resolvedExecutable, [
+        '--version',
+      ]);
 
-    expect(result.exitCode, 0);
-    expect(result.success, isTrue);
+      expect(result.exitCode, 0);
+      expect(result.success, isTrue);
 
-    await runner.dispose();
-  });
+      await runner.dispose();
+    },
+  );
 
   test('pending requests error out when disposed', () async {
     final runner = IsolateRunner();

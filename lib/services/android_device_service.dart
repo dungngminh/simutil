@@ -2,13 +2,8 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:simutil/models/adb_connect_result.dart';
-import 'package:simutil/models/device.dart';
-import 'package:simutil/models/device_os.dart';
-import 'package:simutil/models/device_state.dart';
-import 'package:simutil/models/device_type.dart';
+import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil/models/wireless_pairing_info.dart';
-import 'package:simutil/services/command_exec.dart';
-import 'package:simutil/services/device_service.dart';
 
 class AndroidDeviceService implements DeviceService {
   AndroidDeviceService(

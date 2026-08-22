@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:simutil/models/isolate_message.dart';
-import 'package:simutil/services/command_exec.dart';
+import 'package:simutil_core/src/models/isolate_message.dart';
+import 'package:simutil_core/src/command_exec.dart';
 
 class IsolateRunner {
   Isolate? _isolate;

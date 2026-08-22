@@ -1,5 +1,4 @@
-import 'package:simutil/models/device.dart';
-import 'package:simutil/models/device_os.dart';
+import 'package:simutil_core/simutil_core.dart';
 
 /// How a plugin command's process is started.
 enum PluginRunMode {

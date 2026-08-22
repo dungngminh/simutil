@@ -1,6 +1,6 @@
-import 'package:simutil/models/device_state.dart';
-import 'package:simutil/models/device_type.dart';
-import 'package:simutil/models/device_os.dart';
+import 'package:simutil_core/src/models/device_state.dart';
+import 'package:simutil_core/src/models/device_type.dart';
+import 'package:simutil_core/src/models/device_os.dart';
 
 class Device {
   const Device({

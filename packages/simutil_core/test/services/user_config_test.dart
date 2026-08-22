@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:simutil/services/user_config.dart';
+import 'package:simutil_core/src/user_config.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -27,7 +27,9 @@ void main() {
   });
 
   test('does not overwrite an existing config file', () async {
-    File(configPath).writeAsStringSync('theme: light\nlast_selected_device_id: dev-1\n');
+    File(
+      configPath,
+    ).writeAsStringSync('theme: light\nlast_selected_device_id: dev-1\n');
     await ensureConfigFile(configPath);
 
     final content = File(configPath).readAsStringSync();

@@ -1,8 +1,7 @@
 import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/simutil_icons.dart';
 import 'package:simutil/components/simutil_theme.dart';
-import 'package:simutil/models/device.dart';
-import 'package:simutil/models/device_type.dart';
+import 'package:simutil_core/simutil_core.dart';
 
 class DeviceListComponent extends StatefulComponent {
   const DeviceListComponent({

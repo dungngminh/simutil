@@ -1,8 +1,7 @@
 import 'dart:io';
 
-import 'package:simutil/models/device.dart';
+import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil/models/plugin_config.dart';
-import 'package:simutil/services/command_exec.dart';
 
 /// Outcome of launching a plugin command.
 class PluginRunResult {

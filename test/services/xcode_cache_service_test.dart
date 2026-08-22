@@ -4,7 +4,7 @@ import 'package:simutil/services/xcode_cache_service.dart';
 import 'package:simutil/utils/int_extension.dart';
 import 'package:test/test.dart';
 
-import 'fake_command_exec.dart';
+import 'package:simutil_core/testing.dart';
 
 void main() {
   group('XcodeCacheService.derivedDataPathFor', () {
@@ -60,7 +60,9 @@ void main() {
     test('parses du -sk output to bytes', () async {
       final exec = FakeCommandExec((command, args) {
         if (command == 'du' && args.contains('-sk')) {
-          return FakeCommandExec.ok('3987456\t/Users/dev/Library/Developer/Xcode/DerivedData\n');
+          return FakeCommandExec.ok(
+            '3987456\t/Users/dev/Library/Developer/Xcode/DerivedData\n',
+          );
         }
         return null;
       });
@@ -115,7 +117,9 @@ void main() {
     test('runs rm then mkdir and reports freed size', () async {
       final exec = FakeCommandExec((command, args) {
         if (command == 'du') {
-          return FakeCommandExec.ok('2048\t/Users/dev/Library/Developer/Xcode/DerivedData\n');
+          return FakeCommandExec.ok(
+            '2048\t/Users/dev/Library/Developer/Xcode/DerivedData\n',
+          );
         }
         if (command == 'rm') return FakeCommandExec.ok();
         if (command == 'mkdir') return FakeCommandExec.ok();
@@ -152,7 +156,9 @@ void main() {
     test('reports already empty when size is zero', () async {
       final exec = FakeCommandExec((command, args) {
         if (command == 'du') {
-          return FakeCommandExec.ok('0\t/Users/dev/Library/Developer/Xcode/DerivedData\n');
+          return FakeCommandExec.ok(
+            '0\t/Users/dev/Library/Developer/Xcode/DerivedData\n',
+          );
         }
         if (command == 'rm' || command == 'mkdir') return FakeCommandExec.ok();
         return null;

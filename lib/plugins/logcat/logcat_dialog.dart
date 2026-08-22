@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
-import 'package:simutil/models/device.dart';
+import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil/plugins/logcat/logcat_filter_bar.dart';
 import 'package:simutil/plugins/logcat/logcat_helper.dart';
 

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:simutil/services/isolate_runner.dart';
+import 'package:simutil_core/src/isolate_runner.dart';
 
 class CommandResult {
   const CommandResult({

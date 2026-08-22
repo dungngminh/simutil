@@ -1,4 +1,4 @@
-import 'package:simutil/services/command_exec.dart';
+import 'package:simutil_core/src/command_exec.dart';
 
 /// Lightweight configurable [CommandExec] fake for service tests.
 ///

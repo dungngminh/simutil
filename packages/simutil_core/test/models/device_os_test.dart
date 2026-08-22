@@ -1,4 +1,4 @@
-import 'package:simutil/models/device_os.dart';
+import 'package:simutil_core/src/models/device_os.dart';
 import 'package:test/test.dart';
 
 void main() {

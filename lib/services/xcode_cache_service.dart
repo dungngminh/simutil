@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:simutil/services/command_exec.dart';
+import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil/utils/int_extension.dart';
 
 /// Result of clearing Xcode Derived Data.

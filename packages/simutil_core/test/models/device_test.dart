@@ -1,7 +1,7 @@
-import 'package:simutil/models/device.dart';
-import 'package:simutil/models/device_os.dart';
-import 'package:simutil/models/device_state.dart';
-import 'package:simutil/models/device_type.dart';
+import 'package:simutil_core/src/models/device.dart';
+import 'package:simutil_core/src/models/device_os.dart';
+import 'package:simutil_core/src/models/device_state.dart';
+import 'package:simutil_core/src/models/device_type.dart';
 import 'package:test/test.dart';
 
 void main() {

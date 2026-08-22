@@ -1,4 +1,4 @@
-import 'package:simutil/models/device_state.dart';
+import 'package:simutil_core/src/models/device_state.dart';
 import 'package:test/test.dart';
 
 void main() {

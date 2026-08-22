@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:simutil/services/command_exec.dart';
+import 'package:simutil_core/src/command_exec.dart';
 import 'package:test/test.dart';
 
 void main() {

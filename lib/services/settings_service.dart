@@ -1,8 +1,7 @@
 import 'dart:io';
 
 import 'package:simutil/models/app_settings.dart';
-import 'package:simutil/services/command_exec.dart';
-import 'package:simutil/services/user_config.dart';
+import 'package:simutil_core/simutil_core.dart';
 import 'package:yaml/yaml.dart';
 
 abstract class SettingsService {

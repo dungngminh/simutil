@@ -1,4 +1,4 @@
-import 'package:simutil/models/isolate_message.dart';
+import 'package:simutil_core/src/models/isolate_message.dart';
 import 'package:test/test.dart';
 
 void main() {

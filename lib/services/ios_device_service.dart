@@ -3,11 +3,7 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:simutil/models/device.dart';
-import 'package:simutil/models/device_state.dart';
-import 'package:simutil/models/device_type.dart';
-import 'package:simutil/services/command_exec.dart';
-import 'package:simutil/services/device_service.dart';
+import 'package:simutil_core/simutil_core.dart';
 
 class IOSDeviceService implements DeviceService {
   IOSDeviceService(this._exec, {bool Function(String path)? pathExists})

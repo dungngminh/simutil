@@ -1,7 +1,4 @@
-import 'package:simutil/models/device.dart';
-import 'package:simutil/models/device_os.dart';
-import 'package:simutil/models/device_state.dart';
-import 'package:simutil/models/device_type.dart';
+import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil/models/plugin_config.dart';
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';

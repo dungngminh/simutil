@@ -1,8 +1,6 @@
 import 'dart:io';
 
-import 'package:simutil/models/device.dart';
-import 'package:simutil/models/device_state.dart';
-import 'package:simutil/models/device_type.dart';
+import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil/services/plugin_registry_service.dart';
 import 'package:test/test.dart';
 
@@ -47,8 +45,10 @@ void main() {
     expect(File(pluginsPath).readAsStringSync(), contains('theme: dark'));
   });
 
-  test('loads plugins from a combined settings file with theme section', () async {
-    final service = serviceWith('''
+  test(
+    'loads plugins from a combined settings file with theme section',
+    () async {
+      final service = serviceWith('''
 theme: light
 last_selected_device_id: ~
 
@@ -62,10 +62,11 @@ plugins:
         platforms: [android]
         shortcut: s
 ''');
-    final plugins = await service.load();
-    expect(plugins, hasLength(1));
-    expect(plugins.first.id, 'scrcpy');
-  });
+      final plugins = await service.load();
+      expect(plugins, hasLength(1));
+      expect(plugins.first.id, 'scrcpy');
+    },
+  );
 
   test('loads and caches plugins from file', () async {
     final service = serviceWith('''

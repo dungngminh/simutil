@@ -1,4 +1,4 @@
-import 'package:simutil/models/device.dart';
+import 'package:simutil_core/src/models/device.dart';
 
 abstract class DeviceService {
   Future<bool> isAvailable();

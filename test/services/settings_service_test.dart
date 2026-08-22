@@ -4,7 +4,7 @@ import 'package:simutil/models/app_settings.dart';
 import 'package:simutil/services/settings_service.dart';
 import 'package:test/test.dart';
 
-import 'fake_command_exec.dart';
+import 'package:simutil_core/testing.dart';
 
 void main() {
   late Directory dir;
