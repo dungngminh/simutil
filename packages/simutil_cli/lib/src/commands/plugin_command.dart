@@ -1,6 +1,8 @@
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:simutil_cli/src/cli_device_services.dart';
+import 'package:simutil_cli/src/cli_flags.dart';
+import 'package:simutil_cli/src/cli_output.dart';
 import 'package:simutil_cli/src/commands/simutil_command.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_plugins/simutil_plugins.dart';
@@ -69,8 +71,9 @@ class PluginListCommand extends SimutilCommand {
     parser.addOption(
       'device',
       abbr: 'd',
-      help: 'Filter commands by device id.',
+      help: 'Filter commands by device id (-d, --device <id>).',
     );
+    addJsonOutputFlag(parser);
   });
 
   @override
@@ -95,13 +98,39 @@ class PluginListCommand extends SimutilCommand {
       return 0;
     }
 
+    if (jsonOutputRequested(argResults!)) {
+      writeJsonStdout({
+        'count': plugins.length,
+        'plugins': plugins
+            .map(
+              (plugin) => {
+                'id': plugin.id,
+                'label': plugin.label,
+                'commands': (device == null
+                        ? plugin.commands
+                        : plugin.commandsFor(device))
+                    .map(
+                      (command) => {
+                        'id': command.id,
+                        'label': command.label,
+                        'command': command.command,
+                      },
+                    )
+                    .toList(),
+              },
+            )
+            .toList(),
+      });
+      return 0;
+    }
+
     for (final plugin in plugins) {
-      logger.info('${plugin.id}\t${plugin.label}');
+      logger.info('${plugin.id}  ${plugin.label}');
       final commands = device == null
           ? plugin.commands
           : plugin.commandsFor(device);
       for (final command in commands) {
-        logger.info('  ${command.id}\t${command.label}');
+        logger.info('  ${command.id}  ${command.label}');
       }
     }
     return 0;

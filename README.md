@@ -145,16 +145,21 @@ With arguments, `simutil` runs headless commands (no TUI). The TUI starts when y
 
 ```bash
 simutil -V                         # print version
-simutil list                       # list devices (alias: ls)
-simutil list -a -r                 # running Android devices only
-simutil launch <device-id>         # boot emulator/simulator (alias: start)
+simutil android emulator list      # AVD names (one per line, like the screenshot)
+simutil android device list -r     # running adb devices only
+simutil list -v                    # grouped tables (all platforms)
+simutil list --json                # agent/script friendly
+simutil launch <device-id>         # boot (alias: start)
 simutil launch <id> -c --no-audio  # cold boot, no audio (Android)
 simutil shutdown <device-id>       # shut down (alias: stop)
-simutil plugin list                # YAML plugins from ~/.simutil/settings.yaml
+simutil plugin list                # YAML plugins
 simutil plugin run scrcpy mirror -d emulator-5554
+simutil schema                     # full CLI JSON schema for agents
+simutil schema list --human        # readable help for one command
+simutil list --help                # flags for a command (built-in)
 ```
 
-Short flags: `-a`/`--android`, `-i`/`--ios`, `-e`/`--emulator`, `-p`/`--physical`, `-r`/`--running`, `-c`/`--cold`, `-d`/`--device`.
+Short flags: `-a`/`--android`, `-i`/`--ios`, `-e`/`--emulator`, `-p`/`--physical`, `-r`/`--running`, `-v`/`--verbose`, `-j`/`--json`, `-c`/`--cold`, `-d`/`--device`.
 
 ## Packages
 

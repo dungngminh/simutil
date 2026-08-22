@@ -1,6 +1,7 @@
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:simutil_cli/src/cli_device_services.dart';
+import 'package:simutil_cli/src/cli_flags.dart';
 import 'package:simutil_cli/src/commands/simutil_command.dart';
 
 /// Boots an emulator or simulator by device id.

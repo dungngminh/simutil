@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add [Melos](https://melos.invertase.dev/) workspace scripts (`analyze`, `test`, `check`, `codegen`, `compile`, `tui`).
 - Extract headless CLI into `simutil_cli` (`SimutilCommandRunner`, device/plugin commands).
+- CLI platform groups: `simutil android emulator list`, `android device list`, `ios simulator list`.
+- CLI agent schema: `simutil schema` (JSON); `simutil schema --human` for readable docs.
 
 ### Changed
 

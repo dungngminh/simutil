@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:simutil_cli/src/cli_device_services.dart';
+import 'package:simutil_cli/src/cli_flags.dart';
+import 'package:simutil_cli/src/cli_output.dart';
+import 'package:simutil_cli/src/commands/device_list_command.dart';
 import 'package:simutil_cli/src/commands/simutil_command.dart';
-import 'package:simutil_core/simutil_core.dart';
 
 /// Lists emulators, simulators, and connected hardware.
 class ListCommand extends SimutilCommand {
@@ -19,7 +23,11 @@ class ListCommand extends SimutilCommand {
   List<String> get aliases => const ['ls'];
 
   @override
-  String get description => 'List devices';
+  String get description =>
+      'List all devices (see also: android emulator list, ios simulator list)';
+
+  @override
+  String get usage => catalogUsage('list', 'simutil list|ls [options]');
 
   @override
   ArgParser get argParser => configuredArgParser((parser) {
@@ -28,21 +36,23 @@ class ListCommand extends SimutilCommand {
       ..addFlag(
         'emulator',
         abbr: 'e',
-        help: 'Include emulators and simulators.',
+        help: 'Include emulators and simulators (-e, --emulator)',
         defaultsTo: true,
       )
       ..addFlag(
         'physical',
         abbr: 'p',
-        help: 'Include physical devices.',
+        help: 'Include physical devices (-p, --physical)',
         defaultsTo: true,
       )
       ..addFlag(
         'running',
         abbr: 'r',
-        help: 'Show only running devices.',
+        help: 'Show only running devices (-r, --running)',
         negatable: false,
       );
+    addVerboseFlag(parser);
+    addJsonOutputFlag(parser);
   });
 
   @override
@@ -67,24 +77,31 @@ class ListCommand extends SimutilCommand {
       runningOnly: argResults!['running'] == true,
     );
 
+    if (jsonOutputRequested(argResults!)) {
+      writeJsonStdout({
+        'count': devices.length,
+        'devices': devicesToJson(devices),
+        'sections': groupDevices(devices).map(
+          (key, value) => MapEntry(key, devicesToJson(value)),
+        ),
+      });
+      return 0;
+    }
+
     if (devices.isEmpty) {
       logger.warn('No devices found.');
       return 0;
     }
 
+    final verbose = argResults!['verbose'] == true;
+    if (verbose) {
+      logger.info(formatGroupedDeviceList(groupDevices(devices)));
+      return 0;
+    }
+
     for (final device in devices) {
-      logger.info(_formatDevice(device));
+      stdout.writeln(deviceDisplayName(device));
     }
     return 0;
-  }
-
-  String _formatDevice(Device device) {
-    return [
-      device.id,
-      device.name,
-      device.os.name,
-      device.type.name,
-      device.state.label,
-    ].join('\t');
   }
 }

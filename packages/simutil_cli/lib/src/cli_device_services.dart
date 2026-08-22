@@ -126,21 +126,3 @@ DeviceOs? osHintFromFlags(ArgResults results) {
   if (ios) return DeviceOs.ios;
   return null;
 }
-
-/// Shared `-a` / `-i` platform flags for device commands.
-void addPlatformFlags(ArgParser parser) {
-  if (parser.options.containsKey('android')) return;
-  parser
-    ..addFlag(
-      'android',
-      abbr: 'a',
-      help: 'Limit to Android devices.',
-      negatable: false,
-    )
-    ..addFlag(
-      'ios',
-      abbr: 'i',
-      help: 'Limit to Apple devices.',
-      negatable: false,
-    );
-}
