@@ -18,5 +18,10 @@ jobs:
 
       - uses: ./.github/actions/setup-dart
 
-      - name: Publish to pub.dev
-        run: dart pub publish --force
+      - name: Publish workspace packages
+        run: |
+          dart pub publish --directory packages/simutil_core --force
+          dart pub publish --directory packages/simutil_adb --force
+          dart pub publish --directory packages/simutil_apple --force
+          dart pub publish --directory packages/simutil_plugins --force
+          dart pub publish --force
