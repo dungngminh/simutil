@@ -1,3 +1,6 @@
+/// Test fakes for [CommandExec].
+library;
+
 import 'package:simutil_core/src/command_exec.dart';
 
 /// Lightweight configurable [CommandExec] fake for service tests.
@@ -5,17 +8,21 @@ import 'package:simutil_core/src/command_exec.dart';
 /// Dispatches each `run` call to [handler] (keyed on command + arguments) and
 /// records every invocation so tests can assert on what was executed.
 class FakeCommandExec implements CommandExec {
+  /// Creates a fake that consults [handler] for each [run].
   FakeCommandExec(this.handler);
 
   /// Returns a result for a given command + arguments, or `null` to fall back
   /// to a default failing result.
   CommandResult? Function(String command, List<String> arguments) handler;
 
+  /// Recorded [run] invocations, in order.
   final List<FakeCommandCall> calls = [];
 
+  /// Successful result helper (`exitCode` 0).
   static CommandResult ok([String stdout = '', String stderr = '']) =>
       CommandResult(stdout: stdout, stderr: stderr, exitCode: 0);
 
+  /// Failing result helper.
   static CommandResult fail([
     String stderr = '',
     String stdout = '',
@@ -42,7 +49,9 @@ class FakeCommandExec implements CommandExec {
   }
 }
 
+/// One recorded [FakeCommandExec.run] call.
 class FakeCommandCall {
+  /// Creates a recorded invocation.
   const FakeCommandCall({
     required this.command,
     required this.arguments,
@@ -50,8 +59,15 @@ class FakeCommandCall {
     this.timeout,
   });
 
+  /// Executable that was requested.
   final String command;
+
+  /// Arguments passed to [command].
   final List<String> arguments;
+
+  /// Working directory passed to [CommandExec.run], if any.
   final String? workingDirectory;
+
+  /// Timeout passed to [CommandExec.run], if any.
   final Duration? timeout;
 }

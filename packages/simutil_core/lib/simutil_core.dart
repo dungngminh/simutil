@@ -2,6 +2,13 @@
 ///
 /// Shared [Device] types, [DeviceService], and [CommandExec] used by
 /// `simutil_adb`, `simutil_apple`, `simutil_plugins`, and the SimUtil app.
+///
+/// ```dart
+/// import 'package:simutil_core/simutil_core.dart';
+///
+/// final exec = CommandExecImpl();
+/// final result = await exec.run('adb', arguments: ['devices']);
+/// ```
 library;
 
 export 'src/command_exec.dart';

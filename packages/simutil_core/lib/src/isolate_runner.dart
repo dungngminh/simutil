@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:simutil_core/src/models/isolate_message.dart';
 import 'package:simutil_core/src/command_exec.dart';
+import 'package:simutil_core/src/models/isolate_message.dart';
 
+/// Runs shell commands on a background isolate so a TUI stays responsive.
 class IsolateRunner {
   Isolate? _isolate;
   SendPort? _sendPort;
@@ -14,8 +15,10 @@ class IsolateRunner {
 
   final _pending = <int, Completer<CommandResult>>{};
 
+  /// Whether [init] completed and [execute] may be called.
   bool get isReady => _sendPort != null;
 
+  /// Spawns the worker isolate. Safe to call more than once.
   Future<void> init() async {
     if (_isolate != null) return;
 
@@ -35,6 +38,7 @@ class IsolateRunner {
     _sendPort = await completer.future;
   }
 
+  /// Runs [executable] with [arguments] on the worker isolate.
   Future<CommandResult> execute(
     String executable,
     List<String> arguments, {
@@ -61,6 +65,7 @@ class IsolateRunner {
     return completer.future;
   }
 
+  /// Stops the worker isolate and fails any in-flight requests.
   Future<void> dispose() async {
     if (_sendPort != null) {
       _sendPort!.send(

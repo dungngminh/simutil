@@ -1,8 +1,10 @@
+import 'package:simutil_core/src/models/device_os.dart';
 import 'package:simutil_core/src/models/device_state.dart';
 import 'package:simutil_core/src/models/device_type.dart';
-import 'package:simutil_core/src/models/device_os.dart';
 
+/// A physical device, emulator, or simulator known to SimUtil.
 class Device {
+  /// Creates a device with explicit fields.
   const Device({
     required this.id,
     required this.name,
@@ -12,6 +14,7 @@ class Device {
     required this.type,
   });
 
+  /// Android emulator or hardware device (`os` is [DeviceOs.android]).
   factory Device.android({
     required String id,
     required String name,
@@ -28,6 +31,7 @@ class Device {
     );
   }
 
+  /// Apple family device (`os` is [DeviceOs.ios], including iPad/Watch/TV).
   factory Device.ios({
     required String id,
     required String name,
@@ -45,6 +49,7 @@ class Device {
     );
   }
 
+  /// Restores a [Device] from [toJson] output.
   factory Device.fromJson(Map<String, dynamic> json) {
     return Device(
       id: json['id'] as String,
@@ -56,20 +61,28 @@ class Device {
     );
   }
 
+  /// Stable identifier (serial, AVD name, or UDID).
   final String id;
 
+  /// Human-readable name.
   final String name;
 
+  /// OS family used for filtering (Android vs Apple).
   final DeviceOs os;
 
+  /// Display string such as `Android` or `iOS 17.2`.
   final String platform;
 
+  /// Physical hardware vs emulator/simulator.
   final DeviceType type;
 
+  /// Running, booting, or shut down.
   final DeviceState state;
 
+  /// Whether [state] is booted or booting.
   bool get isRunning => state.isRunning;
 
+  /// Returns a copy with selected fields replaced.
   Device copyWith({
     String? id,
     String? name,
@@ -88,6 +101,7 @@ class Device {
     );
   }
 
+  /// Serializes this device for JSON persistence.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
