@@ -4,7 +4,9 @@ import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil/models/plugin_config.dart';
 import 'package:simutil/plugins/registry/menu_option_row.dart';
 
+/// Menu dialog listing runnable commands for a plugin.
 class CommandMenuDialog extends StatefulComponent {
+  /// Creates the dialog with [title], [commands], and callbacks.
   const CommandMenuDialog({
     super.key,
     required this.title,
@@ -13,9 +15,16 @@ class CommandMenuDialog extends StatefulComponent {
     required this.onCancel,
   });
 
+  /// Dialog heading shown in the panel chrome.
   final String title;
+
+  /// Commands available in this menu.
   final List<PluginCommandConfig> commands;
+
+  /// Called when the user confirms a command.
   final void Function(PluginCommandConfig command) onSelect;
+
+  /// Called when the user dismisses the dialog.
   final VoidCallback onCancel;
 
   @override
@@ -91,6 +100,7 @@ class _CommandMenuDialogState extends State<CommandMenuDialog> {
   }
 }
 
+/// Shows a command picker and returns the chosen command.
 Future<PluginCommandConfig?> showCommandMenuDialog({
   required BuildContext context,
   required String title,

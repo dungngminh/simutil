@@ -9,8 +9,10 @@ class LogcatHelper {
     r'^\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+\s+\d+\s+\d+\s+([VDIWEF])\s',
   );
 
+  /// Matches filesystem paths embedded in log lines.
   static final RegExp pathRe = RegExp(r'(/[^\s\x00-\x1f\)\]\x22\x27,:;]+)');
 
+  /// Parses the log level letter from a threadtime log line.
   static LogcatLevel parseLevel(String line) {
     final m = _logLevelRe.firstMatch(line);
     if (m == null) return LogcatLevel.unknown;
@@ -36,6 +38,7 @@ class LogcatHelper {
     return false;
   }
 
+  /// Returns whether [line] matches [filter], including `is:*` shortcuts.
   static bool lineMatchesFilter(String line, String filter) {
     if (filter.isEmpty) return true;
     final f = filter.trim().toLowerCase();
@@ -51,7 +54,30 @@ class LogcatHelper {
     };
   }
 
+  /// Returns the first filesystem path found in [line], if any.
   static String? firstPath(String line) => pathRe.firstMatch(line)?.group(1);
 }
 
-enum LogcatLevel { verbose, debug, info, warning, error, fatal, unknown }
+/// Parsed Android log severity levels.
+enum LogcatLevel {
+  /// Verbose.
+  verbose,
+
+  /// Debug.
+  debug,
+
+  /// Info.
+  info,
+
+  /// Warning.
+  warning,
+
+  /// Error.
+  error,
+
+  /// Fatal.
+  fatal,
+
+  /// Unknown or unparsed level.
+  unknown,
+}

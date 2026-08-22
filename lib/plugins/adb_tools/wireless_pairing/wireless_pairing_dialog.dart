@@ -13,7 +13,9 @@ final _pinCodeRegex = RegExp(r'^\d{6}$');
 const _enterCodeRoute = '/enter-code';
 const _manualRoute = '/manual';
 
+/// Dialog for discovering and selecting a wireless ADB pairing target.
 class WirelessConnectDialog extends StatefulComponent {
+  /// Creates the dialog with discovery and selection callbacks.
   const WirelessConnectDialog({
     super.key,
     required this.discoveryService,
@@ -21,8 +23,13 @@ class WirelessConnectDialog extends StatefulComponent {
     required this.onCancel,
   });
 
+  /// Service that discovers nearby pairable devices.
   final WifiDiscoveryService discoveryService;
+
+  /// Called when the user submits a pairing or connect request.
   final void Function(WirelessConnectRequest request) onSelect;
+
+  /// Called when the user dismisses the dialog.
   final VoidCallback onCancel;
 
   @override
@@ -695,6 +702,7 @@ class _LabeledInputField extends StatelessComponent {
   }
 }
 
+/// Shows the wireless connect dialog and returns the user's request.
 Future<WirelessConnectRequest?> showWirelessConnectDialog({
   required BuildContext context,
   required WifiDiscoveryService discoveryService,

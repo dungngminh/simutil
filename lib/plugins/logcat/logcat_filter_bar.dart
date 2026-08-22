@@ -3,6 +3,7 @@ import 'package:simutil/components/simutil_theme.dart';
 
 /// Filter label and text field used by the logcat dialog.
 class LogcatFilterBar extends StatelessComponent {
+  /// Creates a filter bar bound to [controller].
   const LogcatFilterBar({
     super.key,
     required this.controller,
@@ -10,8 +11,13 @@ class LogcatFilterBar extends StatelessComponent {
     required this.onKeyEvent,
   });
 
+  /// Text field controller for the filter expression.
   final TextEditingController controller;
+
+  /// Called when the filter text changes.
   final ValueChanged<String> onChanged;
+
+  /// Handles keyboard events while the filter field is focused.
   final bool Function(KeyboardEvent event) onKeyEvent;
 
   @override

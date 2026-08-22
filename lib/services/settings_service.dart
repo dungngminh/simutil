@@ -4,23 +4,31 @@ import 'package:simutil/models/app_settings.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:yaml/yaml.dart';
 
+/// Loads and persists user settings from `~/.simutil/settings.yaml`.
 abstract class SettingsService {
   /// Absolute path to the unified config file (`~/.simutil/settings.yaml`).
   String get configFilePath;
 
+  /// Reads settings from disk, returning defaults when missing.
   Future<AppSettings> load();
+
+  /// Persists [settings] to disk.
   Future<void> save(AppSettings settings);
+
+  /// Applies [updater] and persists the result.
   Future<AppSettings> update(AppSettings Function(AppSettings) updater);
 
   /// Opens [configFilePath] in the OS default application.
   Future<void> openInEditor();
 }
 
+/// Function that transforms the current [AppSettings].
 typedef SettingsUpdater = AppSettings Function(AppSettings);
 
 /// Settings are stored at `~/.simutil/settings.yaml` alongside the `plugins:`
 /// section in the same file.
 class SettingsServiceImpl implements SettingsService {
+  /// Creates a service using [exec] and optional settings file path.
   SettingsServiceImpl(this._exec, {String? settingsFilePath})
     : _settingsFilePath = settingsFilePath;
 

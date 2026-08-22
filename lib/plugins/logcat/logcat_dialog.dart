@@ -9,7 +9,9 @@ import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil/plugins/logcat/logcat_filter_bar.dart';
 import 'package:simutil/plugins/logcat/logcat_helper.dart';
 
+/// Streaming logcat viewer dialog for an Android device.
 class LogcatDialog extends StatefulComponent {
+  /// Creates the dialog for [device] using [adbPath].
   const LogcatDialog({
     super.key,
     required this.device,
@@ -17,8 +19,13 @@ class LogcatDialog extends StatefulComponent {
     required this.onClose,
   });
 
+  /// Target device whose logs are streamed.
   final Device device;
+
+  /// Path to the adb executable.
   final String adbPath;
+
+  /// Called when the user closes the dialog.
   final VoidCallback onClose;
 
   @override
@@ -341,6 +348,7 @@ class _LogcatDialogState extends State<LogcatDialog> {
   );
 }
 
+/// Shows the logcat viewer for [device].
 Future<void> showLogcatDialog({
   required BuildContext context,
   required Device device,

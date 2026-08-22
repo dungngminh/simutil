@@ -5,9 +5,12 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
+/// Dialog that displays a QR code for wireless ADB pairing.
 class QrConnectDialog extends StatefulComponent {
+  /// Creates the dialog with an [onClose] callback.
   const QrConnectDialog({super.key, required this.onClose});
 
+  /// Called when the user closes the dialog.
   final VoidCallback onClose;
 
   @override
@@ -56,6 +59,7 @@ class _QrConnectDialogState extends State<QrConnectDialog> {
   }
 }
 
+/// Shows the QR pairing dialog.
 Future<void> showQrConnectDialog(BuildContext context) =>
     showOverlayDialog<void>(
       context: context,

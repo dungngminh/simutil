@@ -8,6 +8,7 @@ enum PluginRunMode {
   /// The process shares stdio with simutil (blocking CLI tools).
   inherit;
 
+  /// Parses a run mode from YAML text, defaulting to [detached].
   static PluginRunMode fromString(String? raw) {
     return switch (raw?.toLowerCase()) {
       'inherit' => PluginRunMode.inherit,
@@ -20,11 +21,13 @@ enum PluginRunMode {
 ///
 /// Defaults to running `<command> --version` when no explicit args are given.
 class PluginAvailabilityCheck {
+  /// Creates an availability probe for [command] with optional [args].
   const PluginAvailabilityCheck({
     required this.command,
     this.args = const ['--version'],
   });
 
+  /// Parses an availability probe from a YAML map.
   factory PluginAvailabilityCheck.fromMap(Map<dynamic, dynamic> map) {
     final command = map['command'];
     if (command is! String || command.trim().isEmpty) {
@@ -37,12 +40,16 @@ class PluginAvailabilityCheck {
     );
   }
 
+  /// Executable to run for the availability probe.
   final String command;
+
+  /// Arguments passed to [command] during the probe.
   final List<String> args;
 }
 
 /// A single runnable command that belongs to a [PluginConfig].
 class PluginCommandConfig {
+  /// Creates a plugin command definition.
   const PluginCommandConfig({
     required this.id,
     required this.label,
@@ -56,6 +63,7 @@ class PluginCommandConfig {
     this.availability,
   });
 
+  /// Parses a command from a YAML map entry.
   factory PluginCommandConfig.fromMap(Map<dynamic, dynamic> map) {
     final availability = map['availability'];
     return PluginCommandConfig(
@@ -74,15 +82,34 @@ class PluginCommandConfig {
     );
   }
 
+  /// Stable command identifier.
   final String id;
+
+  /// User-facing command label.
   final String label;
+
+  /// Executable to launch.
   final String command;
+
+  /// Optional longer description shown in menus.
   final String? description;
+
+  /// Static or templated command arguments.
   final List<String> args;
+
+  /// Platforms this command supports; empty means all.
   final List<DeviceOs> platforms;
+
+  /// Whether the target device must be running.
   final bool requiresRunning;
+
+  /// How the process is started.
   final PluginRunMode mode;
+
+  /// Optional keyboard shortcut key.
   final String? shortcut;
+
+  /// Command-level availability override.
   final PluginAvailabilityCheck? availability;
 
   /// Whether this command can run against [device] given its platform and
@@ -105,6 +132,7 @@ class PluginCommandConfig {
 /// A plugin loaded from the `plugins:` section of `~/.simutil/settings.yaml`.
 /// [commands] under a shared identity and availability probe.
 class PluginConfig {
+  /// Creates a plugin grouping one or more commands.
   const PluginConfig({
     required this.id,
     required this.label,
@@ -115,6 +143,7 @@ class PluginConfig {
     this.shortcut,
   });
 
+  /// Parses a plugin from a YAML map entry.
   factory PluginConfig.fromMap(Map<dynamic, dynamic> map) {
     final rawCommands = map['commands'];
     if (rawCommands is! List || rawCommands.isEmpty) {
@@ -143,12 +172,25 @@ class PluginConfig {
     );
   }
 
+  /// Stable plugin identifier.
   final String id;
+
+  /// User-facing plugin label.
   final String label;
+
+  /// Commands belonging to this plugin.
   final List<PluginCommandConfig> commands;
+
+  /// Optional longer description shown in menus.
   final String? description;
+
+  /// Whether the plugin is enabled in settings.
   final bool enabled;
+
+  /// Plugin-level availability probe shared by commands.
   final PluginAvailabilityCheck? availability;
+
+  /// Optional keyboard shortcut key.
   final String? shortcut;
 
   /// Commands available for [device] after platform/running filtering.
@@ -163,9 +205,13 @@ class PluginConfig {
 /// Pairs a [PluginConfig] with one of its [PluginCommandConfig]s, used when a
 /// command is resolved via shortcut or after a two-step selection.
 class PluginCommandRef {
+  /// Pairs a resolved plugin with one of its commands.
   const PluginCommandRef({required this.plugin, required this.command});
 
+  /// Parent plugin configuration.
   final PluginConfig plugin;
+
+  /// Selected command within [plugin].
   final PluginCommandConfig command;
 }
 

@@ -5,9 +5,13 @@ import 'package:simutil/models/plugin_config.dart';
 
 /// Outcome of launching a plugin command.
 class PluginRunResult {
+  /// Creates a run outcome with [success] and [message].
   const PluginRunResult({required this.success, required this.message});
 
+  /// Whether the command launched successfully.
   final bool success;
+
+  /// Human-readable status or error message.
   final String message;
 }
 
@@ -20,7 +24,9 @@ abstract class PluginRunnerService {
   Future<PluginRunResult> run(PluginCommandConfig command, Device? device);
 }
 
+/// Default [PluginRunnerService] using [CommandExec] for probes.
 class PluginRunnerServiceImpl implements PluginRunnerService {
+  /// Creates a runner backed by [commandExec].
   PluginRunnerServiceImpl(this._commandExec);
 
   final CommandExec _commandExec;

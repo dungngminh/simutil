@@ -32,7 +32,9 @@ import 'package:simutil/utils/constant.dart';
 import 'package:simutil/utils/int_extension.dart';
 import 'package:simutil/utils/version.dart';
 
+/// Root Nocterm component for the simutil TUI.
 class SimutilApp extends StatefulComponent {
+  /// Creates the main application widget.
   const SimutilApp({super.key});
 
   @override

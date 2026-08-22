@@ -30,7 +30,9 @@ abstract class PluginRegistryService {
   PluginConfig? pluginByShortcut(String shortcut, Device? device);
 }
 
+/// File-backed implementation of [PluginRegistryService].
 class PluginRegistryServiceImpl implements PluginRegistryService {
+  /// Creates a registry optionally overriding the config file path.
   PluginRegistryServiceImpl({String? pluginsFilePath})
     : _configFilePath = pluginsFilePath;
 

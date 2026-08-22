@@ -4,7 +4,9 @@ import 'package:simutil/components/simutil_theme.dart';
 import 'package:simutil/models/plugin_config.dart';
 import 'package:simutil/plugins/registry/menu_option_row.dart';
 
+/// Menu dialog listing available plugins for the current device.
 class PluginMenuDialog extends StatefulComponent {
+  /// Creates the dialog with [plugins] and selection callbacks.
   const PluginMenuDialog({
     super.key,
     required this.plugins,
@@ -12,8 +14,13 @@ class PluginMenuDialog extends StatefulComponent {
     required this.onCancel,
   });
 
+  /// Plugins shown in this menu.
   final List<PluginConfig> plugins;
+
+  /// Called when the user selects a plugin.
   final void Function(PluginConfig plugin) onSelect;
+
+  /// Called when the user dismisses the dialog.
   final VoidCallback onCancel;
 
   @override
@@ -89,6 +96,7 @@ class _PluginMenuDialogState extends State<PluginMenuDialog> {
   }
 }
 
+/// Shows the plugin picker and returns the chosen plugin.
 Future<PluginConfig?> showPluginMenuDialog({
   required BuildContext context,
   required List<PluginConfig> plugins,

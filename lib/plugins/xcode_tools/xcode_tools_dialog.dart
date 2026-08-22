@@ -5,27 +5,38 @@ import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_icons.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
+/// Xcode maintenance actions available from the TUI.
 enum XcodeToolOption {
+  /// Delete all contents of DerivedData.
   clearDerivedData(
     label: 'Clear Derived Data',
     description:
         'Delete all of ~/Library/Developer/Xcode/DerivedData'
   );
 
+  /// Creates an option with [label] and [description].
   const XcodeToolOption({required this.label, required this.description});
 
+  /// Short menu label.
   final String label;
+
+  /// Longer help text shown beneath the label.
   final String description;
 }
 
+/// Menu dialog for selecting an Xcode tool action.
 class XcodeToolsDialog extends StatefulComponent {
+  /// Creates the dialog with [onSelect] and [onCancel] callbacks.
   const XcodeToolsDialog({
     super.key,
     required this.onSelect,
     required this.onCancel,
   });
 
+  /// Called when the user confirms an option.
   final void Function(XcodeToolOption option) onSelect;
+
+  /// Called when the user dismisses the dialog.
   final VoidCallback onCancel;
 
   @override
@@ -121,6 +132,7 @@ class _XcodeToolsDialogState extends State<XcodeToolsDialog> {
   }
 }
 
+/// Shows the Xcode tools menu and returns the chosen option.
 Future<XcodeToolOption?> showXcodeToolsDialog(BuildContext context) =>
     showOverlayDialog(
       context: context,

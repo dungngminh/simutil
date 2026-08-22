@@ -2,7 +2,9 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/components/simutil_icons.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
+/// Single selectable row in a plugin or command menu.
 class MenuOptionRow extends StatelessComponent {
+  /// Creates a row with [label], optional [description], and [shortcut].
   const MenuOptionRow({
     super.key,
     required this.label,
@@ -11,9 +13,16 @@ class MenuOptionRow extends StatelessComponent {
     this.shortcut,
   });
 
+  /// Primary option label.
   final String label;
+
+  /// Whether this row is currently highlighted.
   final bool isSelected;
+
+  /// Optional secondary description text.
   final String? description;
+
+  /// Optional shortcut key shown on the right.
   final String? shortcut;
 
   @override

@@ -5,33 +5,49 @@ import 'package:simutil/components/show_overlay_dialog.dart';
 import 'package:simutil/components/simutil_icons.dart';
 import 'package:simutil/components/simutil_theme.dart';
 
+/// ADB wireless pairing and connection options.
 enum AdbToolOption {
+  /// Connect to an already-paired device by IP address.
   connectViaIp(
     label: 'Connect via IP',
     description: 'Connect to already-paired device (e.g., 192.168.1.100:5555)',
   ),
+
+  /// Pair a device using a six-digit pairing code.
   pairWithPairingCode(
     label: 'Pair using Pairing Code',
     description: 'Pair using pairing code for wireless debugging (Android 11+)',
   ),
+
+  /// Pair a device by scanning a QR code.
   pairWithQrCode(
     label: 'Pair using QR Code',
     description: 'Pair using QR code for wireless debugging (Android 11+)',
   );
 
+  /// Creates an option with [label] and [description].
   const AdbToolOption({required this.label, required this.description});
 
+  /// Short menu label.
   final String label;
+
+  /// Longer help text shown beneath the label.
   final String description;
 }
 
+/// Menu dialog for selecting an ADB tool action.
 class AdbToolsDialog extends StatefulComponent {
+  /// Creates the dialog with [onSelect] and [onCancel] callbacks.
   const AdbToolsDialog({
     super.key,
     required this.onSelect,
     required this.onCancel,
   });
+
+  /// Called when the user confirms an option.
   final void Function(AdbToolOption option) onSelect;
+
+  /// Called when the user dismisses the dialog.
   final VoidCallback onCancel;
 
   @override
@@ -127,6 +143,7 @@ class _AdbToolsDialogState extends State<AdbToolsDialog> {
   }
 }
 
+/// Shows the ADB tools menu and returns the chosen option.
 Future<AdbToolOption?> showAdbToolsDialog(BuildContext context) =>
     showOverlayDialog(
       context: context,
