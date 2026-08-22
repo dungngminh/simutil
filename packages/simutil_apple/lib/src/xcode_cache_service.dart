@@ -4,14 +4,20 @@ import 'package:simutil_core/simutil_core.dart';
 
 /// Result of clearing Xcode Derived Data.
 class XcodeCacheClearResult {
+  /// Creates a clear result.
   const XcodeCacheClearResult({
     required this.success,
     required this.message,
     this.freedBytes,
   });
 
+  /// Whether Derived Data was removed (or already missing).
   final bool success;
+
+  /// Human-readable status for the TUI.
   final String message;
+
+  /// Bytes reported before deletion, when known.
   final int? freedBytes;
 }
 
@@ -20,6 +26,7 @@ class XcodeCacheClearResult {
 /// All shell work goes through [CommandExec] so the TUI isolate stays free.
 /// Public APIs that touch the filesystem are macOS-only.
 class XcodeCacheService {
+  /// Creates a service. Pass [homeDirectory] in tests.
   XcodeCacheService(this._exec, {String? homeDirectory})
     : _homeDirectory = homeDirectory;
 

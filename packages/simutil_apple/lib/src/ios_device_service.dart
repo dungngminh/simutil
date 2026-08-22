@@ -5,7 +5,15 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:simutil_core/simutil_core.dart';
 
+/// Apple simulators (`simctl`) and physical devices (`devicectl`).
+///
+/// Covers iPhone, iPad, Watch, TV, and other CoreSimulator runtimes.
+/// No-ops on non-macOS hosts.
 class IOSDeviceService implements DeviceService {
+  /// Creates a service that runs `xcrun` via [CommandExec].
+  ///
+  /// [pathExists] overrides the directory check used to locate the
+  /// simulator app (for tests).
   IOSDeviceService(this._exec, {bool Function(String path)? pathExists})
     : _pathExists = pathExists ?? _directoryExists;
 
@@ -51,6 +59,7 @@ class IOSDeviceService implements DeviceService {
 
   /// Parses the JSON output of `xcrun simctl list devices -j` into devices.
   /// Pure function (no I/O) so it is unit-testable on any platform.
+  /// Parses `xcrun simctl list devices -j` JSON into [Device]s.
   static List<Device> parseSimulators(String jsonStr) {
     final json = jsonDecode(jsonStr) as Map<String, dynamic>;
     final devicesMap = json['devices'] as Map<String, dynamic>? ?? {};
@@ -91,6 +100,7 @@ class IOSDeviceService implements DeviceService {
     await openSimulatorApp(deviceId);
   }
 
+  /// Boots the simulator [udid] via `simctl boot`.
   Future<bool> bootSimulator(String udid) async {
     try {
       final result = await _exec.run(
@@ -243,6 +253,7 @@ class IOSDeviceService implements DeviceService {
 
   /// Parses the JSON written by `xcrun devicectl list devices -j` into devices.
   /// Pure function (no I/O) so it is unit-testable on any platform.
+  /// Parses `xcrun devicectl list devices -j` JSON into connected hardware.
   static List<Device> parsePhysicalDevices(Map<String, dynamic> json) {
     final result = json['result'] as Map<String, dynamic>? ?? {};
     final deviceList = result['devices'] as List<dynamic>? ?? [];
