@@ -18,6 +18,7 @@ runs:
       uses: dart-lang/setup-dart@v1
       with:
         sdk: ${{ inputs.sdk }}
+        problem-matcher: false
 
     - name: Install dependencies
       shell: bash
