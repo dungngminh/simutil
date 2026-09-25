@@ -3,9 +3,9 @@ description: Setup Dart SDK, install dependencies, and optionally run codegen
 
 inputs:
   sdk:
-    description: Dart SDK channel or version
+    description: Dart SDK channel or version. Defaults to the lower bound in pubspec.yaml (`environment.sdk`).
     required: false
-    default: stable
+    default: 3.11.0
   run-codegen:
     description: Whether to run changelog generation and build_runner
     required: false
