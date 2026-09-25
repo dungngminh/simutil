@@ -76,6 +76,7 @@ void main() {
                 'name': 'My iPhone',
                 'osVersionNumber': '17.2',
               },
+              'hardwareProperties': {'reality': 'physical'},
               'connectionProperties': {'tunnelState': 'connected'},
             },
             {
@@ -100,9 +101,171 @@ void main() {
       expect(devices.single.state, DeviceState.booted);
     });
 
+    test('drops booted simulators that devicectl reports as connected', () {
+      final json = {
+        'result': {
+          'devices': [
+            {
+              'identifier': 'sim-booted',
+              'deviceProperties': {
+                'name': 'iPhone 17',
+                'osVersionNumber': '27.0',
+              },
+              'hardwareProperties': {'reality': 'simulated'},
+              'connectionProperties': {'tunnelState': 'connected'},
+            },
+            {
+              'identifier': 'sim-properties',
+              'deviceProperties': {
+                'name': 'iPhone 18 Pro',
+                'osVersionNumber': '27.0',
+              },
+              'properties': {
+                'hardware': {'reality': 'simulated'},
+              },
+              'connectionProperties': {'tunnelState': 'connected'},
+            },
+          ],
+        },
+      };
+
+      expect(IOSDeviceService.parsePhysicalDevices(json), isEmpty);
+    });
+
     test('returns empty list for missing result', () {
       expect(IOSDeviceService.parsePhysicalDevices({}), isEmpty);
     });
+  });
+
+  group('resolveSimulatorAppPath', () {
+    const developerPath = '/Applications/Xcode.app/Contents/Developer';
+    const deviceHub =
+        '/Applications/Xcode.app/Contents/Applications/DeviceHub.app';
+    const simulator =
+        '/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app';
+
+    test('prefers DeviceHub.app when it exists', () {
+      expect(
+        IOSDeviceService.resolveSimulatorAppPath(
+          developerPath: developerPath,
+          exists: (path) => path == deviceHub || path == simulator,
+        ),
+        deviceHub,
+      );
+    });
+
+    test('falls back to Simulator.app when DeviceHub is absent', () {
+      expect(
+        IOSDeviceService.resolveSimulatorAppPath(
+          developerPath: developerPath,
+          exists: (path) => path == simulator,
+        ),
+        simulator,
+      );
+    });
+
+    test('returns null when neither app exists', () {
+      expect(
+        IOSDeviceService.resolveSimulatorAppPath(
+          developerPath: developerPath,
+          exists: (_) => false,
+        ),
+        isNull,
+      );
+    });
+
+    test('returns null when xcode-select path is missing', () {
+      expect(
+        IOSDeviceService.resolveSimulatorAppPath(
+          developerPath: null,
+          exists: (_) => true,
+        ),
+        isNull,
+      );
+      expect(
+        IOSDeviceService.resolveSimulatorAppPath(
+          developerPath: '',
+          exists: (_) => true,
+        ),
+        isNull,
+      );
+    });
+  });
+
+  group('openSimulatorApp', () {
+    const developerPath = '/Applications/Xcode.app/Contents/Developer\n';
+
+    FakeCommandExec exec({
+      String? xcodeSelectStdout,
+      bool xcodeSelectOk = true,
+    }) {
+      return FakeCommandExec((command, _) {
+        if (command == '/usr/bin/xcode-select') {
+          if (!xcodeSelectOk) return FakeCommandExec.fail('xcode-select');
+          return FakeCommandExec.ok(xcodeSelectStdout ?? developerPath);
+        }
+        if (command == 'open') return FakeCommandExec.ok();
+        return FakeCommandExec.fail('unexpected $command');
+      });
+    }
+
+    test(
+      'opens DeviceHub.app without CurrentDeviceUDID on Xcode 27+',
+      () async {
+        final commandExec = exec();
+        final service = IOSDeviceService(
+          commandExec,
+          pathExists: (path) => path.endsWith('DeviceHub.app'),
+        );
+
+        await service.openSimulatorApp('UDID-1');
+
+        expect(commandExec.calls.last.command, 'open');
+        expect(commandExec.calls.last.arguments, [
+          '-a',
+          '/Applications/Xcode.app/Contents/Applications/DeviceHub.app',
+        ]);
+      },
+    );
+
+    test(
+      'opens Simulator.app with CurrentDeviceUDID when DeviceHub is absent',
+      () async {
+        final commandExec = exec();
+        final service = IOSDeviceService(
+          commandExec,
+          pathExists: (path) => path.endsWith('Simulator.app'),
+        );
+
+        await service.openSimulatorApp('UDID-1');
+
+        expect(commandExec.calls.last.arguments, [
+          '-a',
+          '/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app',
+          '--args',
+          '-CurrentDeviceUDID',
+          'UDID-1',
+        ]);
+      },
+    );
+
+    test(
+      'falls back to the Simulator app name when xcode-select fails',
+      () async {
+        final commandExec = exec(xcodeSelectOk: false);
+        final service = IOSDeviceService(commandExec, pathExists: (_) => false);
+
+        await service.openSimulatorApp('UDID-1');
+
+        expect(commandExec.calls.last.arguments, [
+          '-a',
+          'Simulator',
+          '--args',
+          '-CurrentDeviceUDID',
+          'UDID-1',
+        ]);
+      },
+    );
   });
 
   group('platform guards', () {

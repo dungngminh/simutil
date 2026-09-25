@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-25
+
+### Fixed
+
+- Open DeviceHub.app instead of Simulator.app when launching an iOS simulator on Xcode 27+. Older Xcode versions still open Simulator.app.
+- Keep booted iOS simulators out of the physical device list. `devicectl list devices` includes them on Xcode 27, filtered with `Reality = 'physical'`.
+
 ## [0.8.1] - 2026-07-21
 
 ### Fixed

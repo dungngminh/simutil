@@ -14,6 +14,38 @@ class ChangelogEntry {
 
 const List<ChangelogEntry> changelogEntries = [
   ChangelogEntry(
+    version: '0.9.0',
+    date: '2026-09-25',
+    items: [
+      'Open DeviceHub.app instead of Simulator.app when launching an iOS simulator on Xcode 27+. Older Xcode versions still open Simulator.app.',
+      'Keep booted iOS simulators out of the physical device list. `devicectl list devices` includes them on Xcode 27, filtered with `Reality = \'physical\'`.',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.8.1',
+    date: '2026-07-21',
+    items: [
+      'Stop resolving Xcode Derived Data under `/` when `\$HOME` is missing; require an explicit home directory and fail clearly instead.',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.8.0',
+    date: '2026-07-21',
+    items: [
+      'Add confirmation dialog.',
+      'Add Xcode Tools (`x`) with Clear Derived Data — measure size, confirm, then wipe `~/Library/Developer/Xcode/DerivedData` (macOS only).',
+      'Fix background color of some dialogs.',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.7.0',
+    date: '2026-07-11',
+    items: [
+      'Add first-run Welcome and post-update Changelog dialogs backed by internal app state.',
+      'Clarify in the README that iOS simulators and devices require macOS; Linux and Windows support Android only.',
+    ],
+  ),
+  ChangelogEntry(
     version: '0.6.2',
     date: '2026-07-08',
     items: [
@@ -55,16 +87,12 @@ const List<ChangelogEntry> changelogEntries = [
   ChangelogEntry(
     version: '0.4.1',
     date: '2026-04-11',
-    items: [
-      'Fix incorrect way to terminate app.',
-    ],
+    items: ['Fix incorrect way to terminate app.'],
   ),
   ChangelogEntry(
     version: '0.4.0',
     date: '2026-04-05',
-    items: [
-      'Add Logcat dialog for launching Android emulators / devices.',
-    ],
+    items: ['Add Logcat dialog for launching Android emulators / devices.'],
   ),
   ChangelogEntry(
     version: '0.3.2',
@@ -77,9 +105,7 @@ const List<ChangelogEntry> changelogEntries = [
   ChangelogEntry(
     version: '0.3.1',
     date: '2026-03-26',
-    items: [
-      'Add macOS Intel support.',
-    ],
+    items: ['Add macOS Intel support.'],
   ),
   ChangelogEntry(
     version: '0.3.0',
@@ -92,9 +118,7 @@ const List<ChangelogEntry> changelogEntries = [
   ChangelogEntry(
     version: '0.2.1',
     date: '2026-03-21',
-    items: [
-      'Fix wrong focus when initializing app.',
-    ],
+    items: ['Fix wrong focus when initializing app.'],
   ),
   ChangelogEntry(
     version: '0.2.0',
@@ -109,39 +133,27 @@ const List<ChangelogEntry> changelogEntries = [
   ChangelogEntry(
     version: '0.1.0',
     date: '2026-03-20',
-    items: [
-      'Support Android physical devices',
-      'Reopen ADB tools menu',
-    ],
+    items: ['Support Android physical devices', 'Reopen ADB tools menu'],
   ),
   ChangelogEntry(
     version: '0.0.4',
     date: '2026-03-17',
-    items: [
-      'Temporarily hide ADB Tools menu',
-      'Fix build error',
-    ],
+    items: ['Temporarily hide ADB Tools menu', 'Fix build error'],
   ),
   ChangelogEntry(
     version: '0.0.3',
     date: '2026-03-17',
-    items: [
-      'Temporarily hide ADB Tools menu',
-    ],
+    items: ['Temporarily hide ADB Tools menu'],
   ),
   ChangelogEntry(
     version: '0.0.2',
     date: '2026-03-16',
-    items: [
-      'Add version command',
-    ],
+    items: ['Add version command'],
   ),
   ChangelogEntry(
     version: '0.0.1',
     date: '2026-03-15',
-    items: [
-      'Initial release',
-    ],
+    items: ['Initial release'],
   ),
 ];
 

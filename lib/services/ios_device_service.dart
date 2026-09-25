@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:simutil/models/device.dart';
 import 'package:simutil/models/device_state.dart';
 import 'package:simutil/models/device_type.dart';
@@ -9,9 +10,13 @@ import 'package:simutil/services/command_exec.dart';
 import 'package:simutil/services/device_service.dart';
 
 class IOSDeviceService implements DeviceService {
-  const IOSDeviceService(this._exec);
+  IOSDeviceService(this._exec, {bool Function(String path)? pathExists})
+    : _pathExists = pathExists ?? _directoryExists;
 
   final CommandExec _exec;
+  final bool Function(String path) _pathExists;
+
+  static bool _directoryExists(String path) => Directory(path).existsSync();
 
   @override
   Future<bool> isAvailable() async {
@@ -102,11 +107,78 @@ class IOSDeviceService implements DeviceService {
     }
   }
 
+  /// Opens the simulator UI focused on [uuid].
+  ///
+  /// Xcode 27+ replaced Simulator.app with DeviceHub.app
+  /// (`<Xcode.app>/Contents/Applications/DeviceHub.app`). Older Xcodes still
+  /// ship Simulator.app under `Contents/Developer/Applications`. Same lookup
+  /// as Flutter's `Xcode.getSimulatorPath` (flutter/flutter#187910).
   Future<void> openSimulatorApp(String uuid) async {
+    final developerPath = await _xcodeDeveloperPath();
+    final appPath = resolveSimulatorAppPath(
+      developerPath: developerPath,
+      exists: _pathExists,
+    );
     await _exec.run(
       'open',
-      arguments: ['-a', 'Simulator', '--args', '-CurrentDeviceUDID', uuid],
+      arguments: openSimulatorArguments(uuid: uuid, appPath: appPath),
     );
+  }
+
+  Future<String?> _xcodeDeveloperPath() async {
+    try {
+      final result = await _exec.run(
+        '/usr/bin/xcode-select',
+        arguments: ['--print-path'],
+      );
+      if (!result.success) return null;
+      final path = result.stdout.trim();
+      return path.isEmpty ? null : path;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Prefer DeviceHub.app (Xcode 27+), then Simulator.app.
+  ///
+  /// [developerPath] is `xcode-select -p` (for example
+  /// `/Applications/Xcode.app/Contents/Developer`).
+  static String? resolveSimulatorAppPath({
+    required String? developerPath,
+    required bool Function(String path) exists,
+  }) {
+    if (developerPath == null || developerPath.isEmpty) return null;
+    final deviceHub = p.posix.join(
+      p.posix.dirname(developerPath),
+      'Applications',
+      'DeviceHub.app',
+    );
+    if (exists(deviceHub)) return deviceHub;
+    final simulator = p.posix.join(
+      developerPath,
+      'Applications',
+      'Simulator.app',
+    );
+    if (exists(simulator)) return simulator;
+    return null;
+  }
+
+  /// `open` arguments for [appPath].
+  ///
+  /// Simulator.app focuses a device with `-CurrentDeviceUDID`. DeviceHub.app
+  /// does not take that flag; `simctl boot` already selected the device.
+  static List<String> openSimulatorArguments({
+    required String uuid,
+    required String? appPath,
+  }) {
+    final app = appPath ?? 'Simulator';
+    final args = <String>['-a', app];
+    final isDeviceHub =
+        appPath != null && p.posix.basename(appPath) == 'DeviceHub.app';
+    if (!isDeviceHub) {
+      args.addAll(['--args', '-CurrentDeviceUDID', uuid]);
+    }
+    return args;
   }
 
   @override
@@ -146,7 +218,15 @@ class IOSDeviceService implements DeviceService {
     try {
       final devicectl = await _exec.run(
         'xcrun',
-        arguments: ['devicectl', 'list', 'devices', '-j', outputFile.path],
+        arguments: [
+          'devicectl',
+          'list',
+          'devices',
+          '--filter',
+          "Reality = 'physical'",
+          '-j',
+          outputFile.path,
+        ],
       );
 
       if (!devicectl.success) return [];
@@ -182,6 +262,7 @@ class IOSDeviceService implements DeviceService {
       final identifier = map['identifier'] as String? ?? '';
       final name = deviceProps['name'] as String? ?? '';
       final osVersion = deviceProps['osVersionNumber'] as String? ?? '';
+      if (_deviceReality(map) == 'simulated') continue;
       final tunnelState = connectionProps['tunnelState'] as String?;
       final isConnected = ![
         'unavailable',
@@ -200,5 +281,23 @@ class IOSDeviceService implements DeviceService {
     }
 
     return devices;
+  }
+
+  /// `simulated` or `physical` from `devicectl` JSON.
+  ///
+  /// Xcode 27 reports simulators in `devicectl list devices`. Booted ones have
+  /// `tunnelState: connected`, so connection state alone is not enough.
+  static String? _deviceReality(Map<String, dynamic> device) {
+    final hardware = device['hardwareProperties'] as Map<String, dynamic>?;
+    final fromHardware = hardware?['reality'] as String?;
+    if (fromHardware != null && fromHardware.isNotEmpty) return fromHardware;
+
+    final properties = device['properties'] as Map<String, dynamic>?;
+    final nestedHardware = properties?['hardware'] as Map<String, dynamic>?;
+    final fromProperties = nestedHardware?['reality'] as String?;
+    if (fromProperties != null && fromProperties.isNotEmpty) {
+      return fromProperties;
+    }
+    return null;
   }
 }

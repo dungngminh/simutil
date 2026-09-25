@@ -137,7 +137,7 @@ SimUtil itself runs on macOS, Linux, and Windows. Feature support depends on the
 | Linux   | Yes                         | No                       |
 | Windows | Yes                         | No                       |
 
-iOS support depends on Apple’s tools (`xcrun simctl` for simulators, `xcrun devicectl` for physical devices), which are only available on macOS. On Linux and Windows, the iOS panels indicate they are not supported; Android launch, ADB tools, Logcat, and plugins still work.
+iOS support depends on Apple’s tools (`xcrun simctl` for simulators, `xcrun devicectl` for physical devices), which are only available on macOS. On Xcode 27+, launching a simulator opens DeviceHub.app; earlier Xcode versions still open Simulator.app. On Linux and Windows, the iOS panels indicate they are not supported; Android launch, ADB tools, Logcat, and plugins still work.
 
 ## Contributing
 
