@@ -32,10 +32,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - uses: ./.github/actions/setup-dart
+      - name: Setup Dart
+        uses: ./.github/actions/setup-dart
 
       - name: Build executable
         run: dart compile exe bin/simutil.dart -o ${{ matrix.artifact }}
+        working-directory: packages/simutil
 
       - name: Create archive (Unix)
         if: runner.os != 'Windows'

@@ -1,7 +1,9 @@
 name: simutil_plugins
 description: YAML plugin registry and command runner for SimUtil.
 version: 1.0.0
-repository: https://github.com/dungngminh/simutil
+homepage: https://github.com/dungngminh/simutil
+repository: https://github.com/dungngminh/simutil/tree/main/packages/simutil_plugins
+issue_tracker: https://github.com/dungngminh/simutil/issues
 
 environment:
   sdk: ^3.11.0

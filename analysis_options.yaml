@@ -8,8 +8,6 @@ analyzer:
     - lib/generated/**/*.dart
     - lib/generated/*.dart
     - lib/*.g.dart
-    - lib/utils/version.dart
-    - lib/data/changelog_entries.dart
   language:
     strict-raw-types: false
 

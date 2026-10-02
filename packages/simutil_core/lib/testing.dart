@@ -1,73 +1,15 @@
-/// Test fakes for [CommandExec].
+/// Test doubles for `simutil_core`, in the style of `package:http/testing.dart`.
+///
+/// Import only from tests; production code uses `simutil_core.dart`.
+///
+/// ```dart
+/// import 'package:simutil_core/testing.dart';
+///
+/// final exec = FakeCommandExec((cmd, args) => FakeCommandExec.ok('ok'));
+/// final adb = FakeDeviceService(simulators: [testAndroidEmulator()]);
+/// ```
 library;
 
-import 'package:simutil_core/src/command_exec.dart';
-
-/// Lightweight configurable [CommandExec] fake for service tests.
-///
-/// Dispatches each `run` call to [handler] (keyed on command + arguments) and
-/// records every invocation so tests can assert on what was executed.
-class FakeCommandExec implements CommandExec {
-  /// Creates a fake that consults [handler] for each [run].
-  FakeCommandExec(this.handler);
-
-  /// Returns a result for a given command + arguments, or `null` to fall back
-  /// to a default failing result.
-  CommandResult? Function(String command, List<String> arguments) handler;
-
-  /// Recorded [run] invocations, in order.
-  final List<FakeCommandCall> calls = [];
-
-  /// Successful result helper (`exitCode` 0).
-  static CommandResult ok([String stdout = '', String stderr = '']) =>
-      CommandResult(stdout: stdout, stderr: stderr, exitCode: 0);
-
-  /// Failing result helper.
-  static CommandResult fail([
-    String stderr = '',
-    String stdout = '',
-    int exitCode = 1,
-  ]) => CommandResult(stdout: stdout, stderr: stderr, exitCode: exitCode);
-
-  @override
-  Future<CommandResult> run(
-    String command, {
-    List<String> arguments = const [],
-    String? workingDirectory,
-    Duration? timeout,
-  }) async {
-    calls.add(
-      FakeCommandCall(
-        command: command,
-        arguments: List.unmodifiable(arguments),
-        workingDirectory: workingDirectory,
-        timeout: timeout,
-      ),
-    );
-    return handler(command, arguments) ??
-        const CommandResult(stdout: '', stderr: '', exitCode: 1);
-  }
-}
-
-/// One recorded [FakeCommandExec.run] call.
-class FakeCommandCall {
-  /// Creates a recorded invocation.
-  const FakeCommandCall({
-    required this.command,
-    required this.arguments,
-    this.workingDirectory,
-    this.timeout,
-  });
-
-  /// Executable that was requested.
-  final String command;
-
-  /// Arguments passed to [command].
-  final List<String> arguments;
-
-  /// Working directory passed to [CommandExec.run], if any.
-  final String? workingDirectory;
-
-  /// Timeout passed to [CommandExec.run], if any.
-  final Duration? timeout;
-}
+export 'src/testing/device_fixtures.dart';
+export 'src/testing/fake_command_exec.dart';
+export 'src/testing/fake_device_service.dart';

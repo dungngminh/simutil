@@ -16,13 +16,13 @@ a tool. Plugins cannot add custom TUI screens — they are command launchers onl
 | File | Role |
 | --- | --- |
 | [packages/simutil_plugins/lib/src/models/plugin_config.dart](../../packages/simutil_plugins/lib/src/models/plugin_config.dart) | Data + parsing. `PluginConfig`, `PluginCommandConfig`, `PluginRunMode`, `PluginAvailabilityCheck`, `PluginCommandRef`. Pure Dart, no I/O. |
-| [packages/simutil_core/lib/src/user_config.dart](../../packages/simutil_core/lib/src/user_config.dart) | Shared config path, default YAML template, scalar merge helper. |
-| [packages/simutil_plugins/lib/src/services/plugin_registry_service.dart](../../packages/simutil_plugins/lib/src/services/plugin_registry_service.dart) | Load/parse/cache the `plugins:` section; filter by device; resolve shortcuts. |
-| [lib/services/settings_service.dart](../../lib/services/settings_service.dart) | Load/save app settings scalars; `openInEditor()` opens config via OS default app. |
-| [packages/simutil_plugins/lib/src/services/plugin_runner_service.dart](../../packages/simutil_plugins/lib/src/services/plugin_runner_service.dart) | Availability probe + launch the process. |
-| [lib/plugins/registry/](../../lib/plugins/registry/) | TUI: `plugin_menu_dialog.dart`, `command_menu_dialog.dart`, shared `menu_option_row.dart`. |
-| [lib/services/service_locator.dart](../../lib/services/service_locator.dart) | Wires `pluginRegistry` + `pluginRunner`. |
-| [lib/simutil_app.dart](../../lib/simutil_app.dart) | Loads the registry on init; handles `p`, dynamic shortcuts, and the two-step flow. |
+| [packages/simutil_plugins/lib/src/settings_file.dart](../../packages/simutil_plugins/lib/src/settings_file.dart) | Config path (`defaultSettingsPath`), default `plugins:` template, `ensurePluginsSection` (appends the section only when the key is missing). |
+| [packages/simutil_plugins/lib/src/plugin_catalog.dart](../../packages/simutil_plugins/lib/src/plugin_catalog.dart) | `PluginCatalog`: immutable parse result with `warnings`; `forDevice`, shortcut lookups, `plugin` / `command` by id. `loadPluginCatalog()` is the only file I/O. |
+| [packages/simutil_shared/lib/src/settings_service.dart](../../packages/simutil_shared/lib/src/settings_service.dart) | Owns `theme` / `last_selected_device_id`: inserts missing keys, `mergeSettingsScalars` on save; `openInEditor()` opens config via OS default app. |
+| [packages/simutil_plugins/lib/src/plugin_runner.dart](../../packages/simutil_plugins/lib/src/plugin_runner.dart) | `PluginRunner` interface; `PluginRunner(exec)` factory returns the private process-backed runner (availability probe + launch). |
+| [packages/simutil/lib/src/tui/dialogs/registry/](../../packages/simutil/lib/src/tui/dialogs/registry/) | TUI: `plugin_menu_dialog.dart`, `command_menu_dialog.dart`, shared `menu_option_row.dart`. |
+| [packages/simutil_shared/lib/src/service_locator.dart](../../packages/simutil_shared/lib/src/service_locator.dart) | Wires `pluginCatalogLoader` + `pluginRunner`. |
+| [packages/simutil/lib/src/tui/app/simutil_tui_app.dart](../../packages/simutil/lib/src/tui/app/simutil_tui_app.dart) | Loads the registry on init; handles `p`, dynamic shortcuts, and the two-step flow. |
 
 ## Model shape
 
@@ -51,12 +51,12 @@ platform validation lives in the `fromMap` factories.
 
 ```mermaid
 flowchart TD
-    Init["SimutilApp._initApp"] --> Load["pluginRegistry.load()"]
-    Load --> Ensure["ensureConfigFile(settings.yaml)"]
-    Ensure -->|missing| Write["write default settings.yaml"]
-    Load --> Cache["cache List PluginConfig"]
+    Init["SimutilTuiApp._initApp"] --> Load["loadPluginCatalog()"]
+    Load --> Ensure["ensurePluginsSection(settings.yaml)"]
+    Ensure -->|no plugins: key| Write["append default plugins section"]
+    Load --> Cache["_plugins = PluginCatalog"]
 
-    P["press p"] --> ForDevice["pluginsForDevice(selected)"]
+    P["press p"] --> ForDevice["_plugins.forDevice(selected)"]
     ForDevice --> PMenu["showPluginMenuDialog"]
     PMenu --> CMenu["showCommandMenuDialog"]
     CMenu --> RunCmd["_runPluginCommand"]
@@ -69,9 +69,10 @@ flowchart TD
     ShortLookup -->|plugin shortcut| CMenu
 ```
 
-Entry points in [lib/simutil_app.dart](../../lib/simutil_app.dart):
+Entry points in [packages/simutil/lib/src/tui/app/simutil_tui_app.dart](../../packages/simutil/lib/src/tui/app/simutil_tui_app.dart):
 
-- `_initApp` calls `await _di.pluginRegistry.load()` before the first refresh.
+- `_initApp` stores `await _di.pluginCatalogLoader()` in `_plugins` before the
+  first refresh, then shows the first catalog warning (if any) in the status bar.
 - `_handleGlobalKey`: `LogicalKey.keyP` opens `_showPluginMenu`;
   `LogicalKey.keyE` opens `_openSettingsFile` (OS default editor); the `default`
   case forwards single, unmodified character keys to `_handlePluginShortcut`.
@@ -111,35 +112,38 @@ the device services on `CommandExec`; only user plugin launches bypass it.
 
 ## Testing
 
-- [test/models/plugin_config_test.dart](../../test/models/plugin_config_test.dart)
+- [packages/simutil_plugins/test/models/plugin_config_test.dart](../../packages/simutil_plugins/test/models/plugin_config_test.dart)
   — parse/validate, `matches`, `resolveArgs`, `commandsFor`.
-- [test/services/user_config_test.dart](../../test/services/user_config_test.dart)
+- [packages/simutil_plugins/test/settings_file_test.dart](../../packages/simutil_plugins/test/settings_file_test.dart)
+- [test/services/settings_service_test.dart](../../test/services/settings_service_test.dart)
   — default create, `mergeSettingsScalars`.
-- [test/services/plugin_registry_service_test.dart](../../test/services/plugin_registry_service_test.dart)
-  — default-file creation, caching, skip/dedupe, filtering, shortcuts, malformed
-  input, combined settings file. `PluginRegistryServiceImpl(pluginsFilePath: ...)`
-  takes an override path so tests use a temp file instead of `~/.simutil/settings.yaml`.
+- [packages/simutil_plugins/test/plugin_catalog_test.dart](../../packages/simutil_plugins/test/plugin_catalog_test.dart)
+  — `PluginCatalog.parse` on inline YAML: skip/dedupe with warnings, disabled,
+  filtering, shortcuts, id lookup, malformed input. One test covers
+  `loadPluginCatalog(path: ...)` seeding a temp file.
+- [packages/simutil/test/cli/plugin_command_test.dart](../../packages/simutil/test/cli/plugin_command_test.dart)
+  — injects `loadCatalog: () async => catalog` and a `_FakeRunner implements PluginRunner`.
 
 ## Extending — common changes
 
 - **New command field:** add it to `PluginCommandConfig` + `fromMap`, document it
   in [docs/plugins.md](../plugins.md), add a parse test.
 - **New template variable:** extend `_interpolate` in
-  [plugin_config.dart](../../lib/models/plugin_config.dart) and the variables
+  [plugin_config.dart](../../packages/simutil_plugins/lib/src/models/plugin_config.dart) and the variables
   table in [docs/plugins.md](../plugins.md).
 - **New run mode:** extend `PluginRunMode` + the `switch` in
-  `PluginRunnerServiceImpl.run`.
-- **Reload at runtime:** `PluginRegistryService.reload()` already re-reads the
-  file; wire it to a key if needed (currently load is startup-only).
+  `_ProcessPluginRunner.run` in `plugin_runner.dart`.
+- **Reload at runtime:** call `_loadPlugins()` again from a key handler; the
+  catalog is immutable, so reload is just a new value (currently startup-only).
 
 ## Gotchas
 
-- The default YAML template is the `_defaultPluginsYaml` constant at the bottom
-  of [plugin_registry_service.dart](../../lib/services/plugin_registry_service.dart);
+- The default YAML template is `defaultPluginsYaml` in
+  [settings_file.dart](../../packages/simutil_plugins/lib/src/settings_file.dart);
   update it when the schema changes so first-run users get a valid sample.
 - `omit_local_variable_types`, `prefer_single_quotes`, `require_trailing_commas`
   and `sort_constructors_first` are enforced — mirror the existing model layout
   (constructors first, then fields, then methods).
-- Plugin UI dialogs follow the [adb_tools_dialog.dart](../../lib/plugins/adb_tools/adb_tools_dialog.dart)
+- Plugin UI dialogs follow the [adb_tools_dialog.dart](../../packages/simutil/lib/src/tui/dialogs/adb_tools/adb_tools_dialog.dart)
   pattern (overlay + `Focusable` + ↑/↓/enter/esc). Split large trees into small
   components per [AGENTS.md](../../AGENTS.md).

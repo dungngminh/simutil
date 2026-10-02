@@ -3,3 +3,4 @@ include: ../../analysis_options.yaml
 linter:
   rules:
     public_member_api_docs: true
+    depend_on_referenced_packages: true

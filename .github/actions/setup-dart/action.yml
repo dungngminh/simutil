@@ -7,7 +7,7 @@ inputs:
     required: false
     default: 3.11.0
   run-codegen:
-    description: Whether to run changelog generation and build_runner
+    description: Whether to regenerate changelog and version data
     required: false
     default: 'true'
 
@@ -27,9 +27,9 @@ runs:
     - name: Generate changelog data
       if: inputs.run-codegen == 'true'
       shell: bash
-      run: dart run tool/generate_changelog.dart
+      run: dart run packages/simutil/tool/generate_changelog.dart
 
-    - name: Run build_runner
+    - name: Generate version data
       if: inputs.run-codegen == 'true'
       shell: bash
-      run: dart run build_runner build --delete-conflicting-outputs
+      run: dart run packages/simutil/tool/generate_version.dart

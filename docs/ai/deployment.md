@@ -12,7 +12,8 @@ Pushing a tag that matches `v*` triggers two independent workflows in parallel:
 - [release.yaml](../../.github/workflows/release.yaml) builds binaries for four
   targets, drafts a GitHub Release, and uploads archives + checksums.
 - [deploy-pub-dev.yaml](../../.github/workflows/deploy-pub-dev.yaml) publishes
-  the package to [pub.dev](https://pub.dev/packages/simutil).
+  the package named by the pushed tag to [pub.dev](https://pub.dev/packages/simutil):
+  `vX.Y.Z` → the app, `simutil_<pkg>-vX.Y.Z` → that library.
 
 When the GitHub Release is later **published** (i.e. promoted from draft),
 [deploy-homebrew.yaml](../../.github/workflows/deploy-homebrew.yaml) fires and
@@ -52,8 +53,8 @@ flowchart TD
 | `macos-14`      | `macos-arm64` | `simutil-macos-arm64.tar.gz`      |
 | `windows-latest`| `windows-x64` | `simutil-windows-x64.zip`         |
 
-Each build runner: `dart pub get` → `dart run build_runner build --delete-conflicting-outputs`
-→ `dart compile exe bin/simutil.dart -o <artifact>` → archive (`tar -czvf` on Unix,
+Each build runner: `dart pub get` → `dart run packages/simutil/tool/generate_changelog.dart` + `dart run packages/simutil/tool/generate_version.dart`
+→ `dart compile exe packages/simutil/bin/simutil.dart -o <artifact>` → archive (`tar -czvf` on Unix,
 `Compress-Archive` on Windows). The `test-install` job downloads each archive,
 extracts it into a temporary install location, puts it on `PATH`, and runs
 `simutil version`. The `release` job then downloads all artifacts, generates
@@ -75,12 +76,18 @@ auto-generated notes (categorized per [.github/release.yaml](../../.github/relea
 
 ### deploy-pub-dev.yaml
 
-- **Trigger**: tag push (`v*`) **or** `workflow_dispatch`.
+- **Trigger**: tag push. One tag publishes exactly one package:
+  - `vX.Y.Z` → `packages/simutil` (the app). Libraries are untouched.
+  - `simutil_<pkg>-vX.Y.Z` → `packages/simutil_<pkg>` only.
+  - `workflow_dispatch` from a branch fails fast; run it on a tag ref.
+- The job fails before publishing if the tag version differs from that
+  package's `pubspec.yaml` `version:`.
 - **Auth**: OIDC — uses `id-token: write` to authenticate to pub.dev. No long-lived
-  token; the [pub.dev publisher](https://dart.dev/tools/pub/automated-publishing)
-  must trust the `dungngminh/simutil` repo.
-- Runs `build_runner` so [lib/utils/version.dart](../../lib/utils/version.dart)
-  matches `pubspec.yaml` before `dart pub publish --force`.
+  token. On pub.dev, each package's **Admin → Automated publishing** must trust
+  `dungngminh/simutil` with its own tag pattern: `v{{version}}` for `simutil`,
+  `simutil_core-v{{version}}` for `simutil_core`, and so on.
+- Runs the codegen tools so [packages/simutil/lib/src/version.dart](../../packages/simutil/lib/src/version.dart)
+  matches `packages/simutil/pubspec.yaml` before publishing.
 
 ### deploy-homebrew.yaml
 
@@ -105,10 +112,35 @@ auto-generated notes (categorized per [.github/release.yaml](../../.github/relea
 
 ## Cutting a release (maintainer checklist)
 
-1. Move the `[Unreleased]` section in [CHANGELOG.md](../../CHANGELOG.md) under a
+Versions are independent: the app (`packages/simutil`) and each library bump only
+when they change. `packageVersion` shown by the app always comes from
+`packages/simutil/pubspec.yaml`.
+
+### Library release (only when a package changed)
+
+1. In `packages/simutil_<pkg>/`, bump `version:` and add a heading to its
+   `CHANGELOG.md`. If a dependent needs the new API, raise its constraint
+   (e.g. `simutil_core: ^1.1.0`). `dart run melos version --no-dependent-versions`
+   can do the bump + tag; `--manual-version=simutil_core:1.1.0` pins it.
+2. Merge to `main`, then tag and push, **dependencies first** (core → adb /
+   apple / plugins → shared → cli → tui):
+
+   ```bash
+   git tag simutil_core-v1.1.0
+   git push origin simutil_core-v1.1.0
+   ```
+
+3. Wait for [deploy-pub-dev.yaml](../../.github/workflows/deploy-pub-dev.yaml)
+   before tagging a package that depends on it.
+
+### App release
+
+1. Move the `[Unreleased]` section in [CHANGELOG.md](../../packages/simutil/CHANGELOG.md) under a
    new `[X.Y.Z] - YYYY-MM-DD` heading and re-add an empty `[Unreleased]` block.
-2. Bump `version:` in [pubspec.yaml](../../pubspec.yaml) to `X.Y.Z` (this is what
-   `build_version` bakes into [lib/utils/version.dart](../../lib/utils/version.dart)).
+2. Bump `version:` in [packages/simutil/pubspec.yaml](../../packages/simutil/pubspec.yaml) only, then run
+   `dart run melos run codegen` so `packages/simutil/tool/generate_version.dart` writes
+   [packages/simutil/lib/src/version.dart](../../packages/simutil/lib/src/version.dart).
+   If the app needs unreleased library changes, do the library releases first.
 3. Merge to `main`, then tag and push:
 
    ```bash
@@ -123,6 +155,13 @@ auto-generated notes (categorized per [.github/release.yaml](../../.github/relea
    is what fires [deploy-homebrew.yaml](../../.github/workflows/deploy-homebrew.yaml).
 6. (Optional) Trigger [deploy-winget.yaml](../../.github/workflows/deploy-winget.yaml)
    manually via the Actions tab once the release is live.
+
+### First publish of the workspace packages
+
+None of the libraries are on pub.dev yet. pub.dev only allows automated
+publishing for packages that already exist, so publish each library once by
+hand (`dart pub publish --directory packages/simutil_<pkg>`, in dependency
+order), configure its tag pattern on pub.dev, then use tags from then on.
 
 ## Required repo secrets
 

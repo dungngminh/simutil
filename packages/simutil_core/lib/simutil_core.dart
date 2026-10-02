@@ -19,4 +19,3 @@ export 'src/models/device_os.dart';
 export 'src/models/device_state.dart';
 export 'src/models/device_type.dart';
 export 'src/models/isolate_message.dart';
-export 'src/user_config.dart';

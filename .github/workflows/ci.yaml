@@ -53,7 +53,7 @@ jobs:
       - uses: ./.github/actions/setup-dart
 
       - name: Build executable
-        run: dart compile exe bin/simutil.dart -o ${{ matrix.artifact }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+        run: dart compile exe packages/simutil/bin/simutil.dart -o ${{ matrix.artifact }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
       - uses: ./.github/actions/install-verify
         with:

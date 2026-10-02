@@ -3,7 +3,8 @@ name: Deploy to pub.dev
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'           # app release: packages/simutil only
+      - 'simutil_*-v*' # library release, e.g. simutil_core-v1.0.1
   workflow_dispatch:
 
 jobs:
@@ -18,11 +19,20 @@ jobs:
 
       - uses: ./.github/actions/setup-dart
 
-      - name: Publish workspace packages
+      - name: Publish package for this tag
+        shell: bash
         run: |
-          dart pub publish --directory packages/simutil_core --force
-          dart pub publish --directory packages/simutil_adb --force
-          dart pub publish --directory packages/simutil_apple --force
-          dart pub publish --directory packages/simutil_plugins --force
-          dart pub publish --directory packages/simutil_cli --force
-          dart pub publish --force
+          tag="${GITHUB_REF_NAME}"
+          case "$tag" in
+            v*)            dir="packages/simutil"; version="${tag#v}" ;;
+            simutil_*-v*)  dir="packages/${tag%-v*}"; version="${tag##*-v}" ;;
+            *) echo "::error::Run from a tag (v* or simutil_<pkg>-v*), got '$tag'"; exit 1 ;;
+          esac
+          if [[ ! -f "$dir/pubspec.yaml" ]]; then
+            echo "::error::No package at $dir for tag $tag"; exit 1
+          fi
+          pubspec_version="$(sed -n 's/^version:[[:space:]]*//p' "$dir/pubspec.yaml")"
+          if [[ "$pubspec_version" != "$version" ]]; then
+            echo "::error::Tag $tag does not match $dir/pubspec.yaml version $pubspec_version"; exit 1
+          fi
+          dart pub publish --directory "$dir" --force

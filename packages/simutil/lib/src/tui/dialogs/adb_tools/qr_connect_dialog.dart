@@ -1,0 +1,72 @@
+import 'dart:async';
+
+import 'package:ascii_qr/ascii_qr.dart';
+import 'package:nocterm/nocterm.dart';
+import 'package:simutil/src/tui/components/show_overlay_dialog.dart';
+import 'package:simutil/src/tui/components/simutil_theme.dart';
+
+/// Dialog that displays a QR code for wireless ADB pairing.
+class QrConnectDialog extends StatefulComponent {
+  /// Creates the dialog with an [onClose] callback.
+  const QrConnectDialog({super.key, required this.onClose});
+
+  /// Called when the user closes the dialog.
+  final VoidCallback onClose;
+
+  @override
+  State<QrConnectDialog> createState() => _QrConnectDialogState();
+}
+
+class _QrConnectDialogState extends State<QrConnectDialog> {
+  @override
+  Component build(BuildContext context) {
+    final st = context.simutilTheme;
+    return Center(
+      child: Container(
+        width: 100,
+        margin: EdgeInsets.all(4),
+        decoration: st.dialogPanel('Pairing with QR Code'),
+        child: Padding(
+          padding: EdgeInsets.all(1),
+          child: Focusable(
+            focused: true,
+            onKeyEvent: (event) {
+              if (event.logicalKey == LogicalKey.escape ||
+                  event.logicalKey == LogicalKey.enter) {
+                component.onClose();
+                return true;
+              }
+              return false;
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildQrArt(),
+                Divider(),
+                Text(' Close: <enter> or <esc>', style: st.dimmed),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Component _buildQrArt() {
+    final data = 'WIFI:T:ADB;S:simutil;P:123456;;';
+    return Text(AsciiQrGenerator.generate(data));
+  }
+}
+
+/// Shows the QR pairing dialog.
+Future<void> showQrConnectDialog(BuildContext context) =>
+    showOverlayDialog<void>(
+      context: context,
+      builder: (context, completer, entry) => QrConnectDialog(
+        onClose: () {
+          completer.complete();
+          entry?.remove();
+        },
+      ),
+    );

@@ -1,0 +1,140 @@
+import 'dart:async';
+
+import 'package:nocterm/nocterm.dart';
+import 'package:simutil/src/tui/components/show_overlay_dialog.dart';
+import 'package:simutil/src/tui/components/simutil_icons.dart';
+import 'package:simutil/src/tui/components/simutil_theme.dart';
+import 'package:simutil_adb/simutil_adb.dart';
+import 'package:simutil_core/simutil_core.dart';
+
+/// Android emulator quick-launch option picker.
+class AndroidLaunchDialog extends StatefulComponent {
+  /// Creates a launch-options dialog for [device].
+  const AndroidLaunchDialog({
+    super.key,
+    required this.device,
+    required this.onLaunch,
+    required this.onCancel,
+  });
+
+  /// Emulator to launch.
+  final Device device;
+
+  /// Called with the chosen launch option on Enter.
+  final void Function(AndroidQuickLaunchOption option) onLaunch;
+
+  /// Called when the user cancels.
+  final VoidCallback onCancel;
+
+  @override
+  State<AndroidLaunchDialog> createState() => _LaunchDialogState();
+}
+
+class _LaunchDialogState extends State<AndroidLaunchDialog> {
+  int _selectedIndex = 0;
+
+  List<AndroidQuickLaunchOption> get _options => [
+    AndroidQuickLaunchOption.normal,
+    AndroidQuickLaunchOption.coldBoot,
+    AndroidQuickLaunchOption.noAudio,
+    AndroidQuickLaunchOption.coldBootNoAudio,
+  ];
+
+  @override
+  Component build(BuildContext context) {
+    final st = context.simutilTheme;
+    return Center(
+      child: Container(
+        margin: EdgeInsets.all(16),
+        decoration: st.dialogPanel('Launch: ${component.device.name}'),
+        child: Padding(
+          padding: EdgeInsets.all(1),
+          child: Focusable(
+            focused: true,
+            onKeyEvent: _handleKeyEvent,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ..._options.asMap().entries.map((entry) {
+                  return _buildOption(st, entry.key, entry.value);
+                }),
+                SizedBox(height: 1),
+                Divider(),
+                Text(
+                  ' Navigate: <↑/↓> | Launch: <enter> | Cancel: <esc>',
+                  style: st.dimmed,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Component _buildOption(
+    SimutilTheme st,
+    int index,
+    AndroidQuickLaunchOption option,
+  ) {
+    final isSelected = _selectedIndex == index;
+    return Row(
+      children: [
+        Text(isSelected ? ' ${SimutilIcons.pointer} ' : '   ', style: st.label),
+        Expanded(
+          child: Text(option.label, style: isSelected ? st.selected : st.body),
+        ),
+      ],
+    );
+  }
+
+  bool _handleKeyEvent(KeyboardEvent event) {
+    if (event.logicalKey == LogicalKey.escape) {
+      component.onCancel();
+      return true;
+    }
+
+    if (event.logicalKey == LogicalKey.enter) {
+      component.onLaunch(_options[_selectedIndex]);
+      return true;
+    }
+
+    if (event.logicalKey == LogicalKey.arrowUp) {
+      setState(() {
+        _selectedIndex = (_selectedIndex - 1).clamp(0, _options.length - 1);
+      });
+      return true;
+    }
+
+    if (event.logicalKey == LogicalKey.arrowDown) {
+      setState(() {
+        _selectedIndex = (_selectedIndex + 1).clamp(0, _options.length - 1);
+      });
+      return true;
+    }
+
+    return false;
+  }
+}
+
+/// Shows an [AndroidLaunchDialog]; returns the chosen option or `null`.
+Future<AndroidQuickLaunchOption?> showLaunchDialog({
+  required BuildContext context,
+  required Device device,
+}) => showOverlayDialog<AndroidQuickLaunchOption>(
+  context: context,
+  builder: (context, completer, entry) {
+    return AndroidLaunchDialog(
+      device: device,
+      onLaunch: (option) {
+        completer.complete(option);
+        entry?.remove();
+      },
+      onCancel: () {
+        completer.complete(null);
+        entry?.remove();
+      },
+    );
+  },
+);

@@ -118,7 +118,7 @@ dart pub global activate simutil
 git clone https://github.com/dungngminh/simutil.git
 cd simutil
 dart pub get
-dart pub global activate --source path .
+dart pub global activate --source path packages/simutil
 ```
 
 Then run:
@@ -163,17 +163,18 @@ Short flags: `-a`/`--android`, `-i`/`--ios`, `-e`/`--emulator`, `-p`/`--physical
 
 ## Packages
 
-Headless libraries (pub workspace, all `1.0.0`):
+Monorepo (pub workspace); every package is versioned and published separately:
 
-| Package | Import |
-| ------- | ------ |
-| `simutil_core` | Models, `CommandExec`, `DeviceService`, config helpers |
-| `simutil_adb` | `AndroidDeviceService`, wireless ADB |
-| `simutil_apple` | `IOSDeviceService`, `XcodeCacheService` |
-| `simutil_plugins` | YAML plugin registry and runner |
-| `simutil_cli` | Headless CLI (`list`, `launch`, `shutdown`, `plugin`) |
+| Package | Contents |
+| ------- | -------- |
+| [`simutil`](packages/simutil) | The app: `simutil` executable, TUI and CLI |
+| [`simutil_shared`](packages/simutil_shared) | App layer shared by TUI and GUI: settings, app state, changelog, service wiring |
+| [`simutil_core`](packages/simutil_core) | Models, `CommandExec`, `DeviceService` |
+| [`simutil_adb`](packages/simutil_adb) | `AndroidDeviceService`, wireless ADB, Logcat parsing |
+| [`simutil_apple`](packages/simutil_apple) | `IOSDeviceService`, `XcodeCacheService` |
+| [`simutil_plugins`](packages/simutil_plugins) | YAML plugin catalog and runner |
 
-The root `simutil` package is the TUI app and binary entry; it does not re-export the libraries.
+The repository root only holds the workspace `pubspec.yaml` (Melos scripts), docs, and CI.
 
 ## Contributing
 
@@ -181,10 +182,10 @@ The root `simutil` package is the TUI app and binary entry; it does not re-expor
 git clone https://github.com/dungngminh/simutil.git
 cd simutil
 dart pub get
-dart run melos run tui   # TUI locally
+dart run melos run cli   # CLI locally
 
 dart run melos run check          # analyze + test (CI parity)
-dart --enable-vm-service bin/simutil.dart # Run with hot reload
+dart run melos run cli_hot_reload # CLI with hot reload
 ```
 
 1. Fork this repository

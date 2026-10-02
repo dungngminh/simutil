@@ -13,6 +13,7 @@
 library;
 
 export 'src/android_device_service.dart';
+export 'src/logcat_helper.dart';
 export 'src/models/adb_connect_result.dart';
 export 'src/models/android_quick_launch_option.dart';
 export 'src/models/wifi_pairing_device.dart';

@@ -7,12 +7,14 @@
 /// import 'package:simutil_plugins/simutil_plugins.dart';
 /// import 'package:simutil_core/simutil_core.dart';
 ///
-/// final registry = PluginRegistryServiceImpl();
-/// await registry.load();
-/// final runner = PluginRunnerServiceImpl(CommandExecImpl());
+/// final catalog = await loadPluginCatalog();
+/// final runner = PluginRunner(CommandExecImpl());
+/// final ref = catalog.command('scrcpy', 'mirror');
+/// if (ref != null) await runner.run(ref.command, null);
 /// ```
 library;
 
 export 'src/models/plugin_config.dart';
-export 'src/services/plugin_registry_service.dart';
-export 'src/services/plugin_runner_service.dart';
+export 'src/plugin_catalog.dart';
+export 'src/plugin_runner.dart';
+export 'src/settings_file.dart';

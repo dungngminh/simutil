@@ -1,0 +1,10 @@
+include: ../../analysis_options.yaml
+
+analyzer:
+  exclude:
+    - lib/src/changelog_entries.dart
+
+linter:
+  rules:
+    public_member_api_docs: true
+    depend_on_referenced_packages: true

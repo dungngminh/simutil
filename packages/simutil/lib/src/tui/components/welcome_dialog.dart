@@ -1,0 +1,83 @@
+import 'dart:async';
+
+import 'package:nocterm/nocterm.dart';
+import 'package:simutil/src/tui/components/show_overlay_dialog.dart';
+import 'package:simutil/src/tui/components/simutil_theme.dart';
+
+/// First-run welcome overlay with keyboard shortcuts.
+class WelcomeDialog extends StatelessComponent {
+  /// Creates a welcome dialog.
+  const WelcomeDialog({super.key, required this.onDismiss});
+
+  /// Called when the user closes the dialog.
+  final VoidCallback onDismiss;
+
+  @override
+  Component build(BuildContext context) {
+    final st = context.simutilTheme;
+
+    return Center(
+      child: Focusable(
+        focused: true,
+        onKeyEvent: (event) {
+          if (event.logicalKey == LogicalKey.escape ||
+              event.logicalKey == LogicalKey.enter) {
+            onDismiss();
+            return true;
+          }
+          return false;
+        },
+        child: Container(
+          margin: EdgeInsets.all(16),
+          decoration: st.dialogPanel('Welcome to SimUtil'),
+          child: Padding(
+            padding: EdgeInsets.all(1),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(text: ' SimUtil', style: st.sectionHeader),
+                      TextSpan(
+                        text:
+                            ' is a terminal UI for quickly launching Android emulators and iOS simulators without leaving your terminal and more.',
+                        style: st.body,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 1),
+                Text(" Let's try with these shortcuts:", style: st.body),
+                SizedBox(height: 1),
+                Text('  • Navigate devices: <↑/↓>', style: st.body),
+                Text('  • Switch panels: <tab> or <←/→>', style: st.body),
+                Text(
+                  '  • Launch selected device: <space> or <enter>',
+                  style: st.body,
+                ),
+                Text('  • Refresh devices: r', style: st.body),
+                SizedBox(height: 1),
+                Divider(),
+                Text(' Close: <enter> | <esc>', style: st.dimmed),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shows a [WelcomeDialog] and completes when dismissed.
+Future<void> showWelcomeDialog({required BuildContext context}) =>
+    showOverlayDialog<void>(
+      context: context,
+      builder: (context, completer, entry) => WelcomeDialog(
+        onDismiss: () {
+          completer.complete();
+          entry?.remove();
+        },
+      ),
+    );
