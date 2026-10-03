@@ -85,7 +85,9 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
 
   Future<void> _initApp() async {
     await _di.init();
-    _loadSettings();
+    // Sequential on purpose: both seed ~/.simutil/settings.yaml with their own
+    // read → merge → write, so running them concurrently can drop keys.
+    await _loadSettings();
     await _loadPlugins();
     await _refreshDevices();
     _showPluginWarnings();

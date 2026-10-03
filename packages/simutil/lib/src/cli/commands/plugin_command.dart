@@ -230,6 +230,6 @@ class PluginRunCommand extends SimutilCommand {
     }
 
     logger.err(result.message);
-    return 1;
+    return result.exitCode ?? 1;
   }
 }

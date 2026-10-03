@@ -78,6 +78,23 @@ void main() {
       final result = await service.run(command, null);
 
       expect(result.success, isTrue);
+      expect(result.exitCode, 0);
+    });
+
+    test('inherit mode waits for exit and reports a non-zero code', () async {
+      final command = PluginCommandConfig(
+        id: 'c',
+        label: 'Inherit',
+        command: dart,
+        args: const ['--definitely-not-a-flag'],
+        mode: PluginRunMode.inherit,
+      );
+
+      final result = await service.run(command, null);
+
+      expect(result.success, isFalse);
+      expect(result.exitCode, isNot(0));
+      expect(result.message, contains('exited with code'));
     });
 
     test('unknown executable reports failure', () async {

@@ -33,8 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Invalid or duplicate plugin entries are reported (CLI warnings, TUI status bar) instead of only logged.
 - Config path falls back to `USERPROFILE` on Windows instead of the current directory.
 - `simutil_apple` declares its `path` dependency; workspace packages ship LICENSE, README, and CHANGELOG so `dart pub publish` passes.
+- `simutil plugin run` waits for `mode: inherit` commands and exits with their exit code instead of always reporting success.
+- First launch no longer risks dropping `theme:` / `plugins:` from `settings.yaml`: settings and the plugin catalog seed the file one after the other.
 
-## [1.0.0] - 2026-08-22
+## [1.0.0] - 2026-10-03
 
 ### Added
 

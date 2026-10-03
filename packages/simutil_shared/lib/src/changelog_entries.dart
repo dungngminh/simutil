@@ -15,7 +15,7 @@ class ChangelogEntry {
 const List<ChangelogEntry> changelogEntries = [
   ChangelogEntry(
     version: '1.0.0',
-    date: '2026-08-22',
+    date: '2026-10-03',
     items: [
       'Split headless APIs into workspace packages: `simutil_core`, `simutil_adb`, `simutil_apple`, and `simutil_plugins` (all `1.0.0`).',
       'CLI subcommands: `list`/`ls`, `launch`/`start`, `shutdown`/`stop`, and `plugin list` / `plugin run` with short flags (`-a`, `-i`, `-e`, `-p`, `-r`, `-c`, `--no-audio`, `-d`).',

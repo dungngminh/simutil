@@ -6,10 +6,18 @@ import 'package:simutil_plugins/src/models/plugin_config.dart';
 /// Outcome of launching a plugin command.
 final class PluginRunResult {
   /// Creates a run outcome with [success] and [message].
-  const PluginRunResult({required this.success, required this.message});
+  const PluginRunResult({
+    required this.success,
+    required this.message,
+    this.exitCode,
+  });
 
-  /// Whether the command launched successfully.
+  /// Whether the command launched (detached) or exited with `0` (inherit).
   final bool success;
+
+  /// Exit code of an `inherit` command; `null` for detached launches and
+  /// launch failures.
+  final int? exitCode;
 
   /// Human-readable status or error message.
   final String message;
@@ -25,6 +33,9 @@ abstract interface class PluginRunner {
   Future<bool> isAvailable(PluginConfig plugin, PluginCommandConfig command);
 
   /// Launches [command] for [device], resolving argument templates.
+  ///
+  /// Detached commands return once started. Inherit commands complete when
+  /// the process exits and report its exit code.
   Future<PluginRunResult> run(PluginCommandConfig command, Device? device);
 }
 
@@ -68,17 +79,25 @@ final class _ProcessPluginRunner implements PluginRunner {
             args,
             mode: ProcessStartMode.detached,
           );
+          return PluginRunResult(
+            success: true,
+            message: '${command.label} started',
+          );
         case PluginRunMode.inherit:
-          await Process.start(
+          final process = await Process.start(
             command.command,
             args,
             mode: ProcessStartMode.inheritStdio,
           );
+          final exitCode = await process.exitCode;
+          return PluginRunResult(
+            success: exitCode == 0,
+            message: exitCode == 0
+                ? '${command.label} finished'
+                : '${command.label} exited with code $exitCode',
+            exitCode: exitCode,
+          );
       }
-      return PluginRunResult(
-        success: true,
-        message: '${command.label} started',
-      );
     } catch (e) {
       return PluginRunResult(
         success: false,

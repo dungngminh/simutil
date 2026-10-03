@@ -36,6 +36,19 @@ plugins:
     expect(runner.ran.single.command.id, 'hello');
   });
 
+  test(
+    'plugin run returns the exit code of a failed inherit command',
+    () async {
+      runner.result = const PluginRunResult(
+        success: false,
+        message: 'Hello exited with code 3',
+        exitCode: 3,
+      );
+
+      expect(await cli.run(['plugin', 'run', 'tools', 'hello']), 3);
+    },
+  );
+
   test('plugin run rejects unknown plugin and command ids', () {
     expect(
       cli.run(['plugin', 'run', 'nope', 'hello']),
