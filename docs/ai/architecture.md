@@ -9,7 +9,7 @@ drift but paths are stable.
 Dart pub workspace (SDK `^3.11.0`). The root `pubspec.yaml` is `name: _`,
 `publish_to: none`: it only lists workspace members and holds the
 [Melos](https://melos.invertase.dev/) scripts (`melos run analyze`, `test`,
-`check`, `codegen`, `compile`, `tui`). All code lives under `packages/`; each
+`check`, `codegen`, `compile`, `cli`). All code lives under `packages/`; each
 package has its own version.
 
 | Package | Role |

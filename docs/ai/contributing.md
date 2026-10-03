@@ -22,9 +22,9 @@ code change itself.
    [.github/PULL_REQUEST_TEMPLATE.md](../../.github/PULL_REQUEST_TEMPLATE.md):
    write a Description and tick the relevant Type-of-Change checkboxes.
 4. **Touch generated code only via its generator.** If you bumped the version in
-   [pubspec.yaml](../../pubspec.yaml) or edited [CHANGELOG.md](../../packages/simutil/CHANGELOG.md),
-   regenerate `version.dart` / `changelog_entries.dart` in
-   [packages/simutil_shared](../../packages/simutil_shared/lib/src/) with
+   [packages/simutil/pubspec.yaml](../../packages/simutil/pubspec.yaml) or edited [CHANGELOG.md](../../packages/simutil/CHANGELOG.md),
+   regenerate `packages/simutil/lib/src/version.dart` /
+   `packages/simutil_shared/lib/src/changelog_entries.dart` with
    `dart run melos run codegen`. Never edit them by hand.
 
 ## Branching & commits
@@ -42,5 +42,5 @@ checklist live in [docs/ai/deployment.md](deployment.md).**
 
 When preparing a release, move the `[Unreleased]` block in
 [CHANGELOG.md](../../packages/simutil/CHANGELOG.md) under a new `[x.y.z] - YYYY-MM-DD` heading and
-bump `version:` in [pubspec.yaml](../../pubspec.yaml) to match — then follow
+bump `version:` in [packages/simutil/pubspec.yaml](../../packages/simutil/pubspec.yaml) to match — then follow
 [docs/ai/deployment.md § Cutting a release](deployment.md#cutting-a-release-maintainer-checklist).

@@ -123,7 +123,7 @@ when they change. `packageVersion` shown by the app always comes from
    (e.g. `simutil_core: ^1.1.0`). `dart run melos version --no-dependent-versions`
    can do the bump + tag; `--manual-version=simutil_core:1.1.0` pins it.
 2. Merge to `main`, then tag and push, **dependencies first** (core → adb /
-   apple / plugins → shared → cli → tui):
+   apple / plugins → shared; the app `simutil` last):
 
    ```bash
    git tag simutil_core-v1.1.0
@@ -179,6 +179,7 @@ authorize this repo + the tag-push event.
 [ci.yaml](../../.github/workflows/ci.yaml) runs on `push`/`pull_request` to
 `main` (paths-ignore: `**.md`, `art/**`, `install.sh`):
 
-- `analyze` job: `dart analyze --fatal-infos`.
+- `analyze` job ("Analyze & Test"): `dart run melos run analyze` and
+  `dart run melos run test` across the workspace.
 - `build` job: same four-target matrix as release, but only verifies the
   binary compiles (`dart compile exe`) — no archive, no upload.

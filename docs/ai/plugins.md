@@ -115,14 +115,14 @@ the device services on `CommandExec`; only user plugin launches bypass it.
 - [packages/simutil_plugins/test/models/plugin_config_test.dart](../../packages/simutil_plugins/test/models/plugin_config_test.dart)
   — parse/validate, `matches`, `resolveArgs`, `commandsFor`.
 - [packages/simutil_plugins/test/settings_file_test.dart](../../packages/simutil_plugins/test/settings_file_test.dart)
-- [test/services/settings_service_test.dart](../../test/services/settings_service_test.dart)
+- [packages/simutil_shared/test/settings_service_test.dart](../../packages/simutil_shared/test/settings_service_test.dart)
   — default create, `mergeSettingsScalars`.
 - [packages/simutil_plugins/test/plugin_catalog_test.dart](../../packages/simutil_plugins/test/plugin_catalog_test.dart)
   — `PluginCatalog.parse` on inline YAML: skip/dedupe with warnings, disabled,
   filtering, shortcuts, id lookup, malformed input. One test covers
   `loadPluginCatalog(path: ...)` seeding a temp file.
 - [packages/simutil/test/cli/plugin_command_test.dart](../../packages/simutil/test/cli/plugin_command_test.dart)
-  — injects `loadCatalog: () async => catalog` and a `_FakeRunner implements PluginRunner`.
+  — injects `loadCatalog: () async => catalog` and `FakePluginRunner` from `package:simutil_plugins/testing.dart`.
 
 ## Extending — common changes
 
