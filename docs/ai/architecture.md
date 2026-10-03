@@ -69,7 +69,7 @@ flowchart LR
     Locator --> Apple["simutil_apple"]
     Locator --> Plugins["simutil_plugins"]
     Locator --> Settings["SettingsService"]
-    Adb --> Exec["IsolateCommandExec"]
+    Adb --> Exec["CommandExec.isolate"]
     Apple --> Exec
     Plugins --> Exec
     Exec --> Runner["IsolateRunner"]
@@ -82,8 +82,8 @@ Key invariants:
 
 - Services never call `Process.run` directly — they go through `CommandExec` so
   shell work happens on a background isolate and the TUI stays responsive.
-- The CLI uses `CommandExecImpl` (sync) via `CliDeviceServices`; the TUI uses
-  `IsolateCommandExec`.
+- The CLI uses `CommandExec()` (sync) via `CliDeviceServices`; the TUI uses
+  `CommandExec.isolate`.
 - The TUI mutates state via `setState` and refreshes devices on a timer
   (`kReloadInterval`, see [packages/simutil_shared/lib/src/constants.dart](../../packages/simutil_shared/lib/src/constants.dart))
   plus a short follow-up after user actions (`kReloadAfterActionInterval`).

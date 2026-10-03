@@ -6,7 +6,7 @@
 /// ```dart
 /// import 'package:simutil_core/simutil_core.dart';
 ///
-/// final exec = CommandExecImpl();
+/// final exec = CommandExec();
 /// final result = await exec.run('adb', arguments: ['devices']);
 /// ```
 library;

@@ -19,7 +19,9 @@ class ServiceLocator {
   late final IsolateRunner isolateRunner = IsolateRunner();
 
   /// [CommandExec] that delegates to [isolateRunner] off the UI isolate.
-  late final CommandExec commandExec = IsolateCommandExec(isolateRunner);
+  // Keep the isolate: `CommandExec()` on the UI isolate was tried and
+  // froze the TUI during device refreshes.
+  late final CommandExec commandExec = CommandExec.isolate(isolateRunner);
 
   /// Android emulators and hardware via adb.
   late final AndroidDeviceService adbService = AndroidDeviceService(

@@ -14,7 +14,7 @@ import 'package:simutil_core/simutil_core.dart';
 
 Future<void> main() async {
   if (!Platform.isMacOS) return;
-  final apple = IOSDeviceService(CommandExecImpl());
+  final apple = IOSDeviceService(CommandExec());
   for (final device in await apple.getSimulators()) {
     print('${device.id} ${device.name}');
   }

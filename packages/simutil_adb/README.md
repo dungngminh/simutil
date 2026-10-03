@@ -11,7 +11,7 @@ import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 Future<void> main() async {
-  final adb = AndroidDeviceService(CommandExecImpl());
+  final adb = AndroidDeviceService(CommandExec());
   for (final device in await adb.getSimulators()) {
     print('${device.id} ${device.name}');
   }

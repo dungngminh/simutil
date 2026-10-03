@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:simutil_core/src/isolate_runner.dart';
@@ -26,10 +27,20 @@ class CommandResult {
 
 /// Runs a command and waits for exit plus captured stdio.
 ///
-/// Use [CommandExecImpl] from a CLI or tests. Use [IsolateCommandExec] from a
-/// TUI so shell work does not block the UI isolate.
-abstract class CommandExec {
+/// `CommandExec()` runs on the current isolate (CLI, tests). Use
+/// `CommandExec.isolate` from a TUI so shell work does not block the UI isolate.
+abstract interface class CommandExec {
+  /// Creates an executor that runs processes on the current isolate.
+  const factory CommandExec() = _ProcessCommandExec;
+
+  /// Creates an executor that forwards work to [runner]'s background isolate.
+  /// Call [IsolateRunner.init] first.
+  const factory CommandExec.isolate(IsolateRunner runner) = _IsolateCommandExec;
+
   /// Runs [command] with [arguments] and returns stdout/stderr/exit code.
+  ///
+  /// When [timeout] elapses the process is killed and a [TimeoutException]
+  /// is thrown.
   Future<CommandResult> run(
     String command, {
     List<String> arguments,
@@ -38,10 +49,8 @@ abstract class CommandExec {
   });
 }
 
-/// [CommandExec] that calls `Process.run` on the current isolate.
-class CommandExecImpl implements CommandExec {
-  /// Creates an in-isolate executor.
-  CommandExecImpl();
+class _ProcessCommandExec implements CommandExec {
+  const _ProcessCommandExec();
 
   @override
   Future<CommandResult> run(
@@ -50,26 +59,35 @@ class CommandExecImpl implements CommandExec {
     String? workingDirectory,
     Duration? timeout,
   }) async {
-    final resultFuture = Process.run(
+    final process = await Process.start(
       command,
       arguments,
       workingDirectory: workingDirectory,
     );
-    final result = timeout == null
-        ? await resultFuture
-        : await resultFuture.timeout(timeout);
+    final stdout = process.stdout.transform(systemEncoding.decoder).join();
+    final stderr = process.stderr.transform(systemEncoding.decoder).join();
+    final exitCode = timeout == null
+        ? await process.exitCode
+        : await process.exitCode.timeout(
+            timeout,
+            onTimeout: () {
+              process.kill(ProcessSignal.sigkill);
+              throw TimeoutException(
+                'Command timed out after ${timeout.inSeconds} seconds',
+                timeout,
+              );
+            },
+          );
     return CommandResult(
-      stdout: result.stdout as String,
-      stderr: result.stderr as String,
-      exitCode: result.exitCode,
+      stdout: await stdout,
+      stderr: await stderr,
+      exitCode: exitCode,
     );
   }
 }
 
-/// [CommandExec] that forwards work to an [IsolateRunner] background isolate.
-class IsolateCommandExec implements CommandExec {
-  /// Creates an executor bound to an [IsolateRunner]. Call [IsolateRunner.init] first.
-  const IsolateCommandExec(this._runner);
+class _IsolateCommandExec implements CommandExec {
+  const _IsolateCommandExec(this._runner);
 
   final IsolateRunner _runner;
 

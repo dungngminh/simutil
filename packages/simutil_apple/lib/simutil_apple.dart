@@ -7,7 +7,7 @@
 /// import 'package:simutil_apple/simutil_apple.dart';
 /// import 'package:simutil_core/simutil_core.dart';
 ///
-/// final apple = IOSDeviceService(CommandExecImpl());
+/// final apple = IOSDeviceService(CommandExec());
 /// final sims = await apple.getSimulators();
 /// ```
 library;

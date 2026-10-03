@@ -11,9 +11,9 @@ class CliDeviceServices {
   /// Creates services keyed by [DeviceOs].
   ///
   /// Defaults to adb and simctl services backed by a synchronous
-  /// [CommandExecImpl]; pass [services] to inject fakes in tests.
+  /// `CommandExec()`; pass [services] to inject fakes in tests.
   CliDeviceServices({Map<DeviceOs, DeviceService>? services})
-    : _services = services ?? _defaultServices(CommandExecImpl());
+    : _services = services ?? _defaultServices(CommandExec());
 
   final Map<DeviceOs, DeviceService> _services;
 

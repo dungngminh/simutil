@@ -8,7 +8,7 @@
 /// import 'package:simutil_core/simutil_core.dart';
 ///
 /// final catalog = await loadPluginCatalog();
-/// final runner = PluginRunner(CommandExecImpl());
+/// final runner = PluginRunner(CommandExec());
 /// final ref = catalog.command('scrcpy', 'mirror');
 /// if (ref != null) await runner.run(ref.command, null);
 /// ```

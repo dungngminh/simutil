@@ -7,7 +7,7 @@
 /// import 'package:simutil_adb/simutil_adb.dart';
 /// import 'package:simutil_core/simutil_core.dart';
 ///
-/// final adb = AndroidDeviceService(CommandExecImpl());
+/// final adb = AndroidDeviceService(CommandExec());
 /// final avds = await adb.getSimulators();
 /// ```
 library;

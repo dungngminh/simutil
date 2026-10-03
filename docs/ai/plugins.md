@@ -107,7 +107,7 @@ services. Only plugin **launch** is the deliberate exception:
   and forget) or `inheritStdio` (blocking CLIs).
 
 These are fire-and-forget launches, not captured shell output, so routing them
-through `IsolateCommandExec` would add no value. Keep device discovery/launch in
+through `CommandExec.isolate` would add no value. Keep device discovery/launch in
 the device services on `CommandExec`; only user plugin launches bypass it.
 
 ## Testing

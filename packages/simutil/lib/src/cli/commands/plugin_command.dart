@@ -17,7 +17,7 @@ class PluginCommand extends SimutilCommand {
     PluginRunner? runner,
   }) : _deviceServices = deviceServices ?? CliDeviceServices(),
        _loadCatalog = loadCatalog ?? loadPluginCatalog,
-       _runner = runner ?? PluginRunner(CommandExecImpl()) {
+       _runner = runner ?? PluginRunner(CommandExec()) {
     addSubcommand(
       PluginListCommand(
         logger: logger,

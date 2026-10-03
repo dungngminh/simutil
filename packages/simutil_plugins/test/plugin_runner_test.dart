@@ -5,7 +5,7 @@ import 'package:simutil_plugins/simutil_plugins.dart';
 import 'package:test/test.dart';
 
 void main() {
-  final service = PluginRunner(CommandExecImpl());
+  final service = PluginRunner(CommandExec());
   final dart = Platform.resolvedExecutable;
 
   PluginConfig pluginWith(

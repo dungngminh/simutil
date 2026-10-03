@@ -10,7 +10,7 @@ Part of [SimUtil](https://github.com/dungngminh/simutil).
 import 'package:simutil_core/simutil_core.dart';
 
 Future<void> main() async {
-  final result = await CommandExecImpl().run('adb', arguments: ['version']);
+  final result = await CommandExec().run('adb', arguments: ['version']);
   print(result.stdout);
 }
 ```
