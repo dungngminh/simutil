@@ -26,12 +26,11 @@ class ChangelogDialog extends StatefulComponent {
 
 class _ChangelogDialogState extends State<ChangelogDialog> {
   final ScrollController _scrollController = ScrollController();
-  int _scrollIndex = 0;
 
   List<_ChangelogLine> get _lines => [
     for (final entry in component.entries) ...[
       _ChangelogLine('${entry.version} — ${entry.date}', isHeader: true),
-      for (final item in entry.items) _ChangelogLine('  • $item'),
+      for (final item in entry.items) _ChangelogLine(item, isItem: true),
       const _ChangelogLine(''),
     ],
   ];
@@ -67,6 +66,7 @@ class _ChangelogDialogState extends State<ChangelogDialog> {
                     itemCount: lines.length,
                     itemBuilder: (context, index) {
                       final line = lines[index];
+                      if (line.isItem) return _ChangelogItem(line.text);
                       return Text(
                         line.text,
                         style: line.isHeader ? st.sectionHeader : st.body,
@@ -94,26 +94,52 @@ class _ChangelogDialogState extends State<ChangelogDialog> {
       return true;
     }
 
-    final lines = _lines;
-    if (event.logicalKey == LogicalKey.arrowUp) {
-      _scrollIndex = (_scrollIndex - 1).clamp(0, lines.length - 1);
-      _scrollController.ensureIndexVisible(index: _scrollIndex);
-      return true;
+    // Scroll the viewport itself: there is no visible cursor, so moving a
+    // hidden index only scrolled once it passed the bottom edge.
+    switch (event.logicalKey) {
+      case LogicalKey.arrowUp:
+        _scrollController.scrollUp();
+      case LogicalKey.arrowDown:
+        _scrollController.scrollDown();
+      default:
+        return false;
     }
-    if (event.logicalKey == LogicalKey.arrowDown) {
-      _scrollIndex = (_scrollIndex + 1).clamp(0, lines.length - 1);
-      _scrollController.ensureIndexVisible(index: _scrollIndex);
-      return true;
-    }
-    return false;
+    return true;
   }
 }
 
 class _ChangelogLine {
-  const _ChangelogLine(this.text, {this.isHeader = false});
+  const _ChangelogLine(this.text, {this.isHeader = false, this.isItem = false});
 
   final String text;
   final bool isHeader;
+  final bool isItem;
+}
+
+/// One bullet; renders its inline markdown (`**bold**`, `` `code` ``, links).
+class _ChangelogItem extends StatelessComponent {
+  const _ChangelogItem(this.text);
+
+  final String text;
+
+  @override
+  Component build(BuildContext context) {
+    final st = context.simutilTheme;
+    // Markdown trims leading spaces, so indent with padding instead.
+    return Padding(
+      padding: EdgeInsets.only(left: 2),
+      child: MarkdownText(
+        '• $text',
+        styleSheet: MarkdownStyleSheet(
+          paragraphStyle: st.body,
+          boldStyle: st.bold,
+          italicStyle: const TextStyle(fontStyle: FontStyle.italic),
+          codeStyle: TextStyle(color: st.secondary),
+          linkStyle: TextStyle(color: st.primary),
+        ),
+      ),
+    );
+  }
 }
 
 /// Shows a [ChangelogDialog] and completes when dismissed.
