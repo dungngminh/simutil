@@ -9,15 +9,32 @@ String resolveStatePath() {
 
 /// Persisted app state such as the last seen release version.
 class AppState {
-  /// Creates app state with optional [lastSeenVersion].
-  const AppState({this.lastSeenVersion});
+  /// Creates app state; every field is optional.
+  const AppState({
+    this.lastSeenVersion,
+    this.lastUpdateCheck,
+    this.latestKnownVersion,
+  });
 
   /// Last release version the user acknowledged in the changelog.
   final String? lastSeenVersion;
 
+  /// When the update checker last queried the release feed.
+  final DateTime? lastUpdateCheck;
+
+  /// Newest release version seen by the last update check.
+  final String? latestKnownVersion;
+
   /// Returns a copy with the given fields replaced.
-  AppState copyWith({String? lastSeenVersion}) =>
-      AppState(lastSeenVersion: lastSeenVersion ?? this.lastSeenVersion);
+  AppState copyWith({
+    String? lastSeenVersion,
+    DateTime? lastUpdateCheck,
+    String? latestKnownVersion,
+  }) => AppState(
+    lastSeenVersion: lastSeenVersion ?? this.lastSeenVersion,
+    lastUpdateCheck: lastUpdateCheck ?? this.lastUpdateCheck,
+    latestKnownVersion: latestKnownVersion ?? this.latestKnownVersion,
+  );
 }
 
 /// Loads and updates persisted [AppState] on disk.
@@ -48,7 +65,13 @@ final class _FileAppStateService implements AppStateService {
     try {
       final decoded = jsonDecode(await File(_statePath).readAsString());
       if (decoded is! Map<String, dynamic>) return const AppState();
-      return AppState(lastSeenVersion: decoded['lastSeenVersion'] as String?);
+      return AppState(
+        lastSeenVersion: decoded['lastSeenVersion'] as String?,
+        lastUpdateCheck: DateTime.tryParse(
+          decoded['lastUpdateCheck'] as String? ?? '',
+        ),
+        latestKnownVersion: decoded['latestKnownVersion'] as String?,
+      );
     } catch (_) {
       return const AppState();
     }
@@ -59,7 +82,11 @@ final class _FileAppStateService implements AppStateService {
     final file = File(_statePath);
     await file.parent.create(recursive: true);
     await file.writeAsString(
-      jsonEncode({'lastSeenVersion': state.lastSeenVersion}),
+      jsonEncode({
+        'lastSeenVersion': state.lastSeenVersion,
+        'lastUpdateCheck': state.lastUpdateCheck?.toIso8601String(),
+        'latestKnownVersion': state.latestKnownVersion,
+      }),
     );
   }
 

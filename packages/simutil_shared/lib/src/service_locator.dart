@@ -1,5 +1,6 @@
 import 'package:simutil_shared/src/app_state.dart';
 import 'package:simutil_shared/src/settings_service.dart';
+import 'package:simutil_shared/src/update_checker.dart';
 import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
@@ -36,6 +37,11 @@ class ServiceLocator {
 
   /// First-run / changelog version state.
   late final AppStateService appStateService = AppStateService();
+
+  /// Daily new-release check, cached in [appStateService].
+  late final UpdateChecker updateChecker = UpdateChecker(
+    appState: appStateService,
+  );
 
   /// mDNS watcher for wireless ADB pairing.
   late final WifiDiscoveryService wifiDiscoveryService =

@@ -3,14 +3,19 @@ import 'package:nocterm/nocterm.dart';
 import 'package:simutil/src/tui/components/simutil_icons.dart';
 import 'package:simutil/src/tui/components/simutil_theme.dart';
 import 'package:simutil/src/tui/utils/string_extension.dart';
+import 'package:simutil_shared/simutil_shared.dart';
 
-/// Top bar: app name, version, and optional theme name.
+/// Top bar: app name, version, theme name, and right-aligned update notice.
 class AppHeader extends StatelessComponent {
-  /// Creates the header. Pass [themeName] when a theme is loaded.
-  const AppHeader({super.key, this.themeName});
+  /// Creates the header. Pass [themeName] when a theme is loaded and
+  /// [update] when a newer release exists.
+  const AppHeader({super.key, this.themeName, this.update});
 
   /// Current theme id, or `null` before settings load.
   final String? themeName;
+
+  /// Newer release, or `null` when up to date or unchecked.
+  final UpdateInfo? update;
 
   @override
   Component build(BuildContext context) {
@@ -23,9 +28,27 @@ class AppHeader extends StatelessComponent {
             ' ${SimutilIcons.on} SimUtil v$packageVersion ',
             style: st.sectionHeader,
           ),
-          if (themeName != null)
-            Expanded(
-              child: Text('Theme: ${themeName?.capitalize}', style: st.dimmed),
+          Expanded(
+            child: themeName != null
+                ? Text('Theme: ${themeName?.capitalize}', style: st.dimmed)
+                : const SizedBox(),
+          ),
+          if (update case final update?)
+            RichText(
+              text: TextSpan(
+                style: st.warningStyle,
+                children: [
+                  TextSpan(
+                    text: 'Version ${update.latestVersion} available! Run: ',
+                  ),
+                  TextSpan(
+                    text: '${update.instruction} ',
+                    style: st.warningStyle.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
         ],
       ),

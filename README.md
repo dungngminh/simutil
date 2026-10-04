@@ -127,6 +127,17 @@ Then run:
 simutil
 ```
 
+### Updating
+
+simutil checks for a new release at most once a day and shows the upgrade
+command matching your install method (e.g. `brew upgrade dungngminh/simutil/simutil`,
+`dart pub global activate simutil`, or re-running the install script). Set
+`SIMUTIL_NO_UPDATE_CHECK=1` to turn it off.
+
+Run `simutil upgrade` to check right away and run that command for you. On
+Windows, or when running from source, it prints the command / releases link
+instead.
+
 ## Supported platforms
 
 SimUtil itself runs on macOS, Linux, and Windows. Feature support depends on the host OS:
@@ -145,6 +156,7 @@ With arguments, `simutil` runs headless commands (no TUI). The TUI starts when y
 
 ```bash
 simutil -V                         # print version
+simutil upgrade                    # upgrade to the latest release
 simutil android emulator list      # AVD names (one per line, like the screenshot)
 simutil android device list -r     # running adb devices only
 simutil list -v                    # grouped tables (all platforms)

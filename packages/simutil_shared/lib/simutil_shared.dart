@@ -11,3 +11,4 @@ export 'src/changelog_entries.dart';
 export 'src/constants.dart';
 export 'src/service_locator.dart';
 export 'src/settings_service.dart';
+export 'src/update_checker.dart';

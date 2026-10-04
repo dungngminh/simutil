@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:simutil/src/version.dart';
 import 'package:args/command_runner.dart';
 import 'package:simutil/src/cli/simutil_command_runner.dart';
+import 'package:simutil_shared/simutil_shared.dart';
 
 /// Runs the SimUtil CLI with [arguments] and sets [exitCode].
 ///
@@ -11,7 +12,11 @@ import 'package:simutil/src/cli/simutil_command_runner.dart';
 Future<void> runSimutilCli(List<String> arguments) async {
   try {
     exitCode =
-        await SimutilCommandRunner(version: packageVersion).run(arguments) ?? 0;
+        await SimutilCommandRunner(
+          version: packageVersion,
+          updateChecker: UpdateChecker(appState: AppStateService()),
+        ).run(arguments) ??
+        0;
   } on UsageException catch (e) {
     stderr
       ..writeln(e.message)

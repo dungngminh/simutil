@@ -95,6 +95,12 @@ List<CliCommandSpec> simutilCliCatalog({required String version}) => [
     ],
   ),
   CliCommandSpec(
+    name: 'upgrade',
+    summary: 'Upgrade simutil to the latest release',
+    usage: 'simutil upgrade',
+    examples: ['simutil upgrade'],
+  ),
+  CliCommandSpec(
     name: 'version',
     summary: 'Print the installed simutil version',
     usage: 'simutil version',

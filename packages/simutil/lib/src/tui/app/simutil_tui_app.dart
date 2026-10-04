@@ -60,6 +60,8 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
 
   String _statusMessage = 'Loading devices…';
 
+  UpdateInfo? _update;
+
   int _androidDeviceSelectedIndex = 0;
   int _androidEmulatorSelectedIndex = 0;
   int _iosSimulatorSelectedIndex = 0;
@@ -93,6 +95,13 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
     _showPluginWarnings();
     _initRefreshTimer();
     await _checkFirstRunOrChangelog();
+    await _checkForUpdate();
+  }
+
+  Future<void> _checkForUpdate() async {
+    final update = await _di.updateChecker.check(packageVersion);
+    if (!mounted || update == null) return;
+    setState(() => _update = update);
   }
 
   Future<void> _loadPlugins() async {
@@ -759,7 +768,7 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
       onKeyEvent: _handleGlobalKey,
       child: Column(
         children: [
-          AppHeader(themeName: _settings.themeName),
+          AppHeader(themeName: _settings.themeName, update: _update),
           Expanded(
             child: Row(
               children: [

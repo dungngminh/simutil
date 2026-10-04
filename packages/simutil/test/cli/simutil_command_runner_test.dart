@@ -16,6 +16,7 @@ void main() {
         'shutdown',
         'plugin',
         'schema',
+        'upgrade',
         'version',
       ]),
     );
