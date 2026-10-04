@@ -19,8 +19,8 @@ const List<ChangelogEntry> changelogEntries = [
     items: [
       'Command-line mode: `simutil list`, `launch`, `shutdown`, `plugin list` / `plugin run`, and `simutil android …` / `simutil ios …`. See `simutil --help`.',
       '`simutil schema` prints all commands as JSON for scripts and AI agents (`--human` for readable text).',
-      'Update notice: when a new version is out, simutil shows it in the top-right corner and in `simutil version`, with the upgrade command for how you installed it. Turn off with `SIMUTIL_NO_UPDATE_CHECK=1`.',
-      '`simutil upgrade` installs the latest version for you.',
+      'Update notice: when a new version is out, simutil shows it in the top-right corner and in `simutil version`, with a hint to run `simutil upgrade`. Turn off with `SIMUTIL_NO_UPDATE_CHECK=1`.',
+      '`simutil upgrade` installs the latest version the same way you installed simutil (Homebrew, pub.dev, or the install script).',
       'Device lists load in the background, so the TUI stays responsive.',
       '**For developers:** simutil\'s code is now split into packages (`simutil_core`, `simutil_adb`, `simutil_apple`, `simutil_plugins`, `simutil_shared`). Replace `package:simutil/services/...` imports with them.',
       'Wireless pairing: after 15 seconds with no results, a hint suggests pressing `m` to pair manually (your Wi-Fi may block discovery).',

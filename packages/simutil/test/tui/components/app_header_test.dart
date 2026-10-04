@@ -21,10 +21,7 @@ void main() {
           .firstWhere((l) => l.contains('SimUtil'));
       expect(
         line.trimRight(),
-        endsWith(
-          'Version 9.9.9 available! Run: '
-          'brew upgrade dungngminh/simutil/simutil',
-        ),
+        endsWith('Version 9.9.9 available! Run: simutil upgrade'),
       );
       expect(line, contains('Theme: Dark'));
     }, size: const Size(120, 5));

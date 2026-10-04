@@ -18,12 +18,16 @@ Future<void> printVersion(
 }
 
 /// Prints `Version X available! Run: <cmd>`.
-void printUpdateHint(Logger logger, UpdateInfo update, {String? action}) {
-  final label =
-      action ?? (update.source.upgradeCommand != null ? 'Run' : 'See');
+void printUpdateHint(
+  Logger logger,
+  UpdateInfo update, {
+  String? label,
+  String? command,
+}) {
+  label ??= update.source.upgradeCommand != null ? 'Run' : 'See';
   logger.info(
     yellow.wrap('Version ${update.latestVersion} available! $label: ')! +
-        styleBold.wrap(yellow.wrap(update.instruction))!,
+        styleBold.wrap(yellow.wrap(command ?? update.instruction))!,
   );
 }
 

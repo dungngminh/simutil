@@ -105,7 +105,11 @@ void main() {
 
       expect(requested.single.host, 'api.github.com');
       expect(info?.latestVersion, '1.2.0');
-      expect(info?.instruction, 'brew upgrade dungngminh/simutil/simutil');
+      expect(info?.instruction, 'simutil upgrade');
+      expect(
+        info?.source.upgradeCommand,
+        'brew upgrade dungngminh/simutil/simutil',
+      );
       expect((await appState.load()).latestKnownVersion, '1.2.0');
     });
 
@@ -116,7 +120,7 @@ void main() {
       ).check('1.0.0');
 
       expect(requested.single.host, 'pub.dev');
-      expect(info?.instruction, 'dart pub global activate simutil');
+      expect(info?.instruction, 'simutil upgrade');
     });
 
     test('unknown install points at releases page', () async {

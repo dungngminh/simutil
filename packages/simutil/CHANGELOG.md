@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Command-line mode: `simutil list`, `launch`, `shutdown`, `plugin list` / `plugin run`, and `simutil android …` / `simutil ios …`. See `simutil --help`.
 - `simutil schema` prints all commands as JSON for scripts and AI agents (`--human` for readable text).
-- Update notice: when a new version is out, simutil shows it in the top-right corner and in `simutil version`, with the upgrade command for how you installed it. Turn off with `SIMUTIL_NO_UPDATE_CHECK=1`.
-- `simutil upgrade` installs the latest version for you.
+- Update notice: when a new version is out, simutil shows it in the top-right corner and in `simutil version`, with a hint to run `simutil upgrade`. Turn off with `SIMUTIL_NO_UPDATE_CHECK=1`.
+- `simutil upgrade` installs the latest version the same way you installed simutil (Homebrew, pub.dev, or the install script).
 
 ### Changed
 

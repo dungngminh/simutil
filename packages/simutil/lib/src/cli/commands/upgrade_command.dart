@@ -47,7 +47,12 @@ class UpgradeCommand extends SimutilCommand {
       return 0;
     }
     if (_isWindows) {
-      printUpdateHint(logger, update, action: 'Close simutil and run');
+      printUpdateHint(
+        logger,
+        update,
+        label: 'Close simutil and run',
+        command: command,
+      );
       return 0;
     }
     logger.info('Upgrading simutil v$version → v${update.latestVersion}…');

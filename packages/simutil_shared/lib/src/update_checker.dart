@@ -100,8 +100,9 @@ class UpdateInfo {
   /// Channel the running binary was installed from.
   final InstallSource source;
 
-  /// Upgrade command, or the releases URL when none applies.
-  String get instruction => source.upgradeCommand ?? simutilReleasesUrl;
+  /// `simutil upgrade`, or the releases URL when no upgrade command applies.
+  String get instruction =>
+      source.upgradeCommand != null ? 'simutil upgrade' : simutilReleasesUrl;
 }
 
 /// Fetches [uri] and returns the body, or `null` on any non-200 response.

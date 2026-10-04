@@ -129,14 +129,14 @@ simutil
 
 ### Updating
 
-simutil checks for a new release at most once a day and shows the upgrade
-command matching your install method (e.g. `brew upgrade dungngminh/simutil/simutil`,
-`dart pub global activate simutil`, or re-running the install script). Set
-`SIMUTIL_NO_UPDATE_CHECK=1` to turn it off.
+simutil checks for a new release at most once a day and shows
+`Version X available! Run: simutil upgrade`. Set `SIMUTIL_NO_UPDATE_CHECK=1`
+to turn it off.
 
-Run `simutil upgrade` to check right away and run that command for you. On
-Windows, or when running from source, it prints the command / releases link
-instead.
+`simutil upgrade` runs the upgrade for your install method (e.g.
+`brew upgrade dungngminh/simutil/simutil`, `dart pub global activate simutil`,
+or re-running the install script). On Windows, or when running from source, it
+prints the command / releases link instead.
 
 ## Supported platforms
 
