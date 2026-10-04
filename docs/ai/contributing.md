@@ -5,8 +5,10 @@ code change itself.
 
 ## Per-PR checklist
 
-1. **Update the changelog.** Add mainly user-visible changes under `[Unreleased]` in
-   [CHANGELOG.md](../../packages/simutil/CHANGELOG.md) using the existing
+1. **Update the changelog.** Check git tags first (`git tag -l 'v*'`, or
+   `simutil_<pkg>-v*` for a library). If the newest version heading in
+   [CHANGELOG.md](../../packages/simutil/CHANGELOG.md) is not tagged yet, add the
+   change under that version; once it is tagged, use `[Unreleased]`. Use the existing
    [Keep-a-Changelog](https://keepachangelog.com/en/1.1.0/) sections
    (`Added` / `Changed` / `Fixed` / `Removed`). One bullet per user-visible change.
 2. **Run the same checks CI runs** (see [.github/workflows/ci.yaml](../../.github/workflows/ci.yaml)):
