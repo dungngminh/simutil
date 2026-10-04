@@ -36,8 +36,7 @@ jobs:
         uses: ./.github/actions/setup-dart
 
       - name: Build executable
-        run: dart compile exe bin/simutil.dart -o ${{ matrix.artifact }}
-        working-directory: packages/simutil
+        run: dart compile exe packages/simutil/bin/simutil.dart -o ${{ matrix.artifact }}
 
       - name: Create archive (Unix)
         if: runner.os != 'Windows'
