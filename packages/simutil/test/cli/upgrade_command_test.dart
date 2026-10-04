@@ -16,8 +16,16 @@ class _FakeChecker implements UpdateChecker {
   }
 }
 
+class _RecordingLogger extends Logger {
+  final lines = <String>[];
+
+  @override
+  void info(String? message, {LogStyle? style}) => lines.add('$message');
+}
+
 void main() {
   late List<String> ran;
+  late _RecordingLogger logger;
 
   Future<int?> upgrade(
     UpdateInfo? info, {
@@ -27,7 +35,7 @@ void main() {
   }) =>
       (CommandRunner<int>('simutil', '')..addCommand(
             UpgradeCommand(
-              logger: Logger(level: Level.quiet),
+              logger: logger,
               version: '1.0.0',
               updateChecker: checker ?? _FakeChecker(info),
               isWindows: isWindows,
@@ -39,7 +47,10 @@ void main() {
           ))
           .run(['upgrade']);
 
-  setUp(() => ran = []);
+  setUp(() {
+    ran = [];
+    logger = _RecordingLogger();
+  });
 
   const brew = UpdateInfo(
     latestVersion: '1.2.0',
@@ -62,10 +73,15 @@ void main() {
     expect(ran, isEmpty);
   });
 
-  test('only prints for source checkouts and Windows', () async {
+  test('source checkouts only print the releases link', () async {
     await upgrade(
       const UpdateInfo(latestVersion: '1.2.0', source: InstallSource.source),
     );
+    expect(ran, isEmpty);
+    expect(logger.lines.single, contains(simutilReleasesUrl));
+  });
+
+  test('Windows prints the real install command', () async {
     await upgrade(
       const UpdateInfo(
         latestVersion: '1.2.0',
@@ -74,5 +90,10 @@ void main() {
       isWindows: true,
     );
     expect(ran, isEmpty);
+    expect(
+      logger.lines.single,
+      contains(InstallSource.powershell.upgradeCommand),
+    );
+    expect(logger.lines.single, isNot(contains('simutil upgrade')));
   });
 }
