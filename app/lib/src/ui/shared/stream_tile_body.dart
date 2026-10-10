@@ -1,12 +1,13 @@
-import 'package:flutter/widgets.dart';
-import 'package:simutil_core/simutil_core.dart';
+import 'dart:math';
 
-import '../../devices/device_form_factor.dart';
-import '../../stream/ios/ios_sim_session.dart';
-import '../../stream/streams_state.dart';
-import 'apple_device_frame.dart';
-import 'device_frame.dart';
-import 'touch_surface.dart';
+import 'package:flutter/widgets.dart';
+import 'package:simutil_app/src/devices/device_form_factor.dart';
+import 'package:simutil_app/src/stream/ios/ios_sim_session.dart';
+import 'package:simutil_app/src/stream/streams_state.dart';
+import 'package:simutil_app/src/ui/shared/apple_device_frame.dart';
+import 'package:simutil_app/src/ui/shared/device_frame.dart';
+import 'package:simutil_app/src/ui/shared/touch_surface.dart';
+import 'package:simutil_core/simutil_core.dart';
 
 /// The live screen of a tile, framed or bare; [placeholder] covers the
 /// connecting and failed states and [banner] warns about blocked input.
@@ -34,31 +35,44 @@ class StreamTileBody extends StatelessWidget {
     return switch (entry.status) {
       SessionLive(:final width, :final height, :final inputBlocked)
           when session != null =>
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (inputBlocked) banner(session),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: switch (session) {
-                IosSimSession(:final chrome?) when showFrame =>
-                  AppleDeviceFrame(
-                    chrome: chrome,
-                    maxHeight: maxVideoHeight,
-                    child: TouchSurface(session: session),
-                  ),
-                _ => DeviceFrame(
-                  formFactor: DeviceFormFactor.of(entry.device),
-                  screenSize: Size(width.toDouble(), height.toDouble()),
-                  maxHeight: maxVideoHeight,
-                  enabled: showFrame,
-                  child: TouchSurface(session: session),
-                ),
-              },
-            ),
-          ],
-        ),
+        _live(session, width, height, inputBlocked),
       final status => placeholder(status),
     };
+  }
+
+  Widget _live(
+    DeviceSession session,
+    int width,
+    int height,
+    bool inputBlocked,
+  ) {
+    // Leave room for the banner so the video still fits.
+    final maxVideoHeight = max(
+      0.0,
+      inputBlocked ? this.maxVideoHeight - 56 : this.maxVideoHeight,
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (inputBlocked) banner(session),
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: switch (session) {
+            IosSimSession(:final chrome?) when showFrame => AppleDeviceFrame(
+              chrome: chrome,
+              maxHeight: maxVideoHeight,
+              child: TouchSurface(session: session),
+            ),
+            _ => DeviceFrame(
+              formFactor: DeviceFormFactor.of(entry.device),
+              screenSize: Size(width.toDouble(), height.toDouble()),
+              maxHeight: maxVideoHeight,
+              enabled: showFrame,
+              child: TouchSurface(session: session),
+            ),
+          },
+        ),
+      ],
+    );
   }
 }

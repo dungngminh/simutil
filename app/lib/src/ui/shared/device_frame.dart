@@ -1,8 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/widgets.dart';
-
-import '../../devices/device_form_factor.dart';
+import 'package:simutil_app/src/devices/device_form_factor.dart';
 
 /// A drawn bezel around a screen of [screenSize]; sizes itself to fit the
 /// incoming width and [maxHeight] while keeping the screen's aspect ratio.

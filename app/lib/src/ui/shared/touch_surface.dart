@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
+import 'package:simutil_app/src/ui/shared/session_view.dart';
 import 'package:simutil_core/simutil_core.dart';
-
-import 'session_view.dart';
 
 /// The session's video with pointer input normalized to the video bounds.
 /// Callers size it to the video's aspect ratio.

@@ -1,8 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/widgets.dart';
-
-import '../../stream/ios/apple_chrome.dart';
+import 'package:simutil_app/src/stream/ios/apple_chrome.dart';
 
 /// Draws Apple's Simulator frame ([chrome]) with [child] in the screen
 /// opening, clipped to the screen shape; fits the width and [maxHeight].
@@ -29,7 +28,7 @@ class AppleDeviceFrame extends StatelessWidget {
         );
         final screen = chrome.screen * scale;
         final mask = chrome.mask;
-        Widget screenChild = child;
+        var screenChild = child;
         if (mask != null) {
           screenChild = ShaderMask(
             blendMode: BlendMode.dstIn,

@@ -2,6 +2,7 @@ name: simutil_app
 description: SimUtil desktop app — tray device list and multi-device streaming.
 publish_to: none
 version: 0.1.0
+resolution: workspace
 
 environment:
   sdk: ^3.11.0
@@ -14,35 +15,21 @@ dependencies:
   bloc_signals_flutter: ^1.4.0
   equatable: ^2.0.7
   get_it: ^9.3.0
-  media_kit: ^1.2.0
-  media_kit_libs_video: ^1.0.6
-  media_kit_video: ^2.0.0
   simutil_adb: ^1.0.1
   simutil_apple: ^1.0.0
-  simutil_core: ^1.0.0
-  simutil_shared: ^1.0.0
+  simutil_core: ^1.1.0
+  simutil_h264: ^0.1.0
+  simutil_shared: ^2.0.0
   tray_manager: ^0.8.0
   window_manager: ^0.5.0
-  macos_ui: ^2.2.2
   cupertino_icons: ^2.0.0
-
+  lucide_icons_flutter: ^3.1.0
+  zentoast: ^0.2.2
+  qr: ^3.0.2
 dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
-
-# Develop against the workspace sources, not the pub.dev copies.
-dependency_overrides:
-  simutil_adb:
-    path: ../packages/simutil_adb
-  simutil_apple:
-    path: ../packages/simutil_apple
-  simutil_core:
-    path: ../packages/simutil_core
-  simutil_plugins:
-    path: ../packages/simutil_plugins
-  simutil_shared:
-    path: ../packages/simutil_shared
 
 flutter:
   uses-material-design: true

@@ -10,6 +10,8 @@ final class DeviceSettings extends Equatable {
     this.maxSize = 1280,
     this.maxFps = 60,
     this.bitRateMbps = 8,
+    this.showFrame = true,
+    this.noAudio = false,
   });
 
   /// Overrides the global headless toggle when set.
@@ -27,22 +29,40 @@ final class DeviceSettings extends Equatable {
   /// Android stream bit rate.
   final int bitRateMbps;
 
+  /// Draw the device bezel around this device's stream.
+  final bool showFrame;
+
+  /// Android: boot the emulator with `-no-audio`.
+  final bool noAudio;
+
   DeviceSettings copyWith({
     bool? Function()? headless,
     bool? coldBoot,
     int? maxSize,
     int? maxFps,
     int? bitRateMbps,
+    bool? showFrame,
+    bool? noAudio,
   }) => DeviceSettings(
     headless: headless != null ? headless() : this.headless,
     coldBoot: coldBoot ?? this.coldBoot,
     maxSize: maxSize ?? this.maxSize,
     maxFps: maxFps ?? this.maxFps,
     bitRateMbps: bitRateMbps ?? this.bitRateMbps,
+    showFrame: showFrame ?? this.showFrame,
+    noAudio: noAudio ?? this.noAudio,
   );
 
   @override
-  List<Object?> get props => [headless, coldBoot, maxSize, maxFps, bitRateMbps];
+  List<Object?> get props => [
+    headless,
+    coldBoot,
+    maxSize,
+    maxFps,
+    bitRateMbps,
+    showFrame,
+    noAudio,
+  ];
 }
 
 /// Settings per device, keyed by name: an Android emulator's id changes
