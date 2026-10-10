@@ -67,7 +67,8 @@ String _devices(DevicesState s) {
 }
 
 String _streams(StreamsState s) {
-  if (s.entries.isEmpty) return 'none open';
+  final booting = s.booting.isEmpty ? '' : ', booting: ${s.booting.join(', ')}';
+  if (s.entries.isEmpty) return 'none open$booting';
   final parts = [
     for (final e in s.entries)
       [
@@ -80,7 +81,7 @@ String _streams(StreamsState s) {
         if (e.recording) 'rec',
       ].join(' '),
   ];
-  return '${s.entries.length} open: ${parts.join(', ')}';
+  return '${s.entries.length} open: ${parts.join(', ')}$booting';
 }
 
 String _view(ViewSettings s) => [

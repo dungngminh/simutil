@@ -41,14 +41,17 @@ final class StreamEntry extends Equatable {
 /// Open streams in display order.
 final class StreamsState extends Equatable {
   /// Creates the state with [entries].
-  const StreamsState([this.entries = const []]);
+  const StreamsState([this.entries = const [], this.booting = const {}]);
 
   /// Open tiles in display order.
   final List<StreamEntry> entries;
+
+  /// Device names started to stream once booted ("Start and stream").
+  final Set<String> booting;
 
   /// Whether [deviceId] has a tile.
   bool isOpen(String deviceId) => entries.any((e) => e.device.id == deviceId);
 
   @override
-  List<Object?> get props => [entries];
+  List<Object?> get props => [entries, booting];
 }

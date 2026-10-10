@@ -159,4 +159,32 @@ void main() {
       expect(cubit.sessionFor('b'), isNotNull);
     });
   });
+
+  test('start-and-stream shows as booting until the device boots', () async {
+    final cubit = StreamsCubit((_) async => _FakeSession('UDID'));
+    final device = Device.ios(
+      id: 'UDID',
+      name: 'iPhone',
+      state: DeviceState.shutdown,
+      type: DeviceType.simulator,
+    );
+
+    cubit.openWhenBooted(device);
+    expect(cubit.stateValue.booting, {'iPhone'});
+
+    cubit.onDevices([device]); // still shut down
+    expect(cubit.stateValue.booting, {'iPhone'});
+
+    cubit.onDevices([
+      Device.ios(
+        id: 'UDID',
+        name: 'iPhone',
+        state: DeviceState.booted,
+        type: DeviceType.simulator,
+      ),
+    ]);
+    expect(cubit.stateValue.booting, isEmpty);
+    expect(cubit.stateValue.isOpen('UDID'), isTrue);
+    await cubit.close();
+  });
 }

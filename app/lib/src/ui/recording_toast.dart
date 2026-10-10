@@ -137,6 +137,11 @@ class _ToastFeedsState extends State<_ToastFeeds> {
   /// The "Opening…" toast per device id, replaced once the stream settles.
   final _opening = <String, Toast>{};
 
+  /// "Starting…" toast per device name, from Start-and-stream until the
+  /// booted device's stream opens.
+  final _starting = <String, Toast>{};
+  var _booting = <String>{};
+
   /// The Slim suggestion shows once per app session.
   var _slimSuggested = false;
 
@@ -156,6 +161,7 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     final streams = getIt<StreamsCubit>();
     // Seeded first so the immediate subscribe call announces nothing.
     _statuses = _statusesOf(streams.stateValue);
+    _booting = streams.stateValue.booting;
     _unsubscribeStreams = streams.state.subscribe(_onStreams);
     if (getIt.isRegistered<SlimModeCubit>()) {
       _unsubscribeSlim = getIt<SlimModeCubit>().state.subscribe(_onSlimMode);
@@ -173,6 +179,31 @@ class _ToastFeedsState extends State<_ToastFeeds> {
   static Map<String, SessionStatus> _statusesOf(StreamsState state) => {
     for (final e in state.entries) e.device.id: e.status,
   };
+
+  /// Shows "Starting `name`…" right when Start-and-stream is pressed, so
+  /// the boot wait is visible; removed once the stream opens.
+  void _onBooting(Set<String> booting) {
+    for (final name in _booting.difference(booting)) {
+      _hide(_starting.remove(name));
+    }
+    final t = SimuTokens.of(context);
+    for (final name in booting.difference(_booting)) {
+      _starting[name] = _show(
+        _streamHeight,
+        (close) => SimuToast(
+          height: _streamHeight,
+          icon: LucideIcons.power,
+          tone: t.accent,
+          busy: true,
+          title: 'Starting $name…',
+          subtitle: 'It streams here once booted',
+          onClose: close,
+        ),
+        hideAfter: const Duration(minutes: 3),
+      );
+    }
+    _booting = booting;
+  }
 
   /// Tells the user while a Slim / default switch reboots simulators, and
   /// when it is done.
@@ -218,6 +249,7 @@ class _ToastFeedsState extends State<_ToastFeeds> {
 
   void _onStreams(StreamsState state) {
     if (!mounted) return;
+    _onBooting(state.booting);
     final changes = streamToastChanges(_statuses, state);
     final next = _statusesOf(state);
     for (final id in _statuses.keys) {

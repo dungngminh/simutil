@@ -112,7 +112,9 @@ class StreamsCubit extends CubitSignal<StreamsState> {
   }
 
   /// Opens [device] once it is booted (after a headless start).
-  void openWhenBooted(Device device) => _pendingByName.add(device.name);
+  void openWhenBooted(Device device) {
+    if (_pendingByName.add(device.name)) _setEntries(stateValue.entries);
+  }
 
   /// When an open stream's device was first seen not running.
   final _missingSince = <String, DateTime>{};
@@ -144,6 +146,7 @@ class StreamsCubit extends CubitSignal<StreamsState> {
     for (final device in devices) {
       if (_pendingByName.contains(device.name) && canStream(device)) {
         _pendingByName.remove(device.name);
+        _setEntries(stateValue.entries); // drops it from `booting`
         unawaited(open(device));
       }
     }
@@ -199,7 +202,8 @@ class StreamsCubit extends CubitSignal<StreamsState> {
     ]);
   }
 
-  void _setEntries(List<StreamEntry> entries) => emit(StreamsState(entries));
+  void _setEntries(List<StreamEntry> entries) =>
+      emit(StreamsState(entries, Set.unmodifiable(_pendingByName)));
 
   @override
   Future<void> close() async {
