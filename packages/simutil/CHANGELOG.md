@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `simutil launch --headless` starts an emulator or simulator without its window.
 
+### Changed
+
+- ADB tools: pairing with a QR code now works, and pairing with a code connects
+  the device right away.
+- The device list updates as soon as a device boots, shuts down, is plugged in or
+  unplugged, instead of refreshing every 10 seconds.
+
 ## [1.0.1] - 2026-10-10
 
 ### Fixed

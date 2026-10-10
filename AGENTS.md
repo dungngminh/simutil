@@ -20,16 +20,18 @@ User-facing docs: [README.md](README.md).
   `packages/simutil/bin/simutil.dart` delegates to `SimutilCommandRunner` when args are present.
 - All external shell commands in **services** go through `CommandExec` →
   `IsolateRunner` (see [packages/simutil_core](packages/simutil_core/)
-  and [packages/simutil_shared/lib/src/service_locator.dart](packages/simutil_shared/lib/src/service_locator.dart)).
+  and [packages/simutil/lib/src/tui/service_locator.dart](packages/simutil/lib/src/tui/service_locator.dart)).
   Do not call `Process.run` or `Process.start` directly inside workspace
   services. See **CommandExec** below for when exceptions apply.
 
 ## CommandExec
 
-Shell work must not block the Nocterm UI isolate. `ServiceLocator` wires
-`CommandExec.isolate(isolateRunner)` and passes it into services that spawn
+Shell work must not block the Nocterm UI isolate. The TUI's `ServiceLocator`
+(`packages/simutil/lib/src/tui/`) wires `CommandExec.isolate(isolateRunner)`
+and passes it into services that spawn
 subprocesses (e.g. `AndroidDeviceService`, `IOSDeviceService`, `SettingsService`,
-`PluginRunner` for availability probes).
+`PluginRunner` for availability probes). The desktop app does the same wiring
+with `get_it` in `app/lib/src/di.dart`.
 
 **Use `CommandExec.run`** when the service needs a one-shot command and may wait
 for exit + stdout/stderr (adb, emulator, xcrun, `open` / `xdg-open`, `--version`
@@ -56,6 +58,9 @@ stdio with the user:
   `ProcessStartMode.detached` or `inheritStdio` in
   [packages/simutil_plugins/lib/src/plugin_runner.dart](packages/simutil_plugins/lib/src/plugin_runner.dart).
 - Logcat streaming: `Process.start` in plugin code under `packages/simutil/lib/src/tui/dialogs/`.
+- Long-lived device watchers: `adb track-devices` in `simutil_adb`
+  (`watchDevices`); the usbmuxd socket and FSEvents watch in `simutil_apple`
+  are not processes at all.
 - Long-lived streaming / recording processes: the scrcpy server in
   `ScrcpySession` (`simutil_adb`), `simctl io recordVideo` in
   `SimulatorRecorder` (`simutil_apple`), and the grid recorder's ffmpeg in
@@ -72,7 +77,8 @@ when the production path goes through `CommandExec`.
 ## Layout
 
 Monorepo; the root `pubspec.yaml` (`name: _`, `publish_to: none`) only lists the
-workspace and Melos scripts. All Dart code lives in `packages/`.
+workspace and Melos scripts. Library code lives in `packages/`, the desktop
+app in `app/`; both are workspace members, so resolving needs the Flutter SDK.
 See [docs/ai/architecture.md](docs/ai/architecture.md).
 
 | Package | Contents |
@@ -80,8 +86,9 @@ See [docs/ai/architecture.md](docs/ai/architecture.md).
 | `packages/simutil_core` | models, `DeviceService`, `CommandExec`, `IsolateRunner` |
 | `packages/simutil_adb` / `simutil_apple` | device services (adb, simctl/devicectl), `LogcatHelper` |
 | `packages/simutil_plugins` | `PluginCatalog`, `PluginRunner` |
-| `packages/simutil_shared` | UI-agnostic app layer: settings, app state, changelog entries, `ServiceLocator` |
-| `packages/simutil` | the app (published as `simutil`): `bin/simutil.dart`, `lib/src/cli/` (`runSimutilCli`, `SimutilCommandRunner`), `lib/src/tui/` (nocterm: `app`, `components`, `dialogs`, `terminal`), `tool/` codegen, app `CHANGELOG.md` |
+| `packages/simutil_h264` | Flutter plugin (not published): native H.264 → texture decoder for the desktop app (VideoToolbox / Media Foundation / libavcodec) |
+| `packages/simutil_shared` | UI-agnostic app layer: settings, app state, changelog entries |
+| `packages/simutil` | the app (published as `simutil`): `bin/simutil.dart`, `lib/src/cli/` (`runSimutilCli`, `SimutilCommandRunner`), `lib/src/tui/` (nocterm: `app`, `components`, `dialogs`, `terminal`, `ServiceLocator`), `tool/` codegen, app `CHANGELOG.md` |
 
 Dependency rules: `simutil_shared` never imports `nocterm` or Flutter; no
 library imports `package:simutil/` (the app). Tests live in each `packages/*/test/`;
@@ -89,41 +96,52 @@ library imports `package:simutil/` (the app). Tests live in each `packages/*/tes
 
 ## Desktop app (`app/`)
 
-Flutter (macOS, Windows, Linux) outside the pub workspace: `app/pubspec.yaml`
-depends on the libraries from pub.dev and overrides them with
-`../packages/*` paths, so root `dart pub get` never needs Flutter.
+Flutter (macOS, Windows, Linux), a member of the pub workspace
+(`resolution: workspace`): its `simutil_*` dependencies resolve to the local
+packages. Root `flutter pub get` resolves everything; CI's setup action
+installs Flutter for that.
 
 - DI is `get_it` (`app/lib/src/di.dart`); state is `bloc_signals`
   `CubitSignal`s with `Equatable` states; UI binds with
   `bloc_signals_flutter`.
-- macOS UI uses `macos_ui` (`app/lib/src/ui/macos/`), Windows/Linux use
-  Material (`app/lib/src/ui/material/`); shared widgets live in
+- One UI on every platform, built on SimUtil's own design system in
+  `app/lib/src/ui/design/` (`SimuTokens` light/dark tokens plus primitives
+  such as `SimuIconButton`, `SimuPanel`, `SimuToolbar`); icons are Lucide
+  (`lucide_icons_flutter`). Material is only the widget substrate: build new
+  UI from the tokens and primitives, not Material styling. Screens live
+  under `app/lib/src/ui/` (`devices/`, `streams/`), shared pieces in
   `app/lib/src/ui/shared/`.
 - Streaming goes through `DeviceSession` (`simutil_core`): `ScrcpySession`
   for Android, `IosSimSession` (app) over the native `SimStreamPlugin` in
   `app/macos/Runner/SimStream.swift` (private CoreSimulator/SimulatorKit,
   adapted from serve-sim). macOS runs unsandboxed with library validation
   off for that.
-- MCP for agents: `http://127.0.0.1:8765/mcp` (`SIMUTIL_MCP_PORT`), tools in
-  `app/lib/src/mcp/simutil_tools.dart`.
+- MCP for agents: `http://127.0.0.1:8765/mcp` (`SIMUTIL_MCP_PORT`). Tools
+  are grouped in `app/lib/src/mcp/tools/` (`device_tools`, `input_tools`,
+  `capture_tools`, shared `ToolContext`); `simutil_tools.dart` joins them.
+- Toasts: zentoast, hosted above the Navigator by `RecordingToastHost`
+  (`MaterialApp.builder`); show one with `showNotice` / `showSimuToast`, not
+  SnackBars.
 
 ```bash
-cd app && flutter pub get && flutter analyze && flutter test
+flutter pub get                    # from the root: whole workspace
+cd app && flutter analyze && flutter test
 cd app && flutter run -d macos
 ```
 
 ## Build / run / verify
 
 Monorepo uses [Melos](https://melos.invertase.dev/) on top of Dart pub
-workspaces. After `dart pub get`, use `dart run melos …` (Melos is a root
+workspaces. After `flutter pub get`, use `dart run melos …` (Melos is a root
 dev dependency).
 
 ```bash
-dart pub get
-dart run melos bootstrap          # pub get for the workspace (alias: dart pub get)
+flutter pub get                   # the workspace includes Flutter packages
+dart run melos bootstrap          # pub get for the workspace
 dart run melos run cli             # TUI locally (CLI args after --)
 dart run melos run analyze        # analyze all packages
-dart run melos run test           # test all packages
+dart run melos run test           # dart test in the Dart packages
+dart run melos run test:flutter   # flutter test in app/ and simutil_h264
 dart run melos run check          # analyze + test (CI parity)
 dart run melos run codegen        # regenerate changelog_entries.dart + version.dart
 dart run melos run compile        # compile ./simutil binary
@@ -142,8 +160,9 @@ are generated by `packages/simutil/tool/generate_version.dart` (`packages/simuti
 - iOS code paths must be guarded by `Platform.isMacOS` — see
   [packages/simutil_apple/lib/src/ios_device_service.dart](packages/simutil_apple/lib/src/ios_device_service.dart)
   and the `_iosSimulatorsPanel` guard in [packages/simutil/lib/src/tui/app/simutil_tui_app.dart](packages/simutil/lib/src/tui/app/simutil_tui_app.dart).
-- TUI code resolves services from `ServiceLocator.instance`; do not instantiate
-  them ad-hoc. The CLI (`lib/src/cli/`) builds its own via `CliDeviceServices`
+- TUI code resolves services from `ServiceLocator.instance` (TUI-only, in
+  `packages/simutil/lib/src/tui/`); do not instantiate them ad-hoc. The
+  desktop app registers its own in `get_it`. The CLI (`lib/src/cli/`) builds its own via `CliDeviceServices`
   with `CommandExec()` (no isolate) and takes fakes through constructors.
 - Services with I/O are `abstract interface class Foo` with
   `factory Foo(...) = _ImplName;` and a private implementation (like `dart:io`

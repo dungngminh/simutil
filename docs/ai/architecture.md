@@ -15,11 +15,12 @@ package has its own version.
 | Package | Role |
 | --- | --- |
 | [packages/simutil_core](../../packages/simutil_core/) | `Device`, `DeviceService`, `DeviceSession`, `CommandExec`, `IsolateRunner` (no user data); `testing.dart` fakes |
-| [packages/simutil_adb](../../packages/simutil_adb/) | `AndroidDeviceService`, wireless pairing, mDNS discovery, `LogcatHelper`, `ScrcpySession` (scrcpy streaming as MPEG-TS) |
+| [packages/simutil_adb](../../packages/simutil_adb/) | `AndroidDeviceService`, wireless pairing, mDNS discovery, `LogcatHelper`, `ScrcpySession` (scrcpy streaming as H.264 access units) |
 | [packages/simutil_apple](../../packages/simutil_apple/) | `IOSDeviceService` (simctl + devicectl), `XcodeCacheService`, `SimulatorSlimmer`, `SimulatorRecorder` |
 | [packages/simutil_plugins](../../packages/simutil_plugins/) | `PluginCatalog` / `loadPluginCatalog`, `PluginRunner`; `testing.dart` fakes |
-| [packages/simutil_shared](../../packages/simutil_shared/) | UI-agnostic app layer for TUI + GUI: `AppSettings`, `SettingsService`, `AppStateService`, `changelogEntries`, refresh intervals, `ServiceLocator` |
-| [packages/simutil](../../packages/simutil/) | The app, published as `simutil`: `bin/simutil.dart`; `lib/src/cli/` (`runSimutilCli`, `SimutilCommandRunner`, `CliDeviceServices`); `lib/src/tui/` (`runSimutilTui`, `SimutilTuiApp`, components, dialogs, Linux TTY supervisor); `tool/` codegen; `packageVersion` |
+| [packages/simutil_h264](../../packages/simutil_h264/) | Flutter plugin for `app/` only, outside the pub workspace: `H264Decoder` decodes Annex-B H.264 into a texture (VideoToolbox, Media Foundation, libavcodec) |
+| [packages/simutil_shared](../../packages/simutil_shared/) | UI-agnostic app layer for TUI + GUI: `AppSettings`, `SettingsService`, `AppStateService`, `changelogEntries`, refresh intervals |
+| [packages/simutil](../../packages/simutil/) | The app, published as `simutil`: `bin/simutil.dart`; `lib/src/cli/` (`runSimutilCli`, `SimutilCommandRunner`, `CliDeviceServices`); `lib/src/tui/` (`runSimutilTui`, `SimutilTuiApp`, `ServiceLocator`, components, dialogs, Linux TTY supervisor); `tool/` codegen; `packageVersion` |
 
 `app/` (Flutter desktop GUI) depends on the libraries via pub.dev versions
 overridden with `../packages/*` paths and stays **outside** the pub workspace
@@ -65,7 +66,7 @@ flowchart LR
     CLI --> Adb
     CLI --> Apple
     CLI --> Plugins
-    App --> Locator["simutil_shared: ServiceLocator"]
+    App --> Locator["simutil (tui): ServiceLocator"]
     Locator --> Core["simutil_core"]
     Locator --> Adb["simutil_adb"]
     Locator --> Apple["simutil_apple"]
