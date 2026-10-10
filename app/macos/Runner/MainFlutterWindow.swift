@@ -11,6 +11,8 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
     SimStreamPlugin.register(
       with: flutterViewController.registrar(forPlugin: "SimStreamPlugin"))
+    WindowRecorderPlugin.register(
+      with: flutterViewController.registrar(forPlugin: "WindowRecorderPlugin"))
 
     super.awakeFromNib()
   }

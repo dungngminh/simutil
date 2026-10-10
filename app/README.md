@@ -68,7 +68,9 @@ any device moves.
   `SCRCPY_SERVER_PATH` pointing at its `scrcpy-server`.
 - iOS streaming: macOS with Xcode. On Xcode 27, Device Hub may take over input;
   the tile offers a repair (restarts the simulator's apps).
-- Recording: `ffmpeg` (grid recording, and `.mp4` output for Android).
+- Recording: `ffmpeg` (`.mp4` output for Android, and grid recording on
+  Windows / Linux). On macOS grid recording is native (macOS 12.3+) and asks
+  for the Screen Recording permission on first use.
 - Linux build: `libgtk-3-dev libx11-dev libxi-dev libavcodec-dev libswscale-dev`.
 
 ## Run

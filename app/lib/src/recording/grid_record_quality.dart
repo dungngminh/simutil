@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 /// Grid recording presets: frame rate, capture resolution and encoder
@@ -11,7 +12,10 @@ enum GridRecordQuality {
     bitRateMbps: 8,
     crf: 23,
   ),
-  high(label: 'High', fps: 30, maxPixelRatio: 3, bitRateMbps: 16, crf: 18);
+  high(label: 'High', fps: 30, maxPixelRatio: 3, bitRateMbps: 16, crf: 18),
+
+  /// macOS only: the ffmpeg capture path elsewhere cannot keep up.
+  smooth(label: 'Smooth', fps: 60, maxPixelRatio: 3, bitRateMbps: 24, crf: 18);
 
   const GridRecordQuality({
     required this.label,
@@ -34,6 +38,12 @@ enum GridRecordQuality {
 
   /// libx264 constant rate factor (lower = better).
   final int crf;
+
+  /// Presets this platform can record.
+  static List<GridRecordQuality> get available => [
+    for (final q in values)
+      if (q != smooth || Platform.isMacOS) q,
+  ];
 
   /// Capture pixel ratio on a screen of [devicePixelRatio].
   double pixelRatio(double devicePixelRatio) =>

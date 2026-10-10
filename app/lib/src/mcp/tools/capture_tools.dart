@@ -42,19 +42,20 @@ List<McpTool> captureTools(ToolContext c) => [
     name: 'record_grid',
     description:
         'Start or stop recording the whole SimUtil grid. quality: low '
-        '(15 fps), standard (24 fps) or high (30 fps, full resolution); '
+        '(15 fps), standard (24 fps), high (30 fps, full resolution) or, on '
+        'macOS, smooth (60 fps, full resolution); '
         "defaults to the app's choice. Only one recording (grid or device) "
         'runs at a time.',
     properties: {
       'quality': {
         'type': 'string',
-        'enum': [for (final q in GridRecordQuality.values) q.name],
+        'enum': [for (final q in GridRecordQuality.available) q.name],
       },
     },
     handler: (args) async {
       if (c.grid.isRecording) return c.text('Saved ${await c.grid.stop()}');
       final quality =
-          GridRecordQuality.values.asNameMap()[args['quality']] ??
+          GridRecordQuality.available.asNameMap()[args['quality']] ??
           c.view.stateValue.gridQuality;
       final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
       await c.grid.start(

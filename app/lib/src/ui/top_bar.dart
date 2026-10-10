@@ -251,7 +251,7 @@ class _GridQualityButton extends StatelessWidget {
     final cubit = context.read<ViewSettingsCubit>();
     return MenuAnchor(
       menuChildren: [
-        for (final option in GridRecordQuality.values)
+        for (final option in GridRecordQuality.available)
           MenuItemButton(
             leadingIcon: Icon(
               option == quality ? LucideIcons.check : null,

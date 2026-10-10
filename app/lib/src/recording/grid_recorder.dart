@@ -3,15 +3,18 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:bloc_signals/bloc_signals.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:simutil_app/src/recording/grid_record_quality.dart';
 import 'package:simutil_app/src/recording/recording_lock.dart';
 
-/// Records the stream grid: the grid's [RepaintBoundary] is captured at the
-/// [GridRecordQuality]'s frame rate and scale and piped as raw RGBA into
-/// ffmpeg.
+/// Records the stream grid at the [GridRecordQuality]'s frame rate and scale.
+///
+/// macOS: the native `simutil/grid_recorder` channel captures the grid's
+/// region of the window with ScreenCaptureKit and encodes it in hardware.
+/// Elsewhere the grid's [RepaintBoundary] is captured and piped as raw RGBA
+/// into ffmpeg (slow; replace with native capture per platform).
 class GridRecorderCubit extends CubitSignal<bool> {
   /// [onSaved] gets each finished file.
   GridRecorderCubit({this.onSaved, RecordingLock? recordingLock})
@@ -34,6 +37,8 @@ class GridRecorderCubit extends CubitSignal<bool> {
 
   /// Captured frames per second of the current recording.
   int get fps => _quality.fps;
+
+  static const _native = MethodChannel('simutil/grid_recorder');
 
   static const _ffmpegCandidates = [
     'ffmpeg',
@@ -77,6 +82,7 @@ class GridRecorderCubit extends CubitSignal<bool> {
   }
 
   Future<void> _start(String path) async {
+    if (Platform.isMacOS) return _startNative(path);
     final first = await _capture();
     if (first == null) throw StateError('Nothing to record yet');
     final (image, width, height) = first;
@@ -93,6 +99,35 @@ class GridRecorderCubit extends CubitSignal<bool> {
       Duration(milliseconds: 1000 ~/ fps),
       (_) => _tick(),
     );
+  }
+
+  Future<void> _startNative(String path) async {
+    final box = boundaryKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) {
+      throw StateError('Nothing to record yet');
+    }
+    // ponytail: region fixed at start; moving or resizing the grid while
+    // recording crops it. Update the stream's sourceRect if that matters.
+    final rect = box.localToGlobal(Offset.zero) & box.size;
+    try {
+      await _native.invokeMethod<void>('start', {
+        'path': path,
+        'x': rect.left,
+        'y': rect.top,
+        'width': rect.width,
+        'height': rect.height,
+        'scale': _pixelRatio,
+        'fps': fps,
+        'bitRate': _quality.bitRateMbps * 1000000,
+      });
+    } on PlatformException catch (e) {
+      throw StateError(e.message ?? e.code);
+    }
+    _path = path;
+    _clock
+      ..reset()
+      ..start();
+    emit(true);
   }
 
   Future<Process> _startFfmpeg(String path, int width, int height) async {
@@ -210,6 +245,15 @@ class GridRecorderCubit extends CubitSignal<bool> {
     _last = null;
     emit(false);
     _recordingLock.release(_lockHolder);
+    if (Platform.isMacOS) {
+      try {
+        await _native.invokeMethod<void>('stop');
+      } on PlatformException catch (e) {
+        throw StateError(e.message ?? e.code);
+      }
+      if (path != null) onSaved?.call(path);
+      return path;
+    }
     if (ffmpeg == null) return null;
     try {
       await ffmpeg.stdin.close();
