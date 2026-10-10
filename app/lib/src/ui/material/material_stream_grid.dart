@@ -12,25 +12,27 @@ class MaterialStreamGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocSignalBuilder<StreamsCubit, StreamsState>(
-      builder: (context, state) {
-        if (state.entries.isEmpty) {
-          return const Center(
-            child: Text('Stream a running device to show it here'),
-          );
-        }
-        return ResponsiveTileWrap(
-          count: state.entries.length,
-          builder: (context, i, width, maxVideoHeight) {
-            final entry = state.entries[i];
-            return MaterialStreamTile(
-              key: ValueKey(entry.device.id),
-              entry: entry,
-              maxVideoHeight: maxVideoHeight,
+    return RecordableArea(
+      child: BlocSignalBuilder<StreamsCubit, StreamsState>(
+        builder: (context, state) {
+          if (state.entries.isEmpty) {
+            return const Center(
+              child: Text('Stream a running device to show it here'),
             );
-          },
-        );
-      },
+          }
+          return ResponsiveTileWrap(
+            count: state.entries.length,
+            builder: (context, i, width, maxVideoHeight) {
+              final entry = state.entries[i];
+              return MaterialStreamTile(
+                key: ValueKey(entry.device.id),
+                entry: entry,
+                maxVideoHeight: maxVideoHeight,
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

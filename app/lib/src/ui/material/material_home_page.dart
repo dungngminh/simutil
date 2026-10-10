@@ -74,8 +74,7 @@ class MaterialHomePage extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     try {
       if (recorder.isRecording) {
-        final path = await recorder.stop();
-        messenger.showSnackBar(SnackBar(content: Text('Saved $path')));
+        await recorder.stop();
       } else {
         final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
         await recorder.start(

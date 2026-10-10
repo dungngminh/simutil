@@ -8,6 +8,7 @@ import '../../settings/recordings_dir.dart';
 import '../../settings/view_settings_cubit.dart';
 import '../shared/responsive.dart';
 import 'macos_device_list.dart';
+import 'macos_recording_toast.dart';
 import 'macos_stream_grid.dart';
 
 /// Applies the unified toolbar window style; call before `runApp` on macOS.
@@ -34,7 +35,7 @@ class MacosSimutilApp extends StatelessWidget {
           builder: (context, scrollController) =>
               MacosDeviceList(scrollController: scrollController),
         ),
-        child: const _MacosHome(),
+        child: const MacosRecordingToastHost(child: _MacosHome()),
       ),
     );
   }

@@ -38,7 +38,8 @@ class MaterialStreamTile extends StatelessWidget {
               entry: entry,
               buttons: session?.buttons ?? const [],
               onPress: (b) => session?.press(b),
-              onRecord: () => _toggleRecording(context, cubit),
+              onRecord: () =>
+                  cubit.toggleRecording(entry.device.id, recordingsDirectory()),
               onClose: () => cubit.closeStream(entry.device.id),
             ),
           ),
@@ -61,20 +62,6 @@ class MaterialStreamTile extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Future<void> _toggleRecording(
-    BuildContext context,
-    StreamsCubit cubit,
-  ) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final path = await cubit.toggleRecording(
-      entry.device.id,
-      recordingsDirectory(),
-    );
-    if (path != null) {
-      messenger.showSnackBar(SnackBar(content: Text('Saved $path')));
-    }
   }
 }
 

@@ -13,29 +13,31 @@ class MacosStreamGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocSignalBuilder<StreamsCubit, StreamsState>(
-      builder: (context, state) {
-        if (state.entries.isEmpty) {
-          return Center(
-            child: Text(
-              'Stream a running device to show it here',
-              style: MacosTheme.of(context).typography.title3,
-            ),
-          );
-        }
-        return ResponsiveTileWrap(
-          count: state.entries.length,
-          chromeHeight: 40,
-          builder: (context, i, width, maxVideoHeight) {
-            final entry = state.entries[i];
-            return MacosStreamTile(
-              key: ValueKey(entry.device.id),
-              entry: entry,
-              maxVideoHeight: maxVideoHeight,
+    return RecordableArea(
+      child: BlocSignalBuilder<StreamsCubit, StreamsState>(
+        builder: (context, state) {
+          if (state.entries.isEmpty) {
+            return Center(
+              child: Text(
+                'Stream a running device to show it here',
+                style: MacosTheme.of(context).typography.title3,
+              ),
             );
-          },
-        );
-      },
+          }
+          return ResponsiveTileWrap(
+            count: state.entries.length,
+            chromeHeight: 40,
+            builder: (context, i, width, maxVideoHeight) {
+              final entry = state.entries[i];
+              return MacosStreamTile(
+                key: ValueKey(entry.device.id),
+                entry: entry,
+                maxVideoHeight: maxVideoHeight,
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

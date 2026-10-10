@@ -15,9 +15,13 @@ typedef DeviceSessionFactory = Future<DeviceSession> Function(Device device);
 
 /// Open device sessions shown in the grid.
 class StreamsCubit extends CubitSignal<StreamsState> {
-  StreamsCubit(this._create) : super(initialState: const StreamsState());
+  StreamsCubit(this._create, {this.onSaved})
+    : super(initialState: const StreamsState());
 
   final DeviceSessionFactory _create;
+
+  /// Called with each finished recording.
+  final void Function(String path)? onSaved;
   final _sessions = <String, DeviceSession>{};
   final _subscriptions = <String, StreamSubscription<SessionStatus>>{};
 
@@ -109,6 +113,7 @@ class StreamsCubit extends CubitSignal<StreamsState> {
     if (session.isRecording) {
       final path = await session.stopRecording();
       _update(deviceId, (e) => e.copyWith(recording: false));
+      if (path != null) onSaved?.call(path);
       return path;
     }
     final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');

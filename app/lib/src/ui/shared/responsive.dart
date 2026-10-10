@@ -55,18 +55,16 @@ class ResponsiveTileWrap extends StatelessWidget {
         );
         return SingleChildScrollView(
           padding: EdgeInsets.all(spacing),
-          child: _Recordable(
-            child: Wrap(
-              spacing: spacing,
-              runSpacing: spacing,
-              children: [
-                for (var i = 0; i < count; i++)
-                  SizedBox(
-                    width: width,
-                    child: builder(context, i, width, maxVideoHeight),
-                  ),
-              ],
-            ),
+          child: Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: [
+              for (var i = 0; i < count; i++)
+                SizedBox(
+                  width: width,
+                  child: builder(context, i, width, maxVideoHeight),
+                ),
+            ],
           ),
         );
       },
@@ -80,9 +78,9 @@ Size fitVideo(double aspectRatio, double maxWidth, double maxHeight) {
   return Size(width, width / aspectRatio);
 }
 
-/// The part of the grid that grid recording captures.
-class _Recordable extends StatelessWidget {
-  const _Recordable({required this.child});
+/// The area grid recording captures; wraps the whole grid, empty or not.
+class RecordableArea extends StatelessWidget {
+  const RecordableArea({super.key, required this.child});
 
   final Widget child;
 

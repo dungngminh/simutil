@@ -10,7 +10,10 @@ import 'package:flutter/widgets.dart';
 /// Records the stream grid: the grid's [RepaintBoundary] is captured
 /// [fps] times a second and piped as raw RGBA into ffmpeg.
 class GridRecorderCubit extends CubitSignal<bool> {
-  GridRecorderCubit({this.fps = 20}) : super(initialState: false);
+  GridRecorderCubit({this.fps = 20, this.onSaved}) : super(initialState: false);
+
+  /// Called with each finished recording.
+  final void Function(String path)? onSaved;
 
   /// Wrap the grid in a `RepaintBoundary` with this key.
   final boundaryKey = GlobalKey();
@@ -158,6 +161,7 @@ class GridRecorderCubit extends CubitSignal<bool> {
     if (ffmpeg == null) return null;
     await ffmpeg.stdin.close();
     await ffmpeg.exitCode;
+    if (path != null) onSaved?.call(path);
     return path;
   }
 
