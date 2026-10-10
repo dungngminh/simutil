@@ -140,6 +140,12 @@ class _ToastFeedsState extends State<_ToastFeeds> {
   /// The Slim suggestion shows once per app session.
   var _slimSuggested = false;
 
+  void Function()? _unsubscribeSlim;
+  var _slimApplying = false;
+
+  /// "Switching…" toast while open simulators reboot into the new mode.
+  Toast? _slimSwitching;
+
   static const _streamHeight = 60.0;
 
   @override
@@ -151,18 +157,64 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     // Seeded first so the immediate subscribe call announces nothing.
     _statuses = _statusesOf(streams.stateValue);
     _unsubscribeStreams = streams.state.subscribe(_onStreams);
+    if (getIt.isRegistered<SlimModeCubit>()) {
+      _unsubscribeSlim = getIt<SlimModeCubit>().state.subscribe(_onSlimMode);
+    }
   }
 
   @override
   void dispose() {
     _saved?.cancel();
     _unsubscribeStreams?.call();
+    _unsubscribeSlim?.call();
     super.dispose();
   }
 
   static Map<String, SessionStatus> _statusesOf(StreamsState state) => {
     for (final e in state.entries) e.device.id: e.status,
   };
+
+  /// Tells the user while a Slim / default switch reboots simulators, and
+  /// when it is done.
+  void _onSlimMode(SlimModeState state) {
+    if (!mounted || state.applying == _slimApplying) return;
+    _slimApplying = state.applying;
+    final t = SimuTokens.of(context);
+    final mode = state.enabled ? 'Slim mode' : 'Default mode';
+    if (state.applying) {
+      _slimSwitching = _show(
+        76,
+        (close) => SimuToast(
+          height: 76,
+          icon: LucideIcons.leaf,
+          tone: t.accent,
+          busy: true,
+          title: 'Switching to $mode…',
+          subtitle:
+              'Open simulators reboot one at a time; their streams '
+              'reconnect on their own.',
+          subtitleLines: 2,
+        ),
+      );
+      return;
+    }
+    _hide(_slimSwitching);
+    _slimSwitching = null;
+    _show(
+      60,
+      (close) => SimuToast(
+        height: 60,
+        icon: LucideIcons.leaf,
+        tone: t.success,
+        title: '$mode is on',
+        subtitle: state.enabled
+            ? 'New simulators start slim too'
+            : 'Simulators run every service',
+        onClose: close,
+      ),
+      hideAfter: const Duration(seconds: 3),
+    );
+  }
 
   void _onStreams(StreamsState state) {
     if (!mounted) return;
