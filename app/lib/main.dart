@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 import 'src/app.dart';
 import 'src/devices/devices_cubit.dart';
 import 'src/di.dart';
+import 'src/stream/streams_cubit.dart';
 import 'src/tray/tray_controller.dart';
 import 'src/ui/macos/macos_simutil_app.dart';
 
@@ -18,6 +19,8 @@ Future<void> main() async {
   await configureDependencies();
 
   final devices = getIt<DevicesCubit>()..start();
+  final streams = getIt<StreamsCubit>();
+  devices.state.subscribe((state) => streams.onDevices(state.all));
   // Registered so it stays reachable: a collected TrayIcon removes itself.
   final tray = getIt.registerSingleton(
     TrayController(

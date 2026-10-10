@@ -4,6 +4,7 @@ import 'package:simutil_core/simutil_core.dart';
 
 /// The user's scrcpy install: the server jar and the version it expects.
 class ScrcpyInstall {
+  /// Creates an install record.
   const ScrcpyInstall({required this.serverPath, required this.version});
 
   /// `scrcpy-server` file pushed to the device.

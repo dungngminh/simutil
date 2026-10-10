@@ -1,11 +1,12 @@
 import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:simutil_core/simutil_core.dart';
 
-import '../../stream/device_stream.dart';
+import '../../settings/recordings_dir.dart';
+import '../../settings/view_settings_cubit.dart';
 import '../../stream/streams_cubit.dart';
 import '../../stream/streams_state.dart';
-import '../shared/responsive.dart';
-import '../shared/touch_surface.dart';
+import '../shared/stream_tile_body.dart';
 
 /// One device: title bar with buttons, then the live screen.
 class MaterialStreamTile extends StatelessWidget {
@@ -21,58 +22,71 @@ class MaterialStreamTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<StreamsCubit>();
-    final stream = cubit.streamFor(entry.device.id);
+    final session = cubit.sessionFor(entry.device.id);
+    final showFrame = context.select<ViewSettingsCubit, bool>(
+      (c) => c.stateValue.showFrames,
+    );
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _TileHeader(
-            title: entry.device.name,
-            buttons: stream?.buttons ?? const [],
-            onPress: (b) => stream?.press(b),
+            entry: entry,
+            buttons: session?.buttons ?? const [],
+            onPress: (b) => session?.press(b),
+            onRecord: () => _toggleRecording(context, cubit),
             onClose: () => cubit.closeStream(entry.device.id),
           ),
-          if (entry.status case StreamLive(
-            inputBlocked: true,
-          ) when stream != null)
-            _InputBlockedBanner(onRepair: stream.repairInput),
-          switch (entry.status) {
-            StreamLive(:final size) when stream != null => LayoutBuilder(
-              builder: (context, constraints) {
-                final fit = fitVideo(
-                  size.width / size.height,
-                  constraints.maxWidth,
-                  maxVideoHeight,
-                );
-                return SizedBox.fromSize(
-                  size: fit,
-                  child: TouchSurface(stream: stream),
-                );
+          StreamTileBody(
+            entry: entry,
+            session: session,
+            maxVideoHeight: maxVideoHeight,
+            showFrame: showFrame,
+            banner: (s) => _InputBlockedBanner(onRepair: s.repairInput),
+            placeholder: (status) => _Placeholder(
+              child: switch (status) {
+                SessionFailed(:final message) => Text(
+                  message,
+                  textAlign: TextAlign.center,
+                ),
+                _ => const CircularProgressIndicator(),
               },
             ),
-            StreamFailed(:final message) => _Placeholder(
-              child: Text(message, textAlign: TextAlign.center),
-            ),
-            _ => const _Placeholder(child: CircularProgressIndicator()),
-          },
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _toggleRecording(
+    BuildContext context,
+    StreamsCubit cubit,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final path = await cubit.toggleRecording(
+      entry.device.id,
+      recordingsDirectory(),
+    );
+    if (path != null) {
+      messenger.showSnackBar(SnackBar(content: Text('Saved $path')));
+    }
   }
 }
 
 class _TileHeader extends StatelessWidget {
   const _TileHeader({
-    required this.title,
+    required this.entry,
     required this.buttons,
     required this.onPress,
+    required this.onRecord,
     required this.onClose,
   });
 
-  final String title;
+  final StreamEntry entry;
   final List<DeviceButton> buttons;
   final ValueChanged<DeviceButton> onPress;
+  final VoidCallback onRecord;
   final VoidCallback onClose;
 
   static IconData _icon(DeviceButton button) => switch (button) {
@@ -84,18 +98,30 @@ class _TileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final live = entry.status is SessionLive;
     return Padding(
       padding: const EdgeInsets.only(left: 12),
       child: Row(
         children: [
-          Expanded(child: Text(title, overflow: TextOverflow.ellipsis)),
+          Expanded(
+            child: Text(entry.device.name, overflow: TextOverflow.ellipsis),
+          ),
           for (final button in buttons)
             IconButton(
               tooltip: button.name,
               iconSize: 18,
               icon: Icon(_icon(button)),
-              onPressed: () => onPress(button),
+              onPressed: live ? () => onPress(button) : null,
             ),
+          IconButton(
+            tooltip: entry.recording ? 'Stop recording' : 'Record',
+            iconSize: 18,
+            icon: Icon(
+              entry.recording ? Icons.stop_circle : Icons.fiber_manual_record,
+              color: entry.recording ? Colors.red : null,
+            ),
+            onPressed: live ? onRecord : null,
+          ),
           IconButton(
             tooltip: 'Close',
             iconSize: 18,

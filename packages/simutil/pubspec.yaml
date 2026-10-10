@@ -17,7 +17,7 @@ dependencies:
   nocterm: ^0.8.0
   simutil_adb: ^1.0.1
   simutil_apple: ^1.0.0
-  simutil_core: ^1.0.0
+  simutil_core: ^1.1.0
   simutil_plugins: ^1.0.0
   simutil_shared: ^1.0.0
 

@@ -95,9 +95,10 @@ class IOSDeviceService implements DeviceService {
   Future<void> launchDevice({
     required String deviceId,
     List<String> additionalArgs = const [],
+    bool headless = false,
   }) async {
     await bootSimulator(deviceId);
-    await openSimulatorApp(deviceId);
+    if (!headless) await openSimulatorApp(deviceId);
   }
 
   /// Boots the simulator [udid] via `simctl boot`.

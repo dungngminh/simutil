@@ -12,9 +12,13 @@ abstract class DeviceService {
   Future<List<Device>> getSimulators();
 
   /// Boots or starts [deviceId], passing [additionalArgs] to the launcher.
+  ///
+  /// [headless] starts it without its own window (no Android emulator
+  /// window, no Simulator app), for UIs that stream the screen themselves.
   Future<void> launchDevice({
     required String deviceId,
     List<String> additionalArgs = const [],
+    bool headless = false,
   });
 
   /// Shuts down a simulator/emulator. Returns whether the command succeeded.

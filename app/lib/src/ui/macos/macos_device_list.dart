@@ -7,7 +7,7 @@ import 'package:simutil_core/simutil_core.dart';
 import '../../devices/device_form_factor.dart';
 import '../../devices/devices_cubit.dart';
 import '../../devices/devices_state.dart';
-import '../../stream/streams_cubit.dart';
+import '../shared/device_actions.dart';
 
 /// Sidebar sections with Launch / Stream actions.
 class MacosDeviceList extends StatelessWidget {
@@ -27,10 +27,10 @@ class MacosDeviceList extends StatelessWidget {
               padding: EdgeInsets.all(8),
               child: Center(child: ProgressCircle(radius: 8)),
             ),
-          _Section('Android Emulators', state.androidEmulators),
-          _Section('Android Devices', state.androidDevices),
-          _Section('iOS Simulators', state.iosSimulators),
-          _Section('iOS Devices', state.iosDevices),
+          _Section('Android Emulators', state.androidEmulators, state),
+          _Section('Android Devices', state.androidDevices, state),
+          _Section('iOS Simulators', state.iosSimulators, state),
+          _Section('iOS Devices', state.iosDevices, state),
           if (state.message case final message?)
             Padding(
               padding: const EdgeInsets.all(8),
@@ -46,10 +46,11 @@ class MacosDeviceList extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section(this.title, this.devices);
+  const _Section(this.title, this.devices, this.state);
 
   final String title;
   final List<Device> devices;
+  final DevicesState state;
 
   @override
   Widget build(BuildContext context) {
@@ -68,34 +69,31 @@ class _Section extends StatelessWidget {
             ),
           ),
         ),
-        for (final device in devices) _DeviceRow(device: device),
+        for (final device in devices) _DeviceRow(device: device, state: state),
       ],
     );
   }
 }
 
 class _DeviceRow extends StatelessWidget {
-  const _DeviceRow({required this.device});
+  const _DeviceRow({required this.device, required this.state});
 
   final Device device;
+  final DevicesState state;
+
+  static IconData _actionIcon(DeviceActionKind kind) => switch (kind) {
+    DeviceActionKind.start => CupertinoIcons.play_fill,
+    DeviceActionKind.stop => CupertinoIcons.power,
+    DeviceActionKind.stream => CupertinoIcons.play_rectangle,
+    DeviceActionKind.slimOn => CupertinoIcons.leaf_arrow_circlepath,
+    DeviceActionKind.slimOff => CupertinoIcons.arrow_counterclockwise,
+  };
 
   @override
   Widget build(BuildContext context) {
     final booted = device.state == DeviceState.booted;
-    final action = switch (device) {
-      _ when StreamsCubit.canStream(device) => (
-        CupertinoIcons.play_rectangle,
-        'Stream',
-        () => context.read<StreamsCubit>().open(device),
-      ),
-      _ when !device.type.isPhysical && device.state == DeviceState.shutdown =>
-        (
-          CupertinoIcons.play_fill,
-          'Launch',
-          () => context.read<DevicesCubit>().launch(device),
-        ),
-      _ => null,
-    };
+    final busy = state.busy.contains(device.id);
+    final slim = state.slimmed.contains(device.id);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -110,18 +108,26 @@ class _DeviceRow extends StatelessWidget {
                 DeviceFormFactor.watch => Icons.watch_outlined,
               }, color: booted ? MacosColors.systemGreenColor : null),
               title: Text(device.name, overflow: TextOverflow.ellipsis),
-              subtitle: Text(device.state.label),
-            ),
-          ),
-          if (action case (final icon, final label, final onPressed))
-            MacosTooltip(
-              message: label,
-              child: MacosIconButton(
-                icon: MacosIcon(icon, size: 16),
-                semanticLabel: label,
-                onPressed: onPressed,
+              subtitle: Text(
+                slim ? '${device.state.label} · slim' : device.state.label,
               ),
             ),
+          ),
+          if (busy)
+            const Padding(
+              padding: EdgeInsets.all(6),
+              child: ProgressCircle(radius: 7),
+            )
+          else
+            for (final action in deviceActions(context, device, state))
+              MacosTooltip(
+                message: action.label,
+                child: MacosIconButton(
+                  icon: MacosIcon(_actionIcon(action.kind), size: 15),
+                  semanticLabel: action.label,
+                  onPressed: action.onPressed,
+                ),
+              ),
         ],
       ),
     );

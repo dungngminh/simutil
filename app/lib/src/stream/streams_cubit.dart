@@ -1,27 +1,31 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:bloc_signals/bloc_signals.dart';
+import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_core/simutil_core.dart';
 
-import 'android/scrcpy_install.dart';
-import 'android/scrcpy_stream.dart';
-import 'device_stream.dart';
-import 'ios/ios_sim_stream.dart';
+import 'ios/ios_sim_session.dart';
 import 'streams_state.dart';
 
-/// Creates the platform stream for a device, or throws a user-facing
+/// Creates the platform session for a device, or throws a user-facing
 /// message when it cannot.
-typedef DeviceStreamFactory = Future<DeviceStream> Function(Device device);
+typedef DeviceSessionFactory = Future<DeviceSession> Function(Device device);
 
-/// Open device streams shown in the grid.
+/// Open device sessions shown in the grid.
 class StreamsCubit extends CubitSignal<StreamsState> {
   StreamsCubit(this._create) : super(initialState: const StreamsState());
 
-  final DeviceStreamFactory _create;
-  final _streams = <String, DeviceStream>{};
+  final DeviceSessionFactory _create;
+  final _sessions = <String, DeviceSession>{};
+  final _subscriptions = <String, StreamSubscription<SessionStatus>>{};
 
-  /// The live stream behind an entry, if it was created.
-  DeviceStream? streamFor(String deviceId) => _streams[deviceId];
+  /// Device names to stream as soon as they show up booted. Names, because
+  /// an Android emulator's id changes from AVD name to serial on boot.
+  final _pendingByName = <String>{};
+
+  /// The live session behind an entry, if it was created.
+  DeviceSession? sessionFor(String deviceId) => _sessions[deviceId];
 
   /// Whether [device] can be streamed on this host.
   static bool canStream(Device device) =>
@@ -33,18 +37,35 @@ class StreamsCubit extends CubitSignal<StreamsState> {
     if (stateValue.isOpen(device.id)) return;
     _setEntries([
       ...stateValue.entries,
-      StreamEntry(device: device, status: const StreamConnecting()),
+      StreamEntry(device: device, status: const SessionConnecting()),
     ]);
-    final DeviceStream stream;
+    final DeviceSession session;
     try {
-      stream = await _create(device);
+      session = await _create(device);
     } catch (e) {
-      _setStatus(device.id, StreamFailed('$e'));
+      _update(device.id, (e0) => e0.copyWith(status: SessionFailed('$e')));
       return;
     }
     if (!stateValue.isOpen(device.id)) return;
-    _streams[device.id] = stream;
-    await stream.start((status) => _setStatus(device.id, status));
+    _sessions[device.id] = session;
+    _subscriptions[device.id] = session.statusChanges.listen(
+      (status) => _update(device.id, (e) => e.copyWith(status: status)),
+    );
+    await session.start();
+  }
+
+  /// Opens [device] once it is booted (after a headless start).
+  void openWhenBooted(Device device) => _pendingByName.add(device.name);
+
+  /// Feed of device lists; opens pending devices that are now booted.
+  void onDevices(Iterable<Device> devices) {
+    if (_pendingByName.isEmpty) return;
+    for (final device in devices) {
+      if (_pendingByName.contains(device.name) && canStream(device)) {
+        _pendingByName.remove(device.name);
+        unawaited(open(device));
+      }
+    }
   }
 
   Future<void> closeStream(String deviceId) async {
@@ -52,14 +73,30 @@ class StreamsCubit extends CubitSignal<StreamsState> {
       for (final e in stateValue.entries)
         if (e.device.id != deviceId) e,
     ]);
-    await _streams.remove(deviceId)?.stop();
+    await _subscriptions.remove(deviceId)?.cancel();
+    await _sessions.remove(deviceId)?.stop();
   }
 
-  void _setStatus(String deviceId, StreamStatus status) {
+  /// Starts or stops recording [deviceId] into [directory].
+  Future<String?> toggleRecording(String deviceId, String directory) async {
+    final session = _sessions[deviceId];
+    if (session == null) return null;
+    if (session.isRecording) {
+      final path = await session.stopRecording();
+      _update(deviceId, (e) => e.copyWith(recording: false));
+      return path;
+    }
+    final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    await session.startRecording('$directory/simutil-$deviceId-$stamp.mp4');
+    _update(deviceId, (e) => e.copyWith(recording: true));
+    return null;
+  }
+
+  void _update(String deviceId, StreamEntry Function(StreamEntry) change) {
     if (isClosed) return;
     _setEntries([
       for (final e in stateValue.entries)
-        e.device.id == deviceId ? e.withStatus(status) : e,
+        e.device.id == deviceId ? change(e) : e,
     ]);
   }
 
@@ -67,17 +104,20 @@ class StreamsCubit extends CubitSignal<StreamsState> {
 
   @override
   Future<void> close() async {
-    for (final stream in _streams.values) {
-      await stream.stop();
+    for (final subscription in _subscriptions.values) {
+      await subscription.cancel();
     }
-    _streams.clear();
+    for (final session in _sessions.values) {
+      await session.stop();
+    }
+    _sessions.clear();
     await super.close();
   }
 }
 
 /// Default factory: scrcpy for Android, the native capture for iOS
 /// simulators.
-DeviceStreamFactory defaultStreamFactory({
+DeviceSessionFactory defaultSessionFactory({
   required CommandExec exec,
   required String Function() adbPath,
 }) {
@@ -87,10 +127,10 @@ DeviceStreamFactory defaultStreamFactory({
       case DeviceOs.android:
         final install = await (scrcpy ??= ScrcpyInstall.locate(exec));
         if (install == null) {
-          scrcpy = null; // retry after the user installs it
+          scrcpy = null;
           throw ScrcpyInstall.installHint;
         }
-        return ScrcpyStream(
+        return ScrcpySession(
           serial: device.id,
           adbPath: adbPath(),
           install: install,
@@ -100,7 +140,7 @@ DeviceStreamFactory defaultStreamFactory({
         if (!Platform.isMacOS || device.type.isPhysical) {
           throw 'Only iOS simulators on macOS can be streamed';
         }
-        return IosSimStream(device.id, exec: exec);
+        return IosSimSession(device.id, exec: exec);
     }
   };
 }

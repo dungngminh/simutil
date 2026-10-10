@@ -5,6 +5,7 @@ import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_shared/simutil_shared.dart';
 
 import 'devices/devices_cubit.dart';
+import 'settings/view_settings_cubit.dart';
 import 'stream/streams_cubit.dart';
 
 /// App-wide service locator.
@@ -24,18 +25,36 @@ Future<void> configureDependencies() async {
       () => DevicesCubit(
         android: getIt<AndroidDeviceService>(),
         ios: getIt<IOSDeviceService>(),
+        slim: _SimulatorSlimControl(SimulatorSlimmer(getIt<CommandExec>())),
       ),
+      dispose: (cubit) => cubit.close(),
+    )
+    ..registerLazySingleton<ViewSettingsCubit>(
+      ViewSettingsCubit.new,
       dispose: (cubit) => cubit.close(),
     )
     ..registerLazySingleton<StreamsCubit>(
       () => StreamsCubit(
-        defaultStreamFactory(
+        defaultSessionFactory(
           exec: getIt<CommandExec>(),
           adbPath: () => getIt<AndroidDeviceService>().adbPath,
         ),
       ),
       dispose: (cubit) => cubit.close(),
     );
+}
+
+class _SimulatorSlimControl implements SlimControl {
+  _SimulatorSlimControl(this._slimmer);
+
+  final SimulatorSlimmer _slimmer;
+
+  @override
+  Future<bool> isSlim(String udid) => _slimmer.isSlim(udid);
+
+  @override
+  Future<void> setSlim(String udid, {required bool slim}) =>
+      slim ? _slimmer.slim(udid) : _slimmer.unslim(udid);
 }
 
 /// Closes cubits and stops the shared [ServiceLocator].

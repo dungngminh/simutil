@@ -381,6 +381,17 @@ void main() {
       expect(exec.calls.single.command, emulatorPath);
       expect(exec.calls.single.arguments, ['@Pixel_7', '-no-audio']);
     });
+
+    test('headless adds the no-window flags', () async {
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+
+      await service(exec).launchDevice(deviceId: 'Pixel_7', headless: true);
+
+      expect(exec.calls.single.arguments, [
+        '@Pixel_7',
+        ...AndroidDeviceService.headlessArgs,
+      ]);
+    });
   });
 
   group('shutdownSimulator', () {

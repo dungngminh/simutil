@@ -108,8 +108,8 @@ class TsMuxer {
             ..[i++] = pcr >> 9 & 0xff
             ..[i++] = pcr >> 1 & 0xff
             ..[i++] = (pcr & 1) << 7 | 0x7E
-            ..[i++] = 0;
-          packet.fillRange(i, i + stuffing, 0xff);
+            ..[i++] = 0
+            ..fillRange(i, i + stuffing, 0xff);
           i += stuffing;
         } else if (fieldLength > 0) {
           packet[i++] = 0x00; // no flags

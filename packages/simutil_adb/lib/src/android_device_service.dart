@@ -170,10 +170,19 @@ class AndroidDeviceService implements DeviceService {
   Future<void> launchDevice({
     required String deviceId,
     List<String> additionalArgs = const [],
+    bool headless = false,
   }) async {
-    final launchArgs = ['@$deviceId', ...additionalArgs];
+    final launchArgs = [
+      '@$deviceId',
+      if (headless) ...headlessArgs,
+      ...additionalArgs,
+    ];
     await _exec.run(emulatorPath, arguments: launchArgs);
   }
+
+  /// Emulator flags added by `headless`: no window, audio or boot animation,
+  /// so many emulators fit at once while something else shows the screen.
+  static const headlessArgs = ['-no-window', '-no-audio', '-no-boot-anim'];
 
   /// Runs `adb connect [host]`.
   Future<AdbConnectResult> connectDevice(String host) async {

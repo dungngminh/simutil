@@ -1,12 +1,13 @@
 import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:macos_ui/macos_ui.dart';
+import 'package:simutil_core/simutil_core.dart';
 
-import '../../stream/device_stream.dart';
+import '../../settings/recordings_dir.dart';
+import '../../settings/view_settings_cubit.dart';
 import '../../stream/streams_cubit.dart';
 import '../../stream/streams_state.dart';
-import '../shared/responsive.dart';
-import '../shared/touch_surface.dart';
+import '../shared/stream_tile_body.dart';
 
 /// One device: title row with buttons, then the live screen.
 class MacosStreamTile extends StatelessWidget {
@@ -22,7 +23,10 @@ class MacosStreamTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<StreamsCubit>();
-    final stream = cubit.streamFor(entry.device.id);
+    final session = cubit.sessionFor(entry.device.id);
+    final showFrame = context.select<ViewSettingsCubit, bool>(
+      (c) => c.stateValue.showFrames,
+    );
     final theme = MacosTheme.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -30,39 +34,34 @@ class MacosStreamTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: theme.dividerColor),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _TileHeader(
-              title: entry.device.name,
-              buttons: stream?.buttons ?? const [],
-              onPress: (b) => stream?.press(b),
-              onClose: () => cubit.closeStream(entry.device.id),
-            ),
-            if (entry.status case StreamLive(
-              inputBlocked: true,
-            ) when stream != null)
-              _InputBlockedBanner(onRepair: stream.repairInput),
-            switch (entry.status) {
-              StreamLive(:final size) when stream != null => LayoutBuilder(
-                builder: (context, constraints) => SizedBox.fromSize(
-                  size: fitVideo(
-                    size.width / size.height,
-                    constraints.maxWidth,
-                    maxVideoHeight,
-                  ),
-                  child: TouchSurface(stream: stream),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _TileHeader(
+            entry: entry,
+            buttons: session?.buttons ?? const [],
+            onPress: (b) => session?.press(b),
+            onRecord: () =>
+                cubit.toggleRecording(entry.device.id, recordingsDirectory()),
+            onClose: () => cubit.closeStream(entry.device.id),
+          ),
+          StreamTileBody(
+            entry: entry,
+            session: session,
+            maxVideoHeight: maxVideoHeight,
+            showFrame: showFrame,
+            banner: (s) => _InputBlockedBanner(onRepair: s.repairInput),
+            placeholder: (status) => _Placeholder(
+              child: switch (status) {
+                SessionFailed(:final message) => Text(
+                  message,
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              StreamFailed(:final message) => _Placeholder(
-                child: Text(message, textAlign: TextAlign.center),
-              ),
-              _ => const _Placeholder(child: ProgressCircle()),
-            },
-          ],
-        ),
+                _ => const ProgressCircle(),
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -70,15 +69,17 @@ class MacosStreamTile extends StatelessWidget {
 
 class _TileHeader extends StatelessWidget {
   const _TileHeader({
-    required this.title,
+    required this.entry,
     required this.buttons,
     required this.onPress,
+    required this.onRecord,
     required this.onClose,
   });
 
-  final String title;
+  final StreamEntry entry;
   final List<DeviceButton> buttons;
   final ValueChanged<DeviceButton> onPress;
+  final VoidCallback onRecord;
   final VoidCallback onClose;
 
   static IconData _icon(DeviceButton button) => switch (button) {
@@ -88,18 +89,23 @@ class _TileHeader extends StatelessWidget {
     DeviceButton.lock => CupertinoIcons.lock,
   };
 
-  Widget _button(IconData icon, String label, VoidCallback onPressed) =>
-      MacosTooltip(
-        message: label,
-        child: MacosIconButton(
-          icon: MacosIcon(icon, size: 15),
-          semanticLabel: label,
-          onPressed: onPressed,
-        ),
-      );
+  Widget _button(
+    IconData icon,
+    String label,
+    VoidCallback? onPressed, {
+    Color? color,
+  }) => MacosTooltip(
+    message: label,
+    child: MacosIconButton(
+      icon: MacosIcon(icon, size: 15, color: color),
+      semanticLabel: label,
+      onPressed: onPressed,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
+    final live = entry.status is SessionLive;
     return SizedBox(
       height: 40,
       child: Padding(
@@ -108,13 +114,25 @@ class _TileHeader extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                title,
+                entry.device.name,
                 overflow: TextOverflow.ellipsis,
                 style: MacosTheme.of(context).typography.headline,
               ),
             ),
             for (final button in buttons)
-              _button(_icon(button), button.name, () => onPress(button)),
+              _button(
+                _icon(button),
+                button.name,
+                live ? () => onPress(button) : null,
+              ),
+            _button(
+              entry.recording
+                  ? CupertinoIcons.stop_circle_fill
+                  : CupertinoIcons.recordingtape,
+              entry.recording ? 'Stop recording' : 'Record',
+              live ? onRecord : null,
+              color: entry.recording ? MacosColors.systemRedColor : null,
+            ),
             _button(CupertinoIcons.xmark, 'Close', onClose),
           ],
         ),

@@ -1,6 +1,6 @@
 name: simutil_adb
 description: Android emulator and device APIs for SimUtil via adb.
-version: 1.0.1
+version: 1.1.0
 homepage: https://github.com/dungngminh/simutil
 repository: https://github.com/dungngminh/simutil/tree/main/packages/simutil_adb
 issue_tracker: https://github.com/dungngminh/simutil/issues
@@ -12,7 +12,7 @@ resolution: workspace
 
 dependencies:
   multicast_dns: ^0.3.3
-  simutil_core: ^1.0.0
+  simutil_core: ^1.1.0
 
 dev_dependencies:
   lints: ^6.0.0

@@ -1,6 +1,6 @@
 /// Core models and process execution for SimUtil.
 ///
-/// Shared [Device] types, [DeviceService], and [CommandExec] used by
+/// Shared [Device] types, [DeviceService], [DeviceSession], and [CommandExec] used by
 /// `simutil_adb`, `simutil_apple`, `simutil_plugins`, and the SimUtil app.
 ///
 /// ```dart
@@ -19,3 +19,4 @@ export 'src/models/device_os.dart';
 export 'src/models/device_state.dart';
 export 'src/models/device_type.dart';
 export 'src/models/isolate_message.dart';
+export 'src/session/device_session.dart';

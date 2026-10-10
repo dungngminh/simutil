@@ -21,7 +21,8 @@ class FakeDeviceService implements DeviceService {
   bool available;
 
   /// Recorded [launchDevice] calls, in order.
-  final List<({String deviceId, List<String> args})> launched = [];
+  final List<({String deviceId, List<String> args, bool headless})> launched =
+      [];
 
   /// Device ids passed to [shutdownSimulator], in order.
   final List<String> shutdown = [];
@@ -39,7 +40,12 @@ class FakeDeviceService implements DeviceService {
   Future<void> launchDevice({
     required String deviceId,
     List<String> additionalArgs = const [],
-  }) async => launched.add((deviceId: deviceId, args: additionalArgs));
+    bool headless = false,
+  }) async => launched.add((
+    deviceId: deviceId,
+    args: additionalArgs,
+    headless: headless,
+  ));
 
   @override
   Future<bool> shutdownSimulator({required String deviceId}) async {

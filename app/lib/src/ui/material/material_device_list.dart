@@ -5,7 +5,7 @@ import 'package:simutil_core/simutil_core.dart';
 import '../../devices/device_form_factor.dart';
 import '../../devices/devices_cubit.dart';
 import '../../devices/devices_state.dart';
-import '../../stream/streams_cubit.dart';
+import '../shared/device_actions.dart';
 
 /// Device sections with Launch / Stream actions.
 class MaterialDeviceList extends StatelessWidget {
@@ -21,10 +21,14 @@ class MaterialDeviceList extends StatelessWidget {
           Expanded(
             child: ListView(
               children: [
-                _DeviceSection('Android emulators', state.androidEmulators),
-                _DeviceSection('Android devices', state.androidDevices),
-                _DeviceSection('iOS simulators', state.iosSimulators),
-                _DeviceSection('iOS devices', state.iosDevices),
+                _DeviceSection(
+                  'Android emulators',
+                  state.androidEmulators,
+                  state,
+                ),
+                _DeviceSection('Android devices', state.androidDevices, state),
+                _DeviceSection('iOS simulators', state.iosSimulators, state),
+                _DeviceSection('iOS devices', state.iosDevices, state),
               ],
             ),
           ),
@@ -43,10 +47,11 @@ class MaterialDeviceList extends StatelessWidget {
 }
 
 class _DeviceSection extends StatelessWidget {
-  const _DeviceSection(this.title, this.devices);
+  const _DeviceSection(this.title, this.devices, this.state);
 
   final String title;
   final List<Device> devices;
+  final DevicesState state;
 
   @override
   Widget build(BuildContext context) {
@@ -58,20 +63,31 @@ class _DeviceSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: Text(title, style: Theme.of(context).textTheme.labelLarge),
         ),
-        for (final device in devices) _DeviceTile(device: device),
+        for (final device in devices) _DeviceTile(device: device, state: state),
       ],
     );
   }
 }
 
 class _DeviceTile extends StatelessWidget {
-  const _DeviceTile({required this.device});
+  const _DeviceTile({required this.device, required this.state});
 
   final Device device;
+  final DevicesState state;
+
+  static IconData _actionIcon(DeviceActionKind kind) => switch (kind) {
+    DeviceActionKind.start => Icons.play_arrow,
+    DeviceActionKind.stop => Icons.power_settings_new,
+    DeviceActionKind.stream => Icons.cast,
+    DeviceActionKind.slimOn => Icons.eco_outlined,
+    DeviceActionKind.slimOff => Icons.eco,
+  };
 
   @override
   Widget build(BuildContext context) {
     final booted = device.state == DeviceState.booted;
+    final busy = state.busy.contains(device.id);
+    final slim = state.slimmed.contains(device.id);
     return ListTile(
       dense: true,
       leading: Icon(switch (DeviceFormFactor.of(device)) {
@@ -85,23 +101,26 @@ class _DeviceTile extends StatelessWidget {
         DeviceFormFactor.watch => Icons.watch,
       }, color: booted ? Colors.green : null),
       title: Text(device.name, overflow: TextOverflow.ellipsis),
-      subtitle: Text(device.state.label),
-      trailing: switch (device) {
-        _ when StreamsCubit.canStream(device) => IconButton(
-          tooltip: 'Stream',
-          icon: const Icon(Icons.cast),
-          onPressed: () => context.read<StreamsCubit>().open(device),
-        ),
-        _
-            when !device.type.isPhysical &&
-                device.state == DeviceState.shutdown =>
-          IconButton(
-            tooltip: 'Launch',
-            icon: const Icon(Icons.play_arrow),
-            onPressed: () => context.read<DevicesCubit>().launch(device),
-          ),
-        _ => null,
-      },
+      subtitle: Text(
+        slim ? '${device.state.label} · slim' : device.state.label,
+      ),
+      trailing: busy
+          ? const SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final action in deviceActions(context, device, state))
+                  IconButton(
+                    tooltip: action.label,
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(_actionIcon(action.kind), size: 18),
+                    onPressed: action.onPressed,
+                  ),
+              ],
+            ),
     );
   }
 }

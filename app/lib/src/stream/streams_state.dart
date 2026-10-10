@@ -1,20 +1,26 @@
 import 'package:equatable/equatable.dart';
 import 'package:simutil_core/simutil_core.dart';
 
-import 'device_stream.dart';
-
 /// One open tile in the stream grid.
 final class StreamEntry extends Equatable {
-  const StreamEntry({required this.device, required this.status});
+  const StreamEntry({
+    required this.device,
+    required this.status,
+    this.recording = false,
+  });
 
   final Device device;
-  final StreamStatus status;
+  final SessionStatus status;
+  final bool recording;
 
-  StreamEntry withStatus(StreamStatus status) =>
-      StreamEntry(device: device, status: status);
+  StreamEntry copyWith({SessionStatus? status, bool? recording}) => StreamEntry(
+    device: device,
+    status: status ?? this.status,
+    recording: recording ?? this.recording,
+  );
 
   @override
-  List<Object?> get props => [device.id, status];
+  List<Object?> get props => [device.id, status, recording];
 }
 
 /// Open streams in display order.

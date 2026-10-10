@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- `DeviceSession` interface for live device screens: `SessionStatus`
+  (`SessionConnecting` / `SessionLive` / `SessionFailed`), `TouchPhase`,
+  `DeviceButton`, input repair and screen recording.
+- `DeviceService.launchDevice` takes `headless` to start without a window.
+
 ## 1.0.0
 
 - Initial release, extracted from the `simutil` app.

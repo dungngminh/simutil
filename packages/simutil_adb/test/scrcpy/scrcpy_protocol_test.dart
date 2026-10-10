@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:simutil_app/src/stream/android/scrcpy_protocol.dart';
+import 'package:test/test.dart';
+import 'package:simutil_adb/src/scrcpy/scrcpy_protocol.dart';
 
 void main() {
   test('touch matches scrcpy serialize test layout', () {
@@ -67,7 +67,7 @@ void main() {
 
     expect(parser.codec, ScrcpyProtocol.codecH264);
     expect(items, hasLength(3));
-    expect((items[0] as ScrcpySession).height, 1280);
+    expect((items[0] as ScrcpyVideoSession).height, 1280);
     expect((items[1] as ScrcpyPacket).config, isTrue);
     expect((items[1] as ScrcpyPacket).data, [1, 2, 3]);
     expect((items[2] as ScrcpyPacket).config, isFalse);

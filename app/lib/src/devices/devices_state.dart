@@ -9,6 +9,8 @@ final class DevicesState extends Equatable {
     this.iosSimulators = const [],
     this.iosDevices = const [],
     this.loading = false,
+    this.slimmed = const {},
+    this.busy = const {},
     this.message,
   });
 
@@ -19,6 +21,12 @@ final class DevicesState extends Equatable {
 
   /// True while a refresh is running.
   final bool loading;
+
+  /// Simulator UDIDs running slim.
+  final Set<String> slimmed;
+
+  /// Device ids with a start/stop/slim in progress.
+  final Set<String> busy;
 
   /// Last status or error message, if any.
   final String? message;
@@ -37,6 +45,8 @@ final class DevicesState extends Equatable {
     List<Device>? iosSimulators,
     List<Device>? iosDevices,
     bool? loading,
+    Set<String>? slimmed,
+    Set<String>? busy,
     String? message,
   }) => DevicesState(
     androidEmulators: androidEmulators ?? this.androidEmulators,
@@ -44,6 +54,8 @@ final class DevicesState extends Equatable {
     iosSimulators: iosSimulators ?? this.iosSimulators,
     iosDevices: iosDevices ?? this.iosDevices,
     loading: loading ?? this.loading,
+    slimmed: slimmed ?? this.slimmed,
+    busy: busy ?? this.busy,
     message: message ?? this.message,
   );
 
@@ -54,6 +66,8 @@ final class DevicesState extends Equatable {
     _keys(iosSimulators),
     _keys(iosDevices),
     loading,
+    slimmed,
+    busy,
     message,
   ];
 

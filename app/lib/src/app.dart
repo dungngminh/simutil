@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 
 import 'devices/devices_cubit.dart';
 import 'di.dart';
+import 'settings/view_settings_cubit.dart';
 import 'stream/streams_cubit.dart';
 import 'ui/macos/macos_simutil_app.dart';
 import 'ui/material/material_app.dart';
@@ -20,6 +21,9 @@ class SimutilApp extends StatelessWidget {
       providers: [
         BlocSignalProvider<DevicesCubit>.value(value: getIt<DevicesCubit>()),
         BlocSignalProvider<StreamsCubit>.value(value: getIt<StreamsCubit>()),
+        BlocSignalProvider<ViewSettingsCubit>.value(
+          value: getIt<ViewSettingsCubit>(),
+        ),
       ],
       child: Platform.isMacOS
           ? const MacosSimutilApp()

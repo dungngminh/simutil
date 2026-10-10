@@ -57,11 +57,17 @@ List<CliCommandSpec> simutilCliCatalog({required String version}) => [
         long: 'no-audio',
         description: 'Disable emulator audio (Android)',
       ),
+      CliFlagSpec(
+        long: 'headless',
+        description:
+            'No emulator window / Simulator app (for streaming in another UI)',
+      ),
     ],
     examples: [
       'simutil launch Pixel_7_Pro_big_Android_15',
       'simutil start emulator-5554 -a',
       'simutil launch <avd> -c --no-audio',
+      'simutil launch <udid> --headless',
     ],
   ),
   CliCommandSpec(

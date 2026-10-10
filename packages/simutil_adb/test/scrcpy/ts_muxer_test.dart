@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:simutil_app/src/stream/android/ts_muxer.dart';
+import 'package:test/test.dart';
+import 'package:simutil_adb/src/scrcpy/ts_muxer.dart';
 
 void main() {
   test('crc32Mpeg matches the reference check value', () {

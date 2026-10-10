@@ -3,6 +3,7 @@ import 'dart:typed_data';
 /// Byte layouts of the scrcpy 4.x server protocol (see scrcpy
 /// `doc/develop.md`, `Streamer.java`, `test_control_msg_serialize.c`).
 abstract final class ScrcpyProtocol {
+  /// Codec id of H.264 on the video socket.
   static const codecH264 = 0x68323634;
 
   static const _flagSession = 0x80000000;
@@ -12,15 +13,27 @@ abstract final class ScrcpyProtocol {
 
   static const _msgInjectKeycode = 0;
   static const _msgInjectTouch = 2;
+  static const _msgResetVideo = 17;
 
-  /// Android `AKEYCODE_*` values.
+  /// `AKEYCODE_HOME`.
   static const keyHome = 3;
+
+  /// `AKEYCODE_BACK`.
   static const keyBack = 4;
+
+  /// `AKEYCODE_APP_SWITCH`.
   static const keyAppSwitch = 187;
+
+  /// `AKEYCODE_POWER`.
+  static const keyPower = 26;
 
   /// Fingers use a regular pointer id; the mouse id (-1) would inject
   /// mouse events instead of touches.
   static const _fingerPointerId = 0;
+
+  /// Encodes `RESET_VIDEO`: restarts the encoder, so a new session, config
+  /// and key frame follow right away.
+  static Uint8List resetVideo() => Uint8List.fromList([_msgResetVideo]);
 
   /// Encodes `INJECT_KEYCODE` (14 bytes); [action] 0 = down, 1 = up.
   static Uint8List keycode(int action, int keycode) {
@@ -63,15 +76,20 @@ sealed class ScrcpyVideoItem {
 }
 
 /// A new capture session (start, rotation): the frame size changed.
-final class ScrcpySession extends ScrcpyVideoItem {
-  const ScrcpySession(this.width, this.height);
+final class ScrcpyVideoSession extends ScrcpyVideoItem {
+  /// Creates a session of [width]x[height] pixels.
+  const ScrcpyVideoSession(this.width, this.height);
 
+  /// Frame width in pixels.
   final int width;
+
+  /// Frame height in pixels.
   final int height;
 }
 
 /// An encoded packet; [config] packets carry SPS/PPS.
 final class ScrcpyPacket extends ScrcpyVideoItem {
+  /// Creates a packet holding Annex-B [data].
   const ScrcpyPacket(
     this.data, {
     required this.config,
@@ -79,9 +97,16 @@ final class ScrcpyPacket extends ScrcpyVideoItem {
     this.ptsMicros = 0,
   });
 
+  /// Annex-B NAL units.
   final Uint8List data;
+
+  /// Codec config (SPS/PPS), not a frame.
   final bool config;
+
+  /// IDR frame.
   final bool keyFrame;
+
+  /// Presentation time in microseconds.
   final int ptsMicros;
 }
 
@@ -118,7 +143,7 @@ class ScrcpyVideoParser {
       final header = ByteData.sublistView(data, offset, offset + 12);
       final first = header.getUint32(0);
       if (first & ScrcpyProtocol._flagSession != 0) {
-        items.add(ScrcpySession(header.getUint32(4), header.getUint32(8)));
+        items.add(ScrcpyVideoSession(header.getUint32(4), header.getUint32(8)));
         offset += 12;
         continue;
       }
