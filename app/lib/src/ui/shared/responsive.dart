@@ -1,6 +1,9 @@
 import 'dart:math';
 
+import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
 import 'package:flutter/widgets.dart';
+
+import '../../recording/grid_recorder.dart';
 
 /// Below this width the device list leaves the side and becomes a drawer
 /// (Material) or starts collapsed (macOS).
@@ -52,16 +55,18 @@ class ResponsiveTileWrap extends StatelessWidget {
         );
         return SingleChildScrollView(
           padding: EdgeInsets.all(spacing),
-          child: Wrap(
-            spacing: spacing,
-            runSpacing: spacing,
-            children: [
-              for (var i = 0; i < count; i++)
-                SizedBox(
-                  width: width,
-                  child: builder(context, i, width, maxVideoHeight),
-                ),
-            ],
+          child: _Recordable(
+            child: Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [
+                for (var i = 0; i < count; i++)
+                  SizedBox(
+                    width: width,
+                    child: builder(context, i, width, maxVideoHeight),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -73,4 +78,17 @@ class ResponsiveTileWrap extends StatelessWidget {
 Size fitVideo(double aspectRatio, double maxWidth, double maxHeight) {
   final width = min(maxWidth, maxHeight * aspectRatio);
   return Size(width, width / aspectRatio);
+}
+
+/// The part of the grid that grid recording captures.
+class _Recordable extends StatelessWidget {
+  const _Recordable({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+    key: context.read<GridRecorderCubit>().boundaryKey,
+    child: child,
+  );
 }

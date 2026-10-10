@@ -5,6 +5,7 @@ import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_shared/simutil_shared.dart';
 
 import 'devices/devices_cubit.dart';
+import 'recording/grid_recorder.dart';
 import 'settings/view_settings_cubit.dart';
 import 'stream/streams_cubit.dart';
 
@@ -27,6 +28,10 @@ Future<void> configureDependencies() async {
         ios: getIt<IOSDeviceService>(),
         slim: _SimulatorSlimControl(SimulatorSlimmer(getIt<CommandExec>())),
       ),
+      dispose: (cubit) => cubit.close(),
+    )
+    ..registerLazySingleton<GridRecorderCubit>(
+      GridRecorderCubit.new,
       dispose: (cubit) => cubit.close(),
     )
     ..registerLazySingleton<ViewSettingsCubit>(

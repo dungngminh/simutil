@@ -3,6 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 import '../../devices/devices_cubit.dart';
+import '../../recording/grid_recorder.dart';
+import '../../settings/recordings_dir.dart';
 import '../../settings/view_settings_cubit.dart';
 import '../shared/responsive.dart';
 import 'macos_device_list.dart';
@@ -47,10 +49,38 @@ class _MacosHome extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.value<ViewSettingsCubit, ViewSettings>();
     final cubit = context.read<ViewSettingsCubit>();
+    final recorder = context.read<GridRecorderCubit>();
+    final recordingGrid = context.value<GridRecorderCubit, bool>();
     return MacosScaffold(
       toolBar: ToolBar(
         title: const Text('SimUtil'),
         actions: [
+          ToolBarIconButton(
+            label: 'Record grid',
+            tooltipMessage: recordingGrid
+                ? 'Stop recording grid'
+                : 'Record grid to ~/Movies/SimUtil',
+            icon: MacosIcon(
+              recordingGrid
+                  ? CupertinoIcons.stop_circle_fill
+                  : CupertinoIcons.video_camera,
+              color: recordingGrid ? MacosColors.systemRedColor : null,
+            ),
+            showLabel: false,
+            onPressed: () async {
+              if (recorder.isRecording) {
+                await recorder.stop();
+              } else {
+                final stamp = DateTime.now().toIso8601String().replaceAll(
+                  ':',
+                  '-',
+                );
+                await recorder
+                    .start('${recordingsDirectory()}/simutil-grid-$stamp.mp4')
+                    .catchError((Object _) {});
+              }
+            },
+          ),
           ToolBarIconButton(
             label: 'Headless',
             tooltipMessage: settings.headless

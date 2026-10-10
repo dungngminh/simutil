@@ -105,6 +105,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.7"
+  cupertino_icons:
+    dependency: "direct main"
+    description:
+      name: cupertino_icons
+      sha256: b7cc2390aac296c083bea762859413eb1cf5b630c70e0c7e4d831018f762a8b2
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
   dbus:
     dependency: transitive
     description:
@@ -582,21 +590,21 @@ packages:
       path: "../packages/simutil_adb"
       relative: true
     source: path
-    version: "1.0.1"
+    version: "1.1.0"
   simutil_apple:
     dependency: "direct main"
     description:
       path: "../packages/simutil_apple"
       relative: true
     source: path
-    version: "1.0.0"
+    version: "1.1.0"
   simutil_core:
     dependency: "direct main"
     description:
       path: "../packages/simutil_core"
       relative: true
     source: path
-    version: "1.0.0"
+    version: "1.1.0"
   simutil_plugins:
     dependency: "direct overridden"
     description:
