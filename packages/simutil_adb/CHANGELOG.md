@@ -2,6 +2,12 @@
 
 ## 1.1.0
 
+- `ScrcpySession` reads video on a worker isolate; `attachDecoder(decode, id)`
+  / `detachDecoder(id)` feed a native decoder (a C `decode` function address)
+  straight from that isolate. Adds the `ffi` dependency.
+- `ScrcpySession` asks the encoder for a key frame every second
+  (`video_codec_options=i-frame-interval:int=1`), so a decoder that dropped
+  frames recovers within a second instead of up to ~10 s.
 - `ScrcpySession.press` handles `DeviceButton.volumeUp` / `volumeDown`
   (`ScrcpyProtocol.keyVolumeUp` / `keyVolumeDown`).
 - `AdbWirelessPairing`: pairs Android 11+ devices over Wi-Fi and connects

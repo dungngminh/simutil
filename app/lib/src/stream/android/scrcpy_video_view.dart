@@ -23,6 +23,9 @@ class _ScrcpyVideoViewState extends State<ScrcpyVideoView> {
   H264Decoder? _decoder;
   StreamSubscription<Uint8List>? _video;
 
+  /// Fed on the session's worker isolate instead of through [_video].
+  bool _attached = false;
+
   @override
   void initState() {
     super.initState();
@@ -35,16 +38,25 @@ class _ScrcpyVideoViewState extends State<ScrcpyVideoView> {
     setState(() => _decoder = decoder);
     final session = widget.session;
     setFrameCounter(session, decoder.framesShown);
-    _video = session.video.listen(
-      (frame) =>
-          decoder.decode(frame, onKeyFrameNeeded: session.requestKeyFrame),
-    );
+    // ponytail: platform-message fallback until Linux/Windows hand out
+    // decodeFunction too.
+    if (await H264Decoder.decodeFunction case final decode?) {
+      if (!mounted) return;
+      session.attachDecoder(decode, decoder.textureId);
+      _attached = true;
+    } else {
+      _video = session.video.listen(
+        (frame) =>
+            decoder.decode(frame, onKeyFrameNeeded: session.requestKeyFrame),
+      );
+    }
   }
 
   @override
   void dispose() {
     if (_decoder case final decoder?) {
       removeFrameCounter(widget.session, decoder.framesShown);
+      if (_attached) widget.session.detachDecoder(decoder.textureId);
     }
     _video?.cancel();
     _decoder?.dispose();

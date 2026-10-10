@@ -31,6 +31,14 @@ class H264Decoder {
     }
   }
 
+  /// Address of the native `int32_t decode(int64_t id, const uint8_t* bytes,
+  /// int64_t count)`, which [decode]s for texture `id` from any thread (e.g.
+  /// through `dart:ffi` on a worker isolate); null where the platform only
+  /// takes [decode]'s platform messages.
+  static final Future<int?> decodeFunction = _channel
+      .invokeMethod<int>('decodeFunction')
+      .then<int?>((address) => address, onError: (Object _) => null);
+
   /// Frames shown on the texture so far.
   Future<int> framesShown() async =>
       await _channel.invokeMethod<int>('frames', {'id': textureId}) ?? 0;
