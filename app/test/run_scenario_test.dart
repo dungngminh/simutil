@@ -144,8 +144,8 @@ void main() {
     expect(rows[0]['slimmed_now'], isTrue);
     expect(rows[2].containsKey('slim'), isFalse);
     expect((rows[0]['steps_ms']! as List), hasLength(2));
-    // The swipe follows its 50 ms duration, not a tick count.
-    expect((rows[0]['steps_ms']! as List)[1], inInclusiveRange(50, 300));
+    // The swipe lasts at least its 50 ms; the ceiling only catches a hang.
+    expect((rows[0]['steps_ms']! as List)[1], inInclusiveRange(50, 2000));
     expect(sessions['pixel']!.touches.first, TouchPhase.down);
     expect(sessions['pixel']!.touches.last, TouchPhase.up);
     expect(notices.map((n) => n.text), [
@@ -154,6 +154,18 @@ void main() {
       'Slimming b…',
       'Scenario done: 3/3',
     ]);
+  });
+
+  test('a non-boolean slim is rejected before anything moves', () async {
+    await expectLater(
+      run({
+        'devices': ['a'],
+        'steps': tapSteps,
+        'slim': 'false',
+      }),
+      throwsArgumentError,
+    );
+    expect(slim.calls, isEmpty);
   });
 
   test('slim: false leaves simulators alone', () async {

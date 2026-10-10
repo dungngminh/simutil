@@ -122,8 +122,12 @@ List<McpTool> inputTools(ToolContext c) => [
       if (targets.isEmpty) {
         throw ArgumentError('No devices: pass devices or stream some first');
       }
+      final slim = args['slim'];
+      if (slim != null && slim is! bool) {
+        throw ArgumentError('slim must be a boolean, got $slim');
+      }
       final clock = Stopwatch()..start();
-      final slimmedNow = args['slim'] == false
+      final slimmedNow = slim == false
           ? const <String>{}
           : await _slimSimulators(c, targets);
       final sessions = await Future.wait([
@@ -171,8 +175,14 @@ Future<Set<String>> _slimSimulators(ToolContext c, List<Device> targets) async {
   final n = pending.length;
   c.devices.notify('Slimming $n simulator${n == 1 ? '' : 's'} (reboot)');
   await Future.wait([
-    // A failed slim shows its own notice; the device then runs unslimmed.
-    for (final d in pending) c.slim.setSlim(d, on: true).catchError((_) {}),
+    // The device then runs unslimmed; its result reports slim: false.
+    for (final d in pending)
+      c.slim
+          .setSlim(d, on: true)
+          .catchError(
+            (Object e) =>
+                c.devices.notify('Slim failed for ${d.name}: $e', error: true),
+          ),
   ]);
   final now = c.devices.stateValue.slimmed;
   return {
