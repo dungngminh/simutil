@@ -15,7 +15,7 @@ dependencies:
   ascii_qr: ^1.0.1
   mason_logger: ^0.3.3
   nocterm: ^0.8.0
-  simutil_adb: ^1.0.0
+  simutil_adb: ^1.0.1
   simutil_apple: ^1.0.0
   simutil_core: ^1.0.0
   simutil_plugins: ^1.0.0
