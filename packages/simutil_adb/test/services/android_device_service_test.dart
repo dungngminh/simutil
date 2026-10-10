@@ -381,6 +381,61 @@ void main() {
       expect(exec.calls.single.command, emulatorPath);
       expect(exec.calls.single.arguments, ['@Pixel_7', '-no-audio']);
     });
+
+    test('headless adds the no-window flags', () async {
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+
+      await service(exec).launchDevice(deviceId: 'Pixel_7', headless: true);
+
+      expect(exec.calls.single.arguments, [
+        '@Pixel_7',
+        ...AndroidDeviceService.headlessArgs,
+      ]);
+    });
+
+    test('headless does not repeat flags the caller passes', () async {
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+
+      await service(exec).launchDevice(
+        deviceId: 'Pixel_7',
+        headless: true,
+        additionalArgs: ['-no-audio', '-no-snapshot-load'],
+      );
+
+      expect(exec.calls.single.arguments, [
+        '@Pixel_7',
+        ...AndroidDeviceService.headlessArgs,
+        '-no-snapshot-load',
+      ]);
+    });
+  });
+
+  group('deleteSimulator', () {
+    late Directory avdHome;
+    setUp(() => avdHome = Directory('${sdkDir.path}/avd')..createSync());
+
+    AndroidDeviceService avdService() => AndroidDeviceService(
+      FakeCommandExec((_, _) => null),
+      androidHomeOverride: sdkDir.path,
+      environment: {'ANDROID_AVD_HOME': avdHome.path},
+      isWindows: false,
+    );
+
+    test('removes the ini and the directory it points to', () async {
+      final elsewhere = Directory('${sdkDir.path}/elsewhere/Pixel_7.avd')
+        ..createSync(recursive: true);
+      File('${elsewhere.path}/config.ini').writeAsStringSync('x');
+      final ini = File('${avdHome.path}/Pixel_7.ini')
+        ..writeAsStringSync('avd.ini.encoding=UTF-8\npath=${elsewhere.path}\n');
+
+      expect(await avdService().deleteSimulator(deviceId: 'Pixel_7'), isTrue);
+      expect(ini.existsSync(), isFalse);
+      expect(elsewhere.existsSync(), isFalse);
+    });
+
+    test('false for an unknown AVD', () async {
+      expect(await avdService().deleteSimulator(deviceId: 'Nope'), isFalse);
+    });
   });
 
   group('shutdownSimulator', () {

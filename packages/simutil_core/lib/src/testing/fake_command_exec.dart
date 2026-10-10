@@ -32,6 +32,7 @@ class FakeCommandExec implements CommandExec {
     List<String> arguments = const [],
     String? workingDirectory,
     Duration? timeout,
+    CommandPriority priority = CommandPriority.normal,
   }) async {
     calls.add(
       FakeCommandCall(
@@ -39,6 +40,7 @@ class FakeCommandExec implements CommandExec {
         arguments: List.unmodifiable(arguments),
         workingDirectory: workingDirectory,
         timeout: timeout,
+        priority: priority,
       ),
     );
     return handler(command, arguments) ??
@@ -54,6 +56,7 @@ class FakeCommandCall {
     required this.arguments,
     this.workingDirectory,
     this.timeout,
+    this.priority = CommandPriority.normal,
   });
 
   /// Executable that was requested.
@@ -67,4 +70,7 @@ class FakeCommandCall {
 
   /// Timeout passed to [CommandExec.run], if any.
   final Duration? timeout;
+
+  /// Requested scheduling priority.
+  final CommandPriority priority;
 }

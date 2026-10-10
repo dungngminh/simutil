@@ -1,0 +1,18 @@
+include: ../../analysis_options.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+
+linter:
+  rules:
+    public_member_api_docs: true
+
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options

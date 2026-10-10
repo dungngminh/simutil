@@ -79,6 +79,26 @@ void main() {
 
     expect(events, hasLength(1));
   });
+
+  test('watchConnectDevices looks up the connect service', () async {
+    final fake = client(
+      ptr: [
+        PtrResourceRecord(
+          '_adb-tls-connect._tcp.local',
+          validUntil,
+          domainName: 'adb-1A2B3C-xyz._adb-tls-connect._tcp.local',
+        ),
+      ],
+    );
+    final service = MdnsWifiDiscoveryService(clientFactory: () => fake);
+    final events = <WifiPairingDevice>[];
+    final sub = service.watchConnectDevices().listen(events.add);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await sub.cancel();
+
+    expect(fake.queries.first, '_adb-tls-connect._tcp');
+    expect(events.single.hostPort, '192.168.1.50:37123');
+  });
 }
 
 /// Minimal [MDnsClient] stand-in that replays canned resource records.
@@ -88,6 +108,9 @@ class FakeMDnsClient implements MDnsClient {
   final List<PtrResourceRecord> ptr;
   final SrvResourceRecord srv;
   final IPAddressResourceRecord ip;
+
+  /// Names looked up, in order.
+  final queries = <String>[];
 
   @override
   Future<Iterable<NetworkInterface>> allInterfacesFactory(
@@ -111,6 +134,7 @@ class FakeMDnsClient implements MDnsClient {
     ResourceRecordQuery query, {
     Duration timeout = const Duration(seconds: 5),
   }) {
+    queries.add(query.fullyQualifiedName);
     switch (query.resourceRecordType) {
       case ResourceRecordType.serverPointer:
         return Stream<ResourceRecord>.fromIterable(ptr).cast<T>();

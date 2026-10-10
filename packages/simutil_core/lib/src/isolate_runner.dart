@@ -3,10 +3,23 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:simutil_core/src/command_exec.dart';
+import 'package:simutil_core/src/command_queue.dart';
 import 'package:simutil_core/src/models/isolate_message.dart';
 
-/// Runs shell commands on a background isolate so a TUI stays responsive.
+/// Runs shell commands on a background isolate so the UI isolate stays
+/// responsive, through a [CommandQueue]: bounded concurrency, priorities
+/// (user actions never wait behind polling) and single-flight background
+/// queries.
 class IsolateRunner {
+  /// Creates a runner allowing [maxConcurrent] processes at once (default:
+  /// processor count, clamped to 2..6).
+  IsolateRunner({int? maxConcurrent})
+    : _queue = CommandQueue<CommandResult>(
+        maxConcurrent: maxConcurrent ?? Platform.numberOfProcessors.clamp(2, 6),
+      );
+
+  final CommandQueue<CommandResult> _queue;
+
   Isolate? _isolate;
   SendPort? _sendPort;
   ReceivePort? _receivePort;
@@ -38,20 +51,38 @@ class IsolateRunner {
     _sendPort = await completer.future;
   }
 
-  /// Runs [executable] with [arguments] on the worker isolate.
+  /// Runs [executable] with [arguments] on the worker isolate once the
+  /// queue gives it a slot; [timeout] counts from process start.
   Future<CommandResult> execute(
     String executable,
     List<String> arguments, {
     String? workingDirectory,
     Duration? timeout,
+    CommandPriority priority = CommandPriority.normal,
   }) {
     assert(isReady, 'IsolateRunner.init() must be called before execute()');
+    return _queue.add(
+      () => _send(executable, arguments, workingDirectory, timeout),
+      priority: priority,
+      key: [workingDirectory ?? '', executable, ...arguments].join('\u0000'),
+    );
+  }
 
+  Future<CommandResult> _send(
+    String executable,
+    List<String> arguments,
+    String? workingDirectory,
+    Duration? timeout,
+  ) {
+    final sendPort = _sendPort;
+    if (sendPort == null) {
+      return Future.error(StateError('IsolateRunner disposed'));
+    }
     final id = _nextId++;
     final completer = Completer<CommandResult>();
     _pending[id] = completer;
 
-    _sendPort!.send(
+    sendPort.send(
       IsolateRequest(
         id: id,
         command: IsolateCommand.runCommand,
@@ -67,6 +98,7 @@ class IsolateRunner {
 
   /// Stops the worker isolate and fails any in-flight requests.
   Future<void> dispose() async {
+    _queue.close();
     if (_sendPort != null) {
       _sendPort!.send(
         const IsolateRequest(

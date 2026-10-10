@@ -4,23 +4,74 @@ import 'package:ascii_qr/ascii_qr.dart';
 import 'package:nocterm/nocterm.dart';
 import 'package:simutil/src/tui/components/show_overlay_dialog.dart';
 import 'package:simutil/src/tui/components/simutil_theme.dart';
+import 'package:simutil_adb/simutil_adb.dart';
 
-/// Dialog that displays a QR code for wireless ADB pairing.
+/// Wireless ADB pairing with a QR code: shows a fresh code, waits for the
+/// phone to scan it (Developer options › Wireless debugging › Pair device
+/// with QR code), then pairs and connects.
 class QrConnectDialog extends StatefulComponent {
-  /// Creates the dialog with an [onClose] callback.
-  const QrConnectDialog({super.key, required this.onClose});
+  /// Creates the dialog; [onClose] gets the result, or null if dismissed.
+  const QrConnectDialog({
+    super.key,
+    required this.pairing,
+    required this.onClose,
+  });
 
-  /// Called when the user closes the dialog.
-  final VoidCallback onClose;
+  /// Pairs and connects once the phone scanned the code.
+  final AdbWirelessPairing pairing;
+
+  /// Called when the dialog closes.
+  final void Function(AdbConnectResult? result) onClose;
 
   @override
   State<QrConnectDialog> createState() => _QrConnectDialogState();
 }
 
 class _QrConnectDialogState extends State<QrConnectDialog> {
+  late QrPairingSession _session;
+  String _status = '';
+  AdbConnectResult? _result;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  void _start() {
+    final session = _session = component.pairing.startQr();
+    _status = 'Waiting for the phone to scan…';
+    _result = null;
+    session
+        .result(
+          onFound: () {
+            if (identical(session, _session)) {
+              setState(() => _status = 'Pairing…');
+            }
+          },
+        )
+        .then((result) {
+          if (!identical(session, _session)) return;
+          if (result.success) return component.onClose(result);
+          setState(() => _result = result);
+        });
+  }
+
+  void _close() {
+    _session.cancel();
+    component.onClose(null);
+  }
+
+  @override
+  void dispose() {
+    _session.cancel();
+    super.dispose();
+  }
+
   @override
   Component build(BuildContext context) {
     final st = context.simutilTheme;
+    final failed = _result;
     return Center(
       child: Container(
         width: 100,
@@ -33,7 +84,12 @@ class _QrConnectDialogState extends State<QrConnectDialog> {
             onKeyEvent: (event) {
               if (event.logicalKey == LogicalKey.escape ||
                   event.logicalKey == LogicalKey.enter) {
-                component.onClose();
+                _close();
+                return true;
+              }
+              if (failed != null && event.logicalKey == LogicalKey.keyR) {
+                _session.cancel();
+                setState(_start);
                 return true;
               }
               return false;
@@ -42,9 +98,26 @@ class _QrConnectDialogState extends State<QrConnectDialog> {
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildQrArt(),
+                Text(
+                  'Phone: Developer options › Wireless debugging › '
+                  'Pair device with QR code',
+                  style: st.dimmed,
+                ),
+                Text(AsciiQrGenerator.generate(_session.payload)),
                 Divider(),
-                Text(' Close: <enter> or <esc>', style: st.dimmed),
+                if (failed == null)
+                  Text(' $_status', style: TextStyle(color: st.warning))
+                else
+                  Text(
+                    ' ${failed.message.trim()}',
+                    style: TextStyle(color: st.error),
+                  ),
+                Text(
+                  failed == null
+                      ? ' Close: <enter> or <esc>'
+                      : ' New code: <r>   Close: <enter> or <esc>',
+                  style: st.dimmed,
+                ),
               ],
             ),
           ),
@@ -52,21 +125,20 @@ class _QrConnectDialogState extends State<QrConnectDialog> {
       ),
     );
   }
-
-  Component _buildQrArt() {
-    final data = 'WIFI:T:ADB;S:simutil;P:123456;;';
-    return Text(AsciiQrGenerator.generate(data));
-  }
 }
 
-/// Shows the QR pairing dialog.
-Future<void> showQrConnectDialog(BuildContext context) =>
-    showOverlayDialog<void>(
-      context: context,
-      builder: (context, completer, entry) => QrConnectDialog(
-        onClose: () {
-          completer.complete();
-          entry?.remove();
-        },
-      ),
-    );
+/// Shows the QR pairing dialog; resolves with the connect result once the
+/// phone paired, or null when dismissed.
+Future<AdbConnectResult?> showQrConnectDialog(
+  BuildContext context, {
+  required AdbWirelessPairing pairing,
+}) => showOverlayDialog<AdbConnectResult?>(
+  context: context,
+  builder: (context, completer, entry) => QrConnectDialog(
+    pairing: pairing,
+    onClose: (result) {
+      if (!completer.isCompleted) completer.complete(result);
+      entry?.remove();
+    },
+  ),
+);

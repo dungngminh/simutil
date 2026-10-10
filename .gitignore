@@ -3,3 +3,6 @@
 .dart_tool/
 doc/api/
 **/doc/api/
+
+# macOS Finder metadata
+.DS_Store

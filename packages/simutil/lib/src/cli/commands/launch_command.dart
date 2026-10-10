@@ -35,6 +35,11 @@ class LaunchCommand extends SimutilCommand {
         'no-audio',
         help: 'Disable emulator audio (Android).',
         negatable: false,
+      )
+      ..addFlag(
+        'headless',
+        help: 'Start without the emulator window / Simulator app.',
+        negatable: false,
       );
   });
 
@@ -57,6 +62,7 @@ class LaunchCommand extends SimutilCommand {
       device,
       cold: argResults!['cold'] == true,
       noAudio: argResults!['no-audio'] == true,
+      headless: argResults!['headless'] == true,
     );
 
     logger.success('Launched ${device.name} (${device.id})');

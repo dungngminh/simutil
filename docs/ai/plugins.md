@@ -21,7 +21,7 @@ a tool. Plugins cannot add custom TUI screens — they are command launchers onl
 | [packages/simutil_shared/lib/src/settings_service.dart](../../packages/simutil_shared/lib/src/settings_service.dart) | Owns `theme` / `last_selected_device_id`: inserts missing keys, `mergeSettingsScalars` on save; `openInEditor()` opens config via OS default app. |
 | [packages/simutil_plugins/lib/src/plugin_runner.dart](../../packages/simutil_plugins/lib/src/plugin_runner.dart) | `PluginRunner` interface; `PluginRunner(exec)` factory returns the private process-backed runner (availability probe + launch). |
 | [packages/simutil/lib/src/tui/dialogs/registry/](../../packages/simutil/lib/src/tui/dialogs/registry/) | TUI: `plugin_menu_dialog.dart`, `command_menu_dialog.dart`, shared `menu_option_row.dart`. |
-| [packages/simutil_shared/lib/src/service_locator.dart](../../packages/simutil_shared/lib/src/service_locator.dart) | Wires `pluginCatalogLoader` + `pluginRunner`. |
+| [packages/simutil/lib/src/tui/service_locator.dart](../../packages/simutil/lib/src/tui/service_locator.dart) | Wires `pluginCatalogLoader` + `pluginRunner`. |
 | [packages/simutil/lib/src/tui/app/simutil_tui_app.dart](../../packages/simutil/lib/src/tui/app/simutil_tui_app.dart) | Loads the registry on init; handles `p`, dynamic shortcuts, and the two-step flow. |
 
 ## Model shape

@@ -12,6 +12,10 @@ abstract class WifiDiscoveryService {
   /// Emits each newly discovered device as it is found.
   /// Cancel the subscription to stop scanning.
   Stream<WifiPairingDevice> watchPairingDevices();
+
+  /// Watches devices with wireless debugging on that accept `adb connect`
+  /// (`_adb-tls-connect._tcp`), e.g. a phone right after pairing.
+  Stream<WifiPairingDevice> watchConnectDevices();
 }
 
 /// Builds an [MDnsClient], used to inject fakes in tests.
@@ -28,6 +32,9 @@ class MdnsWifiDiscoveryService implements WifiDiscoveryService {
   // Devices in "pair using pairing code" mode advertise this service.
   static const _pairingService = '_adb-tls-pairing._tcp';
 
+  // Paired devices with wireless debugging on advertise this service.
+  static const _connectService = '_adb-tls-connect._tcp';
+
   static const _scanInterval = Duration(seconds: 2);
 
   static MDnsClient _defaultClientFactory() =>
@@ -36,6 +43,10 @@ class MdnsWifiDiscoveryService implements WifiDiscoveryService {
   @override
   Stream<WifiPairingDevice> watchPairingDevices() =>
       _watchDevices(_pairingService);
+
+  @override
+  Stream<WifiPairingDevice> watchConnectDevices() =>
+      _watchDevices(_connectService);
 
   Stream<WifiPairingDevice> _watchDevices(String serviceType) {
     late StreamController<WifiPairingDevice> controller;
