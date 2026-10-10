@@ -13,6 +13,7 @@ import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/stream/streams_state.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
 import 'package:simutil_app/src/ui/shared/device_context_menu.dart';
+import 'package:simutil_app/src/ui/shared/recording_clock.dart';
 import 'package:simutil_app/src/ui/shared/stream_tile_body.dart';
 import 'package:simutil_core/simutil_core.dart';
 
@@ -481,11 +482,13 @@ class _TitleLine extends StatelessWidget {
       TextSpan(
         children: [
           TextSpan(text: entry.device.name, style: t.label),
-          if (entry.recording) ...[
+          if (entry.recordingSince case final since?) ...[
             const TextSpan(text: '  '),
             WidgetSpan(
               alignment: PlaceholderAlignment.middle,
-              child: SimuStatusPill(label: 'REC', color: t.danger),
+              child: RecordingClock(
+                elapsed: () => DateTime.now().difference(since),
+              ),
             ),
           ] else if (status case SessionLive(
             :final width,

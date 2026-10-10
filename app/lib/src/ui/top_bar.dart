@@ -13,6 +13,7 @@ import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/stream/streams_state.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
+import 'package:simutil_app/src/ui/shared/recording_clock.dart';
 import 'package:simutil_app/src/ui/mcp_connect_dialog.dart';
 import 'package:simutil_app/src/ui/recording_toast.dart';
 import 'package:simutil_apple/simutil_apple.dart';
@@ -164,6 +165,7 @@ class _ViewActions extends StatelessWidget {
     );
     final cubit = context.read<ViewSettingsCubit>();
     final recordingGrid = context.value<GridRecorderCubit, bool>();
+    final recorder = context.read<GridRecorderCubit>();
     final quality = context.select<ViewSettingsCubit, GridRecordQuality>(
       (c) => c.stateValue.gridQuality,
     );
@@ -195,6 +197,11 @@ class _ViewActions extends StatelessWidget {
                     subtitle: 'Stream a device first.',
                   ),
           ),
+          if (recordingGrid) ...[
+            const SizedBox(width: 4),
+            RecordingClock(elapsed: () => recorder.elapsed),
+            const SizedBox(width: 4),
+          ],
           _GridQualityButton(quality: quality, enabled: !recordingGrid),
           const SimuToolbarDivider(),
         ],
