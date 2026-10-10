@@ -1,11 +1,11 @@
 name: Setup Dart
-description: Setup Dart SDK, install dependencies, and optionally run codegen
+description: Setup Flutter (with its Dart SDK), install workspace dependencies, and optionally run codegen
 
 inputs:
-  sdk:
-    description: Dart SDK channel or version. Defaults to the lower bound in pubspec.yaml (`environment.sdk`).
+  flutter-version:
+    description: Flutter version; the workspace includes the Flutter desktop app, so pub needs the Flutter SDK. Empty = latest stable.
     required: false
-    default: 3.11.0
+    default: ''
   run-codegen:
     description: Whether to regenerate changelog and version data
     required: false
@@ -14,11 +14,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Setup Dart
-      uses: dart-lang/setup-dart@v1
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
       with:
-        sdk: ${{ inputs.sdk }}
-        problem-matcher: false
+        channel: stable
+        flutter-version: ${{ inputs.flutter-version }}
+        cache: true
 
     - name: Install dependencies
       shell: bash

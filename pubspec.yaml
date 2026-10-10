@@ -12,6 +12,8 @@ workspace:
   - packages/simutil_plugins
   - packages/simutil_shared
   - packages/simutil
+  - packages/simutil_h264
+  - app
 
 dev_dependencies:
   melos: ^8.3.0
@@ -34,11 +36,20 @@ melos:
         dirExists: lib
 
     test:
-      description: Run dart test in every package with tests
+      description: Run dart test in every Dart package with tests
       exec:
         command: dart test
       packageFilters:
         dirExists: test
+        flutter: false
+
+    test:flutter:
+      description: Run flutter test in the desktop app and Flutter packages
+      exec:
+        command: flutter test
+      packageFilters:
+        dirExists: test
+        flutter: true
 
     codegen:
       description: Regenerate simutil's version.dart and simutil_shared's changelog_entries.dart
@@ -63,4 +74,4 @@ melos:
 
     check:
       description: Analyze and test the whole workspace (CI parity)
-      run: dart run melos run analyze --no-select && dart run melos run test --no-select
+      run: dart run melos run analyze --no-select && dart run melos run test --no-select && dart run melos run test:flutter --no-select
