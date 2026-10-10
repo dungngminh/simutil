@@ -2,10 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:bloc_signals/bloc_signals.dart';
+import 'package:simutil_app/src/devices/devices_state.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_shared/simutil_shared.dart';
-
-import 'devices_state.dart';
 
 /// Reads and toggles slim mode for an iOS simulator.
 abstract interface class SlimControl {
@@ -13,15 +12,19 @@ abstract interface class SlimControl {
   Future<void> setSlim(String udid, {required bool slim});
 }
 
-/// Loads Android and iOS device lists, refreshes them periodically, and
-/// starts, stops and slims emulators/simulators.
+/// Loads Android and iOS device lists, reloads them when a platform
+/// reports a change, and starts, stops and slims emulators/simulators.
 class DevicesCubit extends CubitSignal<DevicesState> {
   DevicesCubit({
     required DeviceService android,
     required DeviceService ios,
     SlimControl? slim,
+    bool Function()? slimOnLaunch,
     bool? loadIos,
+    Duration pollInterval = const Duration(seconds: 1),
   }) : _android = android,
+       _slimOnLaunch = slimOnLaunch,
+       _pollInterval = pollInterval,
        _ios = ios,
        _slim = slim,
        _loadIos = loadIos ?? Platform.isMacOS,
@@ -29,31 +32,44 @@ class DevicesCubit extends CubitSignal<DevicesState> {
 
   static const _loadTimeout = Duration(seconds: 20);
 
-  /// Emulator flags for streaming-only runs: no window, audio or boot
-  /// animation, so many emulators fit at once.
-  static const headlessAndroidArgs = [
-    '-no-window',
-    '-no-audio',
-    '-no-boot-anim',
-  ];
+  /// How long [restart] waits for the old process to exit.
+  static const _stopTimeout = Duration(seconds: 30);
 
   final DeviceService _android;
   final DeviceService _ios;
   final SlimControl? _slim;
-  final bool _loadIos;
-  Timer? _timer;
 
-  /// Loads once, then refreshes every [kReloadInterval].
+  /// Whether simulators are written slim before they boot (Slim mode).
+  final bool Function()? _slimOnLaunch;
+
+  /// Gap between [restart]'s shutdown checks.
+  final Duration _pollInterval;
+  final bool _loadIos;
+  DeviceChangeWatcher? _watcher;
+
+  /// Loads once, then reloads whenever adb / CoreSimulator / usbmuxd report
+  /// a change (no polling beyond a slow [kReloadInterval] fallback).
   void start() {
     unawaited(refresh());
-    _timer ??= Timer.periodic(kReloadInterval, (_) => refresh(silent: true));
+    _watcher ??= DeviceChangeWatcher([
+      _android,
+      if (_loadIos) _ios,
+    ], () => refresh(silent: true))..start();
   }
 
-  /// Reloads every list; [silent] keeps the loading flag off.
-  Future<void> refresh({bool silent = false}) async {
-    if (stateValue.loading) return;
-    if (!silent) emit(stateValue.copyWith(loading: true));
+  Future<void>? _refreshing;
 
+  /// Reloads every list; [silent] keeps the loading flag off. Single-flight:
+  /// a call while a reload runs joins it instead of stacking another one
+  /// (polls must never pile up behind slow adb / simctl).
+  Future<void> refresh({bool silent = false}) {
+    if (!silent && !stateValue.loading) {
+      emit(stateValue.copyWith(loading: true));
+    }
+    return _refreshing ??= _reload().whenComplete(() => _refreshing = null);
+  }
+
+  Future<void> _reload() async {
     final results = await Future.wait([
       _load(_android.getSimulators),
       _load(_android.getPhysicalDevices),
@@ -84,20 +100,33 @@ class DevicesCubit extends CubitSignal<DevicesState> {
   }
 
   /// Boots an emulator/simulator; [headless] skips its window, [coldBoot]
-  /// skips the Android snapshot.
+  /// skips the Android snapshot, [noAudio] boots an Android emulator mute.
   Future<void> launch(
     Device device, {
     bool headless = false,
     bool coldBoot = false,
+    bool noAudio = false,
   }) async {
     if (device.type.isPhysical || device.state != DeviceState.shutdown) return;
     _setBusy(device.id, true, 'Starting ${device.name}…');
-    final service = device.os == DeviceOs.android ? _android : _ios;
-    final launching = service.launchDevice(
+    final android = device.os == DeviceOs.android;
+    // Slim mode: write the slim config while the simulator is still shut
+    // down, so it boots slim without an extra reboot.
+    if (!android &&
+        (_slimOnLaunch?.call() ?? false) &&
+        !stateValue.slimmed.contains(device.id)) {
+      try {
+        await _slim?.setSlim(device.id, slim: true);
+      } catch (e) {
+        _setMessage('Slim failed for ${device.name}: $e');
+      }
+    }
+    final launching = _serviceFor(device).launchDevice(
       deviceId: device.id,
       headless: headless,
       additionalArgs: [
-        if (coldBoot && device.os == DeviceOs.android) '-no-snapshot-load',
+        if (coldBoot && android) '-no-snapshot-load',
+        if (noAudio && android) '-no-audio',
       ],
     );
     unawaited(
@@ -112,19 +141,79 @@ class DevicesCubit extends CubitSignal<DevicesState> {
   Future<void> shutdown(Device device) async {
     if (device.type.isPhysical) return;
     _setBusy(device.id, true, 'Stopping ${device.name}…');
-    final service = device.os == DeviceOs.android ? _android : _ios;
-    final ok = await service.shutdownSimulator(deviceId: device.id);
+    final ok = await _serviceFor(device).shutdownSimulator(deviceId: device.id);
     if (!ok) _setMessage('Failed to stop ${device.name}');
     await _settle(device.id);
   }
 
+  /// Shuts a running emulator/simulator down, waits for it to stop, then
+  /// boots it again with the [launch] options.
+  Future<void> restart(
+    Device device, {
+    bool headless = false,
+    bool coldBoot = false,
+    bool noAudio = false,
+  }) async {
+    if (device.type.isPhysical || device.state != DeviceState.booted) return;
+    _setBusy(device.id, true, 'Restarting ${device.name}…');
+    final service = _serviceFor(device);
+    final stopped = await service.shutdownSimulator(deviceId: device.id)
+        ? await _waitForShutdown(service, device)
+        : null;
+    _setBusy(device.id, false);
+    if (stopped == null) {
+      _setMessage('Failed to restart ${device.name}');
+      return refresh(silent: true);
+    }
+    await launch(
+      stopped,
+      headless: headless,
+      coldBoot: coldBoot,
+      noAudio: noAudio,
+    );
+  }
+
+  /// Polls until [device] is listed as shut down; an Android emulator comes
+  /// back under its AVD name instead of its serial.
+  Future<Device?> _waitForShutdown(DeviceService service, Device device) async {
+    final deadline = DateTime.now().add(_stopTimeout);
+    while (!isClosed && DateTime.now().isBefore(deadline)) {
+      final match = (await _load(service.getSimulators))
+          .where(
+            (d) => device.os == DeviceOs.android
+                ? d.name == device.name
+                : d.id == device.id,
+          )
+          .firstOrNull;
+      if (match?.state == DeviceState.shutdown) return match;
+      await Future<void>.delayed(_pollInterval);
+    }
+    return null;
+  }
+
+  /// Permanently deletes a shut-down emulator/simulator.
+  Future<void> delete(Device device) async {
+    if (device.type.isPhysical || device.state != DeviceState.shutdown) return;
+    _setBusy(device.id, true, 'Deleting ${device.name}…');
+    final ok = await _serviceFor(device).deleteSimulator(deviceId: device.id);
+    _setMessage(
+      ok ? 'Deleted ${device.name}' : 'Failed to delete ${device.name}',
+    );
+    await _settle(device.id);
+  }
+
+  DeviceService _serviceFor(Device device) =>
+      device.os == DeviceOs.android ? _android : _ios;
+
   /// Turns slim mode on or off; reboots the simulator when it is running.
-  Future<void> toggleSlim(Device device) async {
+  /// Turns slim on or off for an iOS simulator, rebooting it when booted.
+  /// Streams are not touched: go through `SlimModeCubit` to keep them.
+  Future<void> setSlim(Device device, {required bool on}) async {
     final slim = _slim;
     if (slim == null || device.os != DeviceOs.ios || device.type.isPhysical) {
       return;
     }
-    final on = !stateValue.slimmed.contains(device.id);
+    if (stateValue.slimmed.contains(device.id) == on) return;
     _setBusy(
       device.id,
       true,
@@ -170,7 +259,7 @@ class DevicesCubit extends CubitSignal<DevicesState> {
 
   @override
   Future<void> close() async {
-    _timer?.cancel();
+    await _watcher?.stop();
     await super.close();
   }
 }

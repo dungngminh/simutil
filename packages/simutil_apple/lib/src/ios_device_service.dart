@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:simutil_apple/src/apple_device_watch.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// Apple simulators (`simctl`) and physical devices (`devicectl`).
@@ -23,12 +24,17 @@ class IOSDeviceService implements DeviceService {
   static bool _directoryExists(String path) => Directory(path).existsSync();
 
   @override
+  Stream<void> watchDevices() =>
+      Platform.isMacOS ? watchAppleDevices() : const Stream.empty();
+
+  @override
   Future<bool> isAvailable() async {
     if (!Platform.isMacOS) return false;
     try {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'list', '--json'],
+        priority: CommandPriority.background,
       );
       return result.success;
     } catch (_) {
@@ -47,6 +53,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'list', 'devices', '-j'],
+        priority: CommandPriority.background,
       );
       if (!result.success) return [];
 
@@ -107,6 +114,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'boot', udid],
+        priority: CommandPriority.interactive,
       );
       return result.success;
     } catch (_) {
@@ -129,6 +137,7 @@ class IOSDeviceService implements DeviceService {
     await _exec.run(
       'open',
       arguments: openSimulatorArguments(uuid: uuid, appPath: appPath),
+      priority: CommandPriority.interactive,
     );
   }
 
@@ -194,6 +203,21 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'shutdown', deviceId],
+        priority: CommandPriority.interactive,
+      );
+      return result.success;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> deleteSimulator({required String deviceId}) async {
+    try {
+      final result = await _exec.run(
+        'xcrun',
+        arguments: ['simctl', 'delete', deviceId],
+        priority: CommandPriority.interactive,
       );
       return result.success;
     } catch (_) {
@@ -234,6 +258,7 @@ class IOSDeviceService implements DeviceService {
           '-j',
           outputFile.path,
         ],
+        priority: CommandPriority.background,
       );
 
       if (!devicectl.success) return [];

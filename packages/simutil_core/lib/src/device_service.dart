@@ -8,6 +8,13 @@ abstract class DeviceService {
   /// Connected physical devices (phones, tablets, watches, …).
   Future<List<Device>> getPhysicalDevices();
 
+  /// Fires whenever devices may have appeared, disappeared or changed state,
+  /// so callers re-read [getSimulators] / [getPhysicalDevices] instead of
+  /// polling. Each listen starts the platform watchers and cancelling stops
+  /// them. Events come in bursts: debounce before reloading. Empty when the
+  /// platform cannot be watched.
+  Stream<void> watchDevices();
+
   /// Emulators / simulators known to the platform SDK.
   Future<List<Device>> getSimulators();
 
@@ -23,4 +30,8 @@ abstract class DeviceService {
 
   /// Shuts down a simulator/emulator. Returns whether the command succeeded.
   Future<bool> shutdownSimulator({required String deviceId});
+
+  /// Permanently deletes a shut-down simulator/emulator. Returns whether it
+  /// was deleted.
+  Future<bool> deleteSimulator({required String deviceId});
 }

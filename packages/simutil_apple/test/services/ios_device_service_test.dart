@@ -285,4 +285,25 @@ void main() {
       expect(exec.calls, isEmpty);
     });
   });
+
+  group('deleteSimulator', () {
+    test('runs simctl delete and mirrors success', () async {
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+
+      final ok = await IOSDeviceService(exec).deleteSimulator(deviceId: 'U1');
+
+      expect(ok, isTrue);
+      expect(exec.calls.single.command, 'xcrun');
+      expect(exec.calls.single.arguments, ['simctl', 'delete', 'U1']);
+    });
+
+    test('false when simctl fails', () async {
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.fail());
+
+      expect(
+        await IOSDeviceService(exec).deleteSimulator(deviceId: 'U1'),
+        isFalse,
+      );
+    });
+  });
 }
