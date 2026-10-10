@@ -1,6 +1,6 @@
 name: simutil
 description: TUI and CLI for launching Android emulators and iOS simulators, with ADB tools, Logcat viewer, and YAML plugins.
-version: 1.0.0
+version: 1.0.1
 homepage: https://github.com/dungngminh/simutil
 repository: https://github.com/dungngminh/simutil/tree/main/packages/simutil
 issue_tracker: https://github.com/dungngminh/simutil/issues

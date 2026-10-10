@@ -14,6 +14,11 @@ class ChangelogEntry {
 
 const List<ChangelogEntry> changelogEntries = [
   ChangelogEntry(
+    version: '1.0.1',
+    date: '2026-10-10',
+    items: ['Android emulators and devices now show up on Windows.'],
+  ),
+  ChangelogEntry(
     version: '1.0.0',
     date: '2026-10-03',
     items: [
