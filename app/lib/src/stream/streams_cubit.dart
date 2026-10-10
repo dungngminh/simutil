@@ -58,8 +58,32 @@ class StreamsCubit extends CubitSignal<StreamsState> {
   /// Opens [device] once it is booted (after a headless start).
   void openWhenBooted(Device device) => _pendingByName.add(device.name);
 
-  /// Feed of device lists; opens pending devices that are now booted.
-  void onDevices(Iterable<Device> devices) {
+  /// When an open stream's device was first seen not running.
+  final _missingSince = <String, DateTime>{};
+
+  /// How long a device may be missing from the lists before its stream is
+  /// closed; longer than one refresh so a single failed load is ignored.
+  static const missingGrace = Duration(seconds: 15);
+
+  /// Feed of device lists: opens pending devices that are now booted and
+  /// closes streams whose device was shut down outside the app.
+  void onDevices(Iterable<Device> devices, {DateTime? now}) {
+    final time = now ?? DateTime.now();
+    final booted = {
+      for (final d in devices)
+        if (d.state == DeviceState.booted) d.id,
+    };
+    for (final entry in stateValue.entries) {
+      final id = entry.device.id;
+      if (booted.contains(id)) {
+        _missingSince.remove(id);
+      } else if (time.difference(_missingSince.putIfAbsent(id, () => time)) >=
+          missingGrace) {
+        _missingSince.remove(id);
+        unawaited(closeStream(id));
+      }
+    }
+
     if (_pendingByName.isEmpty) return;
     for (final device in devices) {
       if (_pendingByName.contains(device.name) && canStream(device)) {
