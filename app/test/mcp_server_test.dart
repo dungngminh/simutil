@@ -69,6 +69,11 @@ void main() {
     expect(forbidden, HttpStatus.forbidden);
   });
 
+  test('bodies over the limit get 413', () async {
+    final (status, _) = await post({'pad': 'x' * (McpServer.maxBodyBytes + 1)});
+    expect(status, HttpStatus.requestEntityTooLarge);
+  });
+
   group('2026-07-28 (stateless)', () {
     const version = McpServer.latestVersion;
     Map<String, Object?> request(

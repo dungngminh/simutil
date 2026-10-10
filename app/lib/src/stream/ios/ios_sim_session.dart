@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
@@ -132,7 +133,8 @@ class IosSimSession implements DeviceSession {
         _deviceHubInputKey,
       ]);
       return result.stdout.trim() == '$_deviceHubInputKey 1';
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Device Hub input check failed for $udid: $e');
       return false;
     }
   }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 /// One MCP tool: JSON schema for its arguments and the handler.
 class McpTool {
@@ -57,6 +58,9 @@ class McpServer {
   static const _headerMismatch = -32020;
   static const _unsupportedVersion = -32022;
 
+  /// Largest request body read; JSON-RPC calls here are a few KB.
+  static const maxBodyBytes = 1024 * 1024;
+
   HttpServer? _server;
 
   Uri get url => Uri.parse('http://127.0.0.1:$port/mcp');
@@ -92,9 +96,17 @@ class McpServer {
       return response.close();
     }
 
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in request) {
+      bytes.add(chunk);
+      if (bytes.length > maxBodyBytes) {
+        response.statusCode = HttpStatus.requestEntityTooLarge;
+        return response.close();
+      }
+    }
     Object? body;
     try {
-      body = jsonDecode(await utf8.decodeStream(request));
+      body = jsonDecode(utf8.decode(bytes.takeBytes()));
     } catch (_) {
       return _json(response, _error(null, -32700, 'Parse error'));
     }

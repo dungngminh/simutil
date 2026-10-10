@@ -211,15 +211,25 @@ class GridRecorderCubit extends CubitSignal<bool> {
     emit(false);
     _recordingLock.release(_lockHolder);
     if (ffmpeg == null) return null;
-    await ffmpeg.stdin.close();
-    await ffmpeg.exitCode;
+    try {
+      await ffmpeg.stdin.close();
+    } on Object catch (_) {
+      // ffmpeg already exited; its exit code below says how.
+    }
+    final code = await ffmpeg.exitCode;
+    if (code != 0) {
+      throw StateError('ffmpeg exited with code $code; recording not saved');
+    }
     if (path != null) onSaved?.call(path);
     return path;
   }
 
   @override
   Future<void> close() async {
-    await stop();
-    await super.close();
+    try {
+      await stop();
+    } finally {
+      await super.close();
+    }
   }
 }

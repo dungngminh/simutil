@@ -118,6 +118,10 @@ class H264Decoder {
     const HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     const bool started = SUCCEEDED(MFStartup(MF_VERSION, MFSTARTUP_LITE));
     const bool ready = started && CreateDecoder();
+    if (!ready) {
+      OutputDebugStringA(
+          "simutil_h264: H.264 decoder unavailable; frames dropped\n");
+    }
     while (true) {
       std::vector<uint8_t> data;
       {

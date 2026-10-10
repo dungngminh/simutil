@@ -123,8 +123,10 @@ class H264Decoder {
       context->thread_type = FF_THREAD_SLICE;
       ready = avcodec_open2(context, codec, nullptr) == 0;
     }
+    if (!ready) g_warning("simutil_h264: H.264 decoder unavailable; frames dropped");
     SwsContext* scaler = nullptr;
     int scaler_width = 0, scaler_height = 0, scaler_format = -1;
+    bool scaler_warned = false;
     while (true) {
       std::vector<uint8_t> data;
       {
@@ -153,6 +155,11 @@ class H264Decoder {
               static_cast<AVPixelFormat>(scaler_format), scaler_width,
               scaler_height, AV_PIX_FMT_RGBA, SWS_BILINEAR, nullptr, nullptr,
               nullptr);
+          if (!scaler && !scaler_warned) {
+            scaler_warned = true;
+            g_warning("simutil_h264: no RGBA scaler for format %d; frames dropped",
+                      scaler_format);
+          }
         }
         if (!scaler) continue;
         back_.width = static_cast<uint32_t>(frame->width);
