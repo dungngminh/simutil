@@ -277,6 +277,9 @@ private final class SimHID {
     UnsafePointer<CGPoint>, UnsafePointer<CGPoint>?, UInt32, Int32, CGFloat, CGFloat, UInt32
   ) -> UnsafeMutableRawPointer?
   private typealias ButtonFunc = @convention(c) (Int32, Int32, Int32) -> UnsafeMutableRawPointer?
+  /// (target, usagePage, usage, direction): side buttons by their HID codes,
+  /// as listed in DeviceKit's chrome.json (same as serve-sim).
+  private typealias HIDArbitraryFunc = @convention(c) (UInt32, UInt32, UInt32, UInt32) -> UnsafeMutableRawPointer?
   private typealias SendFunc = @convention(c) (
     AnyObject, Selector, UnsafeMutableRawPointer, ObjCBool, AnyObject?, AnyObject?
   ) -> Void
@@ -285,6 +288,7 @@ private final class SimHID {
   private let client: NSObject
   private let mouse: MouseFunc
   private let button: ButtonFunc?
+  private let hidArbitrary: HIDArbitraryFunc?
   private let udid: String
 
   init(device: NSObject, udid: String) throws {
@@ -294,6 +298,9 @@ private final class SimHID {
     }
     mouse = unsafeBitCast(mousePtr, to: MouseFunc.self)
     button = dlsym(any, "IndigoHIDMessageForButton").map { unsafeBitCast($0, to: ButtonFunc.self) }
+    hidArbitrary = dlsym(any, "IndigoHIDMessageForHIDArbitrary").map {
+      unsafeBitCast($0, to: HIDArbitraryFunc.self)
+    }
 
     guard let cls = NSClassFromString("_TtC12SimulatorKit24SimDeviceLegacyHIDClient"),
       let initIMP = class_getMethodImplementation(cls, NSSelectorFromString("initWithDevice:error:"))
@@ -342,6 +349,10 @@ private final class SimHID {
         pressButton(source: 0x0)
         Thread.sleep(forTimeInterval: 0.15)
         pressButton(source: 0x0)
+      case "volumeUp":
+        pressHID(page: 12, usage: 233)
+      case "volumeDown":
+        pressHID(page: 12, usage: 234)
       default:
         break
       }
@@ -352,6 +363,15 @@ private final class SimHID {
     guard let button else { return }
     for direction: Int32 in [1, 2] {
       if let msg = button(source, direction, 0x33) { send(msg) }
+    }
+  }
+
+  /// Down then up of a consumer-page side button (volume: 233 / 234).
+  private func pressHID(page: UInt32, usage: UInt32) {
+    guard let hidArbitrary else { return }
+    for direction: UInt32 in [1, 2] {
+      if let msg = hidArbitrary(0x32, page, usage, direction) { send(msg) }
+      Thread.sleep(forTimeInterval: 0.05)
     }
   }
 }
@@ -463,6 +483,45 @@ private enum SimChrome {
       })
     {
       result["mask"] = FlutterStandardTypedData(bytes: maskPng)
+    }
+
+    // Side buttons drawn around the body (inside devicePadding), placed by
+    // their chrome.json anchor and offsets.
+    let padding = images["devicePadding"] as? [String: Double] ?? [:]
+    result["devicePadding"] = [
+      "top": padding["top"] ?? 0, "left": padding["left"] ?? 0,
+      "bottom": padding["bottom"] ?? 0, "right": padding["right"] ?? 0,
+    ]
+    func render(_ name: String?) -> (NSSize, Data)? {
+      guard let name, let img = image(name, in: dir),
+        let data = png(size: img.size, scale: 3, draw: {
+          img.draw(in: NSRect(origin: .zero, size: img.size))
+        })
+      else { return nil }
+      return (img.size, data)
+    }
+    func point(_ offsets: [String: Any]?, _ key: String) -> [String: Double] {
+      let p = offsets?[key] as? [String: Double]
+      return ["x": p?["x"] ?? 0, "y": p?["y"] ?? 0]
+    }
+    result["inputs"] = (json["inputs"] as? [[String: Any]] ?? []).compactMap { input -> [String: Any]? in
+      guard let name = input["name"] as? String,
+        let up = render(input["image"] as? String)
+      else { return nil }
+      let offsets = input["offsets"] as? [String: Any]
+      var out: [String: Any] = [
+        "name": name,
+        "anchor": input["anchor"] as? String ?? "left",
+        "align": input["align"] as? String ?? "leading",
+        "onTop": input["onTop"] as? Bool ?? false,
+        "width": Double(up.0.width), "height": Double(up.0.height),
+        "normal": point(offsets, "normal"), "rollover": point(offsets, "rollover"),
+        "image": FlutterStandardTypedData(bytes: up.1),
+      ]
+      if let down = render(input["imageDown"] as? String) {
+        out["imageDown"] = FlutterStandardTypedData(bytes: down.1)
+      }
+      return out
     }
     return result
   }

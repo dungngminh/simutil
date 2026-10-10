@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simutil_app/src/stream/ios/apple_chrome.dart';
 import 'package:simutil_app/src/ui/shared/apple_device_frame.dart';
+import 'package:simutil_core/simutil_core.dart';
 
 // iPhone 17e: DeviceKit `phone13`, 22pt bezel, 68pt outline radius.
 const _phone13 = AppleChrome(
@@ -95,4 +98,83 @@ void main() {
     expect(inner, findsOneWidget);
     expect(tester.getRect(inner).width, moreOrLessEquals(200));
   });
+
+  group('side buttons', () {
+    // phone13 chrome.json: volume on the left, power on the right.
+    final png = Uint8List.fromList(_png);
+    final volumeUp = AppleChromeInput(
+      name: 'volume-up',
+      size: const Size(16, 72),
+      image: png,
+      normal: const Offset(8, 221),
+      rollover: const Offset(3, 221),
+    );
+    final power = AppleChromeInput(
+      name: 'power',
+      size: const Size(16, 117),
+      image: png,
+      anchor: 'right',
+      normal: const Offset(-8, 262),
+      rollover: const Offset(-3, 262),
+    );
+    const body = Size(434, 888);
+    const padding = EdgeInsets.symmetric(horizontal: 9);
+
+    test('placed from anchor and offsets, as serve-sim does', () {
+      expect(
+        volumeUp.rectIn(body, padding),
+        const Rect.fromLTWH(4, 221, 16, 72),
+      );
+      expect(
+        power.rectIn(body, padding),
+        const Rect.fromLTWH(430, 262, 16, 117),
+      );
+    });
+
+    test('map to device buttons', () {
+      expect(volumeUp.button, DeviceButton.volumeUp);
+      expect(power.button, DeviceButton.lock);
+      expect(
+        AppleChromeInput(name: 'action', size: Size.zero, image: png).button,
+        isNull,
+      );
+    });
+
+    testWidgets('clicking one presses its button', (tester) async {
+      _largeView(tester);
+      final pressed = <DeviceButton>[];
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: SizedBox(
+              width: 452,
+              child: AppleDeviceFrame(
+                chrome: AppleChrome(
+                  body: body,
+                  screen: const Size(390, 844),
+                  padding: padding,
+                  inputs: [volumeUp, power],
+                ),
+                maxHeight: 2000,
+                onButton: pressed.add,
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.bySemanticsLabel('Volume up'));
+      await tester.tap(find.bySemanticsLabel('Lock'));
+      expect(pressed, [DeviceButton.volumeUp, DeviceButton.lock]);
+    });
+  });
 }
+
+/// A 1x1 transparent PNG.
+const _png = [
+  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, //
+  0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 11, 73, 68, 65, //
+  84, 120, 156, 99, 96, 0, 2, 0, 0, 5, 0, 1, 122, 94, 171, 63, 0, 0, 0, 0, //
+  73, 69, 78, 68, 174, 66, 96, 130,
+];

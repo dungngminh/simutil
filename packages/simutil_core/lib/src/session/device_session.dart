@@ -23,6 +23,12 @@ enum DeviceButton {
 
   /// Lock / power button.
   lock,
+
+  /// Volume up side button.
+  volumeUp,
+
+  /// Volume down side button.
+  volumeDown,
 }
 
 /// Lifecycle of a [DeviceSession].

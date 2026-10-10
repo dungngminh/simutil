@@ -273,6 +273,8 @@ String _buttonLabel(DeviceButton button) => switch (button) {
   DeviceButton.home => 'Home',
   DeviceButton.recents => 'Recent apps',
   DeviceButton.lock => 'Lock screen',
+  DeviceButton.volumeUp => 'Volume up',
+  DeviceButton.volumeDown => 'Volume down',
 };
 
 IconData _buttonIcon(DeviceButton button) => switch (button) {
@@ -280,6 +282,8 @@ IconData _buttonIcon(DeviceButton button) => switch (button) {
   DeviceButton.home => LucideIcons.circle,
   DeviceButton.recents => LucideIcons.galleryHorizontalEnd,
   DeviceButton.lock => LucideIcons.lock,
+  DeviceButton.volumeUp => LucideIcons.volume2,
+  DeviceButton.volumeDown => LucideIcons.volume1,
 };
 
 Color _statusColor(SimuTokens t, SessionStatus status) => switch (status) {

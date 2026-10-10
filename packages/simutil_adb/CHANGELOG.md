@@ -2,6 +2,8 @@
 
 ## 1.1.0
 
+- `ScrcpySession.press` handles `DeviceButton.volumeUp` / `volumeDown`
+  (`ScrcpyProtocol.keyVolumeUp` / `keyVolumeDown`).
 - `AdbWirelessPairing`: pairs Android 11+ devices over Wi-Fi and connects
   them as `ip:port` (`pairAndConnect`), including QR pairing
   (`startQr()` → `QrPairingSession.payload` / `result()`).

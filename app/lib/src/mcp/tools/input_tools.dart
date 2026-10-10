@@ -38,7 +38,8 @@ List<McpTool> inputTools(ToolContext c) => [
   ),
   McpTool(
     name: 'press_button',
-    description: 'Press back (Android), home, recents or lock.',
+    description:
+        'Press back (Android), home, recents, lock, volumeUp or volumeDown.',
     properties: {...deviceArg, 'button': _buttonSchema},
     required: ['device', 'button'],
     handler: (args) async {

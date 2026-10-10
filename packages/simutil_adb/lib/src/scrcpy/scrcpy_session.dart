@@ -281,6 +281,8 @@ class _ScrcpySession implements ScrcpySession {
       DeviceButton.home => ScrcpyProtocol.keyHome,
       DeviceButton.recents => ScrcpyProtocol.keyAppSwitch,
       DeviceButton.lock => ScrcpyProtocol.keyPower,
+      DeviceButton.volumeUp => ScrcpyProtocol.keyVolumeUp,
+      DeviceButton.volumeDown => ScrcpyProtocol.keyVolumeDown,
     };
     _controlSocket
       ?..add(ScrcpyProtocol.keycode(0, keycode))

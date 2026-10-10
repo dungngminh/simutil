@@ -27,6 +27,12 @@ abstract final class ScrcpyProtocol {
   /// `AKEYCODE_POWER`.
   static const keyPower = 26;
 
+  /// `AKEYCODE_VOLUME_UP`.
+  static const keyVolumeUp = 24;
+
+  /// `AKEYCODE_VOLUME_DOWN`.
+  static const keyVolumeDown = 25;
+
   /// Fingers use a regular pointer id; the mouse id (-1) would inject
   /// mouse events instead of touches.
   static const _fingerPointerId = 0;

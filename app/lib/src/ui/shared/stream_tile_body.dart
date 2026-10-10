@@ -61,6 +61,7 @@ class StreamTileBody extends StatelessWidget {
             IosSimSession(:final chrome?) when showFrame => AppleDeviceFrame(
               chrome: chrome,
               maxHeight: maxVideoHeight,
+              onButton: session.press,
               child: TouchSurface(session: session),
             ),
             _ => DeviceFrame(
@@ -68,6 +69,7 @@ class StreamTileBody extends StatelessWidget {
               screenSize: Size(width.toDouble(), height.toDouble()),
               maxHeight: maxVideoHeight,
               enabled: showFrame,
+              onButton: session.press,
               child: TouchSurface(session: session),
             ),
           },

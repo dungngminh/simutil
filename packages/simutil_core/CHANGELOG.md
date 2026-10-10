@@ -4,7 +4,8 @@
 
 - `DeviceSession` interface for live device screens: `SessionStatus`
   (`SessionConnecting` / `SessionLive` / `SessionFailed`), `TouchPhase`,
-  `DeviceButton`, input repair and screen recording.
+  `DeviceButton` (back, home, recents, lock, volume up / down), input
+  repair and screen recording.
 - `DeviceService.launchDevice` takes `headless` to start without a window.
 - `DeviceService.deleteSimulator` deletes a shut-down simulator/emulator;
   `FakeDeviceService` records it in `deleted`.
