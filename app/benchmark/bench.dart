@@ -21,8 +21,9 @@
 // swiping on the devices so screens change: a static screen shows (and
 // records) almost no frames.
 //
-// CPU / memory sum the app and its child processes (adb, scrcpy, ffmpeg…)
-// from `ps` once a second; macOS and Linux only. FPS comes from
+// CPU / memory come from `ps` once a second (macOS and Linux only), split
+// into the app, its helpers (adb, scrcpy, ffmpeg…) and the Android
+// emulators it booted. On macOS the display is kept awake while running. FPS comes from
 // list_devices and is 0 for a tile that is not on screen.
 // ignore_for_file: avoid_print
 import 'dart:async';
@@ -32,6 +33,11 @@ import 'dart:math';
 
 Future<void> main(List<String> argv) async {
   final args = _Args(argv);
+  // A sleeping display stops the app drawing frames, which would read as
+  // low FPS: keep it on for as long as this process runs.
+  if (Platform.isMacOS) {
+    await Process.start('caffeinate', ['-d', '-w', '$pid']);
+  }
   final mcp = _Mcp(
     Uri.parse('http://127.0.0.1:${args.get('port', '8765')}/mcp'),
   );
@@ -220,6 +226,7 @@ Future<Map<String, Object?>> _scenario(
   final overhead = <double>[];
   var ok = 0;
   var total = 0;
+  final errors = <String>{};
   for (var i = 0; i < runs; i++) {
     final r =
         await mcp.call('run_scenario', {
@@ -232,6 +239,9 @@ Future<Map<String, Object?>> _scenario(
     final rows = (r['devices']! as List).cast<Map<String, Object?>>();
     total += rows.length;
     final done = rows.where((d) => d['ok'] == true).toList();
+    for (final d in rows) {
+      if (d['error'] case final String e) errors.add('${d['device']}: $e');
+    }
     ok += done.length;
     if (done.isEmpty) continue;
     final starts = [for (final d in done) d['start_ms']! as int];
@@ -252,6 +262,7 @@ Future<Map<String, Object?>> _scenario(
     'steps': _script.length,
     'nominal_ms': nominal,
     'success': '$ok/$total',
+    'errors': errors.toList(),
     'first_prep_ms': prep.firstOrNull,
     'prep_ms': _stats([for (final p in prep.skip(1)) p.toDouble()]),
     'start_skew_ms': _stats(startSkew),
@@ -372,15 +383,21 @@ Future<int?> _appPid(String? given) async {
 }
 
 /// Samples CPU / memory of the app tree and per-device FPS once a second.
+/// The tree is split into the app itself, its helpers (adb, scrcpy,
+/// ffmpeg…) and the Android emulators it booted, which are its children too
+/// but are not the app's cost. iOS simulators belong to launchd: not counted.
 class _Sampler {
   _Sampler(this.pid, this.mcp);
 
   final int? pid;
   final _Mcp mcp;
-  final _cpu = <double>[];
-  final _rssMb = <double>[];
+  final _cpu = <String, List<double>>{};
+  final _rssMb = <String, List<double>>{};
   final _fps = <String, List<double>>{};
+  var _samples = 0;
   Timer? _timer;
+
+  static final _emulator = RegExp('qemu-system|netsimd|/emulator/');
 
   Future<Map<String, Object?>> over(int seconds) async {
     start();
@@ -395,49 +412,60 @@ class _Sampler {
   Future<Map<String, Object?>> stop() async {
     _timer?.cancel();
     return {
-      'samples': _cpu.length,
-      'cpu_pct': _stats(_cpu),
-      'rss_mb': _stats(_rssMb),
+      'samples': _samples,
+      'cpu_pct': {for (final e in _cpu.entries) e.key: _stats(e.value)},
+      'rss_mb': {for (final e in _rssMb.entries) e.key: _stats(e.value)},
       'fps': {for (final e in _fps.entries) e.key: _stats(e.value)},
     };
   }
 
   Future<void> _sample() async {
+    _samples++;
     final pid = this.pid;
     if (pid != null) {
       try {
         final r = await Process.run('ps', [
           '-A',
           '-o',
-          'pid=,ppid=,%cpu=,rss=',
+          'pid=,ppid=,%cpu=,rss=,comm=',
         ]);
         final rows = {
           for (final line in '${r.stdout}'.split('\n'))
-            if (line.trim().split(RegExp(r'\s+')) case [
-              final p,
-              final pp,
-              final cpu,
-              final rss,
-            ])
-              int.parse(p): (int.parse(pp), double.parse(cpu), int.parse(rss)),
+            if (RegExp(
+                  r'^\s*(\d+)\s+(\d+)\s+([\d.]+)\s+(\d+)\s+(.*)$',
+                ).firstMatch(line)
+                case final m?)
+              int.parse(m[1]!): (
+                ppid: int.parse(m[2]!),
+                cpu: double.parse(m[3]!),
+                kb: int.parse(m[4]!),
+                command: m[5]!,
+              ),
         };
         final tree = {pid};
         for (var grew = true; grew;) {
           grew = false;
           for (final MapEntry(:key, :value) in rows.entries) {
-            if (tree.contains(value.$1) && tree.add(key)) grew = true;
+            if (tree.contains(value.ppid) && tree.add(key)) grew = true;
           }
         }
-        var cpu = 0.0;
-        var rss = 0;
+        final cpu = {'app': 0.0, 'helpers': 0.0, 'emulators': 0.0};
+        final kb = {'app': 0, 'helpers': 0, 'emulators': 0};
         for (final p in tree) {
-          if (rows[p] case (_, final c, final kb)) {
-            cpu += c;
-            rss += kb;
-          }
+          final row = rows[p];
+          if (row == null) continue;
+          final group = p == pid
+              ? 'app'
+              : _emulator.hasMatch(row.command)
+              ? 'emulators'
+              : 'helpers';
+          cpu[group] = cpu[group]! + row.cpu;
+          kb[group] = kb[group]! + row.kb;
         }
-        _cpu.add(cpu);
-        _rssMb.add(rss / 1024);
+        for (final group in cpu.keys) {
+          (_cpu[group] ??= []).add(cpu[group]!);
+          (_rssMb[group] ??= []).add(kb[group]! / 1024);
+        }
       } catch (_) {}
     }
     try {
