@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:simutil_core/src/command_queue.dart';
 import 'package:simutil_core/src/isolate_runner.dart';
 
 /// Outcome of a one-shot process invocation.
@@ -40,12 +41,14 @@ abstract interface class CommandExec {
   /// Runs [command] with [arguments] and returns stdout/stderr/exit code.
   ///
   /// When [timeout] elapses the process is killed and a [TimeoutException]
-  /// is thrown.
+  /// is thrown. [priority] orders work on the isolate executor; mark
+  /// idempotent polling queries [CommandPriority.background].
   Future<CommandResult> run(
     String command, {
     List<String> arguments,
     String? workingDirectory,
     Duration? timeout,
+    CommandPriority priority,
   });
 }
 
@@ -58,6 +61,7 @@ class _ProcessCommandExec implements CommandExec {
     List<String> arguments = const [],
     String? workingDirectory,
     Duration? timeout,
+    CommandPriority priority = CommandPriority.normal,
   }) async {
     final process = await Process.start(
       command,
@@ -99,12 +103,14 @@ class _IsolateCommandExec implements CommandExec {
     List<String> arguments = const [],
     String? workingDirectory,
     Duration? timeout,
+    CommandPriority priority = CommandPriority.normal,
   }) {
     return _runner.execute(
       command,
       arguments,
       workingDirectory: workingDirectory,
       timeout: timeout,
+      priority: priority,
     );
   }
 }
