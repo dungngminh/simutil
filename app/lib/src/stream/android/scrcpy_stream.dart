@@ -261,6 +261,9 @@ class ScrcpyStream implements DeviceStream {
   }
 
   @override
+  Future<void> repairInput() async {}
+
+  @override
   Future<void> stop() async {
     if (_stopped) return;
     _stopped = true;

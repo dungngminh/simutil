@@ -2,6 +2,7 @@ import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:simutil_core/simutil_core.dart';
 
+import '../../devices/device_form_factor.dart';
 import '../../devices/devices_cubit.dart';
 import '../../devices/devices_state.dart';
 import '../../stream/streams_cubit.dart';
@@ -73,10 +74,16 @@ class _DeviceTile extends StatelessWidget {
     final booted = device.state == DeviceState.booted;
     return ListTile(
       dense: true,
-      leading: Icon(
-        device.os == DeviceOs.android ? Icons.android : Icons.phone_iphone,
-        color: booted ? Colors.green : null,
-      ),
+      leading: Icon(switch (DeviceFormFactor.of(device)) {
+        DeviceFormFactor.phone =>
+          device.os == DeviceOs.android ? Icons.smartphone : Icons.phone_iphone,
+        DeviceFormFactor.tablet =>
+          device.os == DeviceOs.android
+              ? Icons.tablet_android
+              : Icons.tablet_mac,
+        DeviceFormFactor.tv => Icons.tv,
+        DeviceFormFactor.watch => Icons.watch,
+      }, color: booted ? Colors.green : null),
       title: Text(device.name, overflow: TextOverflow.ellipsis),
       subtitle: Text(device.state.label),
       trailing: switch (device) {

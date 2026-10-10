@@ -6,6 +6,7 @@ import 'package:simutil_core/simutil_core.dart';
 import 'android/scrcpy_install.dart';
 import 'android/scrcpy_stream.dart';
 import 'device_stream.dart';
+import 'ios/ios_sim_stream.dart';
 import 'streams_state.dart';
 
 /// Creates the platform stream for a device, or throws a user-facing
@@ -74,7 +75,8 @@ class StreamsCubit extends CubitSignal<StreamsState> {
   }
 }
 
-/// Default factory: scrcpy for Android; iOS simulators come later.
+/// Default factory: scrcpy for Android, the native capture for iOS
+/// simulators.
 DeviceStreamFactory defaultStreamFactory({
   required CommandExec exec,
   required String Function() adbPath,
@@ -95,7 +97,10 @@ DeviceStreamFactory defaultStreamFactory({
           exec: exec,
         );
       case DeviceOs.ios:
-        throw 'iOS streaming is not available yet';
+        if (!Platform.isMacOS || device.type.isPhysical) {
+          throw 'Only iOS simulators on macOS can be streamed';
+        }
+        return IosSimStream(device.id, exec: exec);
     }
   };
 }

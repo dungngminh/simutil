@@ -9,6 +9,8 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    SimStreamPlugin.register(
+      with: flutterViewController.registrar(forPlugin: "SimStreamPlugin"))
 
     super.awakeFromNib()
   }

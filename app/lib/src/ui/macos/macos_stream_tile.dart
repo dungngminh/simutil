@@ -41,6 +41,10 @@ class MacosStreamTile extends StatelessWidget {
               onPress: (b) => stream?.press(b),
               onClose: () => cubit.closeStream(entry.device.id),
             ),
+            if (entry.status case StreamLive(
+              inputBlocked: true,
+            ) when stream != null)
+              _InputBlockedBanner(onRepair: stream.repairInput),
             switch (entry.status) {
               StreamLive(:final size) when stream != null => LayoutBuilder(
                 builder: (context, constraints) => SizedBox.fromSize(
@@ -114,6 +118,39 @@ class _TileHeader extends StatelessWidget {
             _button(CupertinoIcons.xmark, 'Close', onClose),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _InputBlockedBanner extends StatelessWidget {
+  const _InputBlockedBanner({required this.onRepair});
+
+  final Future<void> Function() onRepair;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Row(
+        children: [
+          const MacosIcon(
+            CupertinoIcons.exclamationmark_triangle,
+            color: MacosColors.systemOrangeColor,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Xcode Device Hub took over input. Repair restarts the apps on this simulator.',
+            ),
+          ),
+          PushButton(
+            controlSize: ControlSize.small,
+            onPressed: onRepair,
+            child: const Text('Repair input'),
+          ),
+        ],
       ),
     );
   }

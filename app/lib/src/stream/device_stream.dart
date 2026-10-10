@@ -20,13 +20,16 @@ final class StreamConnecting extends StreamStatus {
 }
 
 final class StreamLive extends StreamStatus {
-  const StreamLive(this.size);
+  const StreamLive(this.size, {this.inputBlocked = false});
 
   /// Device screen size in pixels, used for aspect ratio and touch mapping.
   final Size size;
 
+  /// Video works but input is cut off until [DeviceStream.repairInput].
+  final bool inputBlocked;
+
   @override
-  List<Object?> get props => [size];
+  List<Object?> get props => [size, inputBlocked];
 }
 
 final class StreamFailed extends StreamStatus {
@@ -57,4 +60,7 @@ abstract interface class DeviceStream {
 
   /// Presses and releases [button].
   void press(DeviceButton button);
+
+  /// Restores input when [StreamLive.inputBlocked]; may restart apps.
+  Future<void> repairInput();
 }

@@ -33,6 +33,10 @@ class MaterialStreamTile extends StatelessWidget {
             onPress: (b) => stream?.press(b),
             onClose: () => cubit.closeStream(entry.device.id),
           ),
+          if (entry.status case StreamLive(
+            inputBlocked: true,
+          ) when stream != null)
+            _InputBlockedBanner(onRepair: stream.repairInput),
           switch (entry.status) {
             StreamLive(:final size) when stream != null => LayoutBuilder(
               builder: (context, constraints) {
@@ -100,6 +104,24 @@ class _TileHeader extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _InputBlockedBanner extends StatelessWidget {
+  const _InputBlockedBanner({required this.onRepair});
+
+  final Future<void> Function() onRepair;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialBanner(
+      content: const Text(
+        'Xcode Device Hub took over input. Repair restarts the apps on this simulator.',
+      ),
+      actions: [
+        TextButton(onPressed: onRepair, child: const Text('Repair input')),
+      ],
     );
   }
 }

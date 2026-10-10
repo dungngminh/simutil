@@ -1,8 +1,10 @@
 import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Icons;
 import 'package:macos_ui/macos_ui.dart';
 import 'package:simutil_core/simutil_core.dart';
 
+import '../../devices/device_form_factor.dart';
 import '../../devices/devices_cubit.dart';
 import '../../devices/devices_state.dart';
 import '../../stream/streams_cubit.dart';
@@ -100,10 +102,13 @@ class _DeviceRow extends StatelessWidget {
         children: [
           Expanded(
             child: MacosListTile(
-              leading: MacosIcon(
-                CupertinoIcons.device_phone_portrait,
-                color: booted ? MacosColors.systemGreenColor : null,
-              ),
+              leading: MacosIcon(switch (DeviceFormFactor.of(device)) {
+                DeviceFormFactor.phone => CupertinoIcons.device_phone_portrait,
+                // Cupertino icons have no tablet or watch glyph.
+                DeviceFormFactor.tablet => Icons.tablet_mac,
+                DeviceFormFactor.tv => CupertinoIcons.tv,
+                DeviceFormFactor.watch => Icons.watch_outlined,
+              }, color: booted ? MacosColors.systemGreenColor : null),
               title: Text(device.name, overflow: TextOverflow.ellipsis),
               subtitle: Text(device.state.label),
             ),

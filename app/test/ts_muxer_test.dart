@@ -11,7 +11,11 @@ void main() {
   test('frames are whole 188-byte packets with sync bytes', () {
     final muxer = TsMuxer();
     for (final size in [1, 175, 176, 177, 183, 184, 185, 5000]) {
-      final ts = muxer.frame(Uint8List(size), pts90k: 9000, keyFrame: size == 1);
+      final ts = muxer.frame(
+        Uint8List(size),
+        pts90k: 9000,
+        keyFrame: size == 1,
+      );
       expect(ts.length % 188, 0, reason: 'size $size');
       for (var i = 0; i < ts.length; i += 188) {
         expect(ts[i], 0x47, reason: 'size $size packet ${i ~/ 188}');
