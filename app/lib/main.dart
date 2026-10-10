@@ -18,13 +18,17 @@ Future<void> main() async {
   await configureDependencies();
 
   final devices = getIt<DevicesCubit>()..start();
-  await TrayController(
-    devices,
-    onQuit: () async {
-      await disposeDependencies();
-      await windowManager.destroy();
-    },
-  ).init();
+  // Registered so it stays reachable: a collected TrayIcon removes itself.
+  final tray = getIt.registerSingleton(
+    TrayController(
+      devices,
+      onQuit: () async {
+        await disposeDependencies();
+        await windowManager.destroy();
+      },
+    ),
+  );
+  await tray.init();
 
   await windowManager.waitUntilReadyToShow(
     const WindowOptions(
