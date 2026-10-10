@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Android emulators and devices now show up on Windows.
-
 ## [1.0.0] - 2026-10-03
 
 ### Added
