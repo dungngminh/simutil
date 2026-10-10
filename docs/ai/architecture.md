@@ -14,16 +14,18 @@ package has its own version.
 
 | Package | Role |
 | --- | --- |
-| [packages/simutil_core](../../packages/simutil_core/) | `Device`, `DeviceService`, `CommandExec`, `IsolateRunner` (no user data); `testing.dart` fakes |
-| [packages/simutil_adb](../../packages/simutil_adb/) | `AndroidDeviceService`, wireless pairing, mDNS discovery, `LogcatHelper` |
-| [packages/simutil_apple](../../packages/simutil_apple/) | `IOSDeviceService` (simctl + devicectl), `XcodeCacheService` |
+| [packages/simutil_core](../../packages/simutil_core/) | `Device`, `DeviceService`, `DeviceSession`, `CommandExec`, `IsolateRunner` (no user data); `testing.dart` fakes |
+| [packages/simutil_adb](../../packages/simutil_adb/) | `AndroidDeviceService`, wireless pairing, mDNS discovery, `LogcatHelper`, `ScrcpySession` (scrcpy streaming as MPEG-TS) |
+| [packages/simutil_apple](../../packages/simutil_apple/) | `IOSDeviceService` (simctl + devicectl), `XcodeCacheService`, `SimulatorSlimmer`, `SimulatorRecorder` |
 | [packages/simutil_plugins](../../packages/simutil_plugins/) | `PluginCatalog` / `loadPluginCatalog`, `PluginRunner`; `testing.dart` fakes |
 | [packages/simutil_shared](../../packages/simutil_shared/) | UI-agnostic app layer for TUI + GUI: `AppSettings`, `SettingsService`, `AppStateService`, `changelogEntries`, refresh intervals, `ServiceLocator` |
 | [packages/simutil](../../packages/simutil/) | The app, published as `simutil`: `bin/simutil.dart`; `lib/src/cli/` (`runSimutilCli`, `SimutilCommandRunner`, `CliDeviceServices`); `lib/src/tui/` (`runSimutilTui`, `SimutilTuiApp`, components, dialogs, Linux TTY supervisor); `tool/` codegen; `packageVersion` |
 
-Planned: `apps/simutil_app` (Flutter desktop GUI) depends on `simutil_shared`
-via path deps and stays **outside** the pub workspace so root `dart pub get`
-never needs the Flutter SDK.
+`app/` (Flutter desktop GUI) depends on the libraries via pub.dev versions
+overridden with `../packages/*` paths and stays **outside** the pub workspace
+so root `dart pub get` never needs the Flutter SDK. Live device screens use
+`DeviceSession` (`simutil_core`), implemented by `ScrcpySession`
+(`simutil_adb`) and the app's iOS session over a native plugin.
 
 Rules: `simutil_shared` must not import `nocterm` or Flutter; libraries never
 import `package:simutil/` (the app).

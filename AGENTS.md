@@ -4,7 +4,8 @@
 
 `simutil` is a cross-platform Dart TUI + CLI for launching Android emulators
 and iOS simulators, with built-in ADB tools (IP / pair-code / QR connect) and
-Logcat viewer. A Flutter desktop GUI (`apps/simutil_app`) is planned. Entry
+Logcat viewer, plus a Flutter desktop app ([app/](app/)) that streams and
+controls many devices at once. Entry
 point: [packages/simutil/bin/simutil.dart](packages/simutil/bin/simutil.dart) — no args → `runSimutilTui()`,
 otherwise `runSimutilCli(args)`. Main TUI component:
 [packages/simutil/lib/src/tui/app/simutil_tui_app.dart](packages/simutil/lib/src/tui/app/simutil_tui_app.dart).
@@ -55,6 +56,10 @@ stdio with the user:
   `ProcessStartMode.detached` or `inheritStdio` in
   [packages/simutil_plugins/lib/src/plugin_runner.dart](packages/simutil_plugins/lib/src/plugin_runner.dart).
 - Logcat streaming: `Process.start` in plugin code under `packages/simutil/lib/src/tui/dialogs/`.
+- Long-lived streaming / recording processes: the scrcpy server in
+  `ScrcpySession` (`simutil_adb`), `simctl io recordVideo` in
+  `SimulatorRecorder` (`simutil_apple`), and the grid recorder's ffmpeg in
+  `app/`.
 
 **Testing:** import `package:simutil_core/testing.dart` (`FakeCommandExec`, `FakeDeviceService`, device fixtures) or `package:simutil_plugins/testing.dart` (`FakePluginRunner`) instead
 of spawning real processes. Never call `Process.run` inside service unit tests
@@ -81,6 +86,31 @@ See [docs/ai/architecture.md](docs/ai/architecture.md).
 Dependency rules: `simutil_shared` never imports `nocterm` or Flutter; no
 library imports `package:simutil/` (the app). Tests live in each `packages/*/test/`;
 `packages/simutil/test/tool/` covers the codegen tools.
+
+## Desktop app (`app/`)
+
+Flutter (macOS, Windows, Linux) outside the pub workspace: `app/pubspec.yaml`
+depends on the libraries from pub.dev and overrides them with
+`../packages/*` paths, so root `dart pub get` never needs Flutter.
+
+- DI is `get_it` (`app/lib/src/di.dart`); state is `bloc_signals`
+  `CubitSignal`s with `Equatable` states; UI binds with
+  `bloc_signals_flutter`.
+- macOS UI uses `macos_ui` (`app/lib/src/ui/macos/`), Windows/Linux use
+  Material (`app/lib/src/ui/material/`); shared widgets live in
+  `app/lib/src/ui/shared/`.
+- Streaming goes through `DeviceSession` (`simutil_core`): `ScrcpySession`
+  for Android, `IosSimSession` (app) over the native `SimStreamPlugin` in
+  `app/macos/Runner/SimStream.swift` (private CoreSimulator/SimulatorKit,
+  adapted from serve-sim). macOS runs unsandboxed with library validation
+  off for that.
+- MCP for agents: `http://127.0.0.1:8765/mcp` (`SIMUTIL_MCP_PORT`), tools in
+  `app/lib/src/mcp/simutil_tools.dart`.
+
+```bash
+cd app && flutter pub get && flutter analyze && flutter test
+cd app && flutter run -d macos
+```
 
 ## Build / run / verify
 
