@@ -10,8 +10,8 @@ import 'package:simutil_core/simutil_core.dart';
 
 /// Streams and controls an Android device with the user's scrcpy server.
 ///
-/// Video is served as MPEG-TS on [videoUri] (loopback TCP) for any player
-/// that reads `mpegts`; touches and keys go over the scrcpy control socket.
+/// Video is exposed as H.264 access units on [video] for a decoder; touches
+/// and keys go over the scrcpy control socket.
 abstract interface class ScrcpySession implements DeviceSession {
   /// Creates a session for adb [serial]; call [start] to connect.
   factory ScrcpySession({
@@ -24,9 +24,13 @@ abstract interface class ScrcpySession implements DeviceSession {
     int maxFps,
   }) = _ScrcpySession;
 
-  /// `tcp://127.0.0.1:<port>` MPEG-TS feed once [start] returned. Every new
-  /// connection replaces the previous one and gets a fresh key frame.
-  Uri? get videoUri;
+  /// H.264 Annex-B access units, key frames prefixed with SPS/PPS. Each
+  /// listener starts at a fresh key frame.
+  Stream<Uint8List> get video;
+
+  /// Asks the device for a fresh key frame (e.g. after a decoder dropped
+  /// frames); at most once a second, since it restarts the encoder.
+  void requestKeyFrame();
 }
 
 class _ScrcpySession implements ScrcpySession {
@@ -52,18 +56,16 @@ class _ScrcpySession implements ScrcpySession {
   static const _connectAttempts = 50;
 
   final _statusController = StreamController<SessionStatus>.broadcast();
+  final _frames = StreamController<(Uint8List, bool)>.broadcast();
   final _muxer = TsMuxer();
   SessionStatus _status = const SessionConnecting();
   Process? _server;
-  ServerSocket? _relay;
-  Socket? _consumer;
   Socket? _videoSocket;
   Socket? _controlSocket;
   int? _forwardPort;
   int? _width;
   int? _height;
   Uint8List? _config;
-  Uint8List? _lastKeyFrame;
   IOSink? _recording;
   String? _recordingPath;
   bool _stopped = false;
@@ -85,10 +87,43 @@ class _ScrcpySession implements ScrcpySession {
   Stream<SessionStatus> get statusChanges => _statusController.stream;
 
   @override
-  Uri? get videoUri => switch (_relay) {
-    final relay? => Uri.parse('tcp://127.0.0.1:${relay.port}'),
-    null => null,
-  };
+  Stream<Uint8List> get video => Stream.multi((listener) {
+    var synced = false;
+    final sub = _frames.stream.listen((frame) {
+      final (data, keyFrame) = frame;
+      synced |= keyFrame;
+      if (synced) listener.addSync(data);
+    }, onDone: listener.closeSync);
+    listener.onCancel = sub.cancel;
+    _controlSocket?.add(ScrcpyProtocol.resetVideo());
+  });
+
+  static const _keyFrameInterval = Duration(seconds: 1);
+  DateTime? _keyFrameRequested;
+  Timer? _keyFrameTimer;
+
+  /// Requests inside the rate limit are deferred to its end (one pending at
+  /// most), not dropped: a dropped request would leave the decoder waiting
+  /// for scrcpy's next periodic key frame, up to ~10 s.
+  @override
+  void requestKeyFrame() {
+    if (_keyFrameTimer != null || _stopped) return;
+    final wait = switch (_keyFrameRequested) {
+      final last? => _keyFrameInterval - DateTime.now().difference(last),
+      null => Duration.zero,
+    };
+    if (wait <= Duration.zero) return _sendKeyFrameRequest();
+    _keyFrameTimer = Timer(wait, () {
+      _keyFrameTimer = null;
+      _sendKeyFrameRequest();
+    });
+  }
+
+  void _sendKeyFrameRequest() {
+    if (_stopped) return;
+    _keyFrameRequested = DateTime.now();
+    _controlSocket?.add(ScrcpyProtocol.resetVideo());
+  }
 
   void _emit(SessionStatus status) {
     if (_stopped && status is! SessionFailed) return;
@@ -100,24 +135,12 @@ class _ScrcpySession implements ScrcpySession {
   Future<void> start() async {
     _emit(const SessionConnecting());
     try {
-      await _startRelay();
       await _startServer();
       await _connect();
     } catch (e) {
       await stop();
       _emit(SessionFailed('$e'));
     }
-  }
-
-  Future<void> _startRelay() async {
-    _relay = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    _relay!.listen((socket) {
-      socket.setOption(SocketOption.tcpNoDelay, true);
-      unawaited(socket.done.catchError((_) {}));
-      if (_lastKeyFrame case final keyFrame?) socket.add(keyFrame);
-      _consumer = socket;
-      _controlSocket?.add(ScrcpyProtocol.resetVideo());
-    });
   }
 
   Future<void> _startServer() async {
@@ -218,14 +241,15 @@ class _ScrcpySession implements ScrcpySession {
         case ScrcpyPacket(:final data, :final keyFrame, :final ptsMicros):
           final config = _config;
           final isKey = keyFrame && config != null;
-          final ts = _muxer.frame(
-            isKey ? Uint8List.fromList([...config, ...data]) : data,
-            pts90k: (ptsMicros * 9 ~/ 100) & 0x1ffffffff,
-            keyFrame: isKey,
+          final frame = isKey ? ScrcpyProtocol.withConfig(config, data) : data;
+          if (!_frames.isClosed) _frames.add((frame, isKey));
+          _recording?.add(
+            _muxer.frame(
+              frame,
+              pts90k: (ptsMicros * 9 ~/ 100) & 0x1ffffffff,
+              keyFrame: isKey,
+            ),
           );
-          if (isKey) _lastKeyFrame = ts;
-          _consumer?.add(ts);
-          _recording?.add(ts);
       }
     }
   }
@@ -319,14 +343,14 @@ class _ScrcpySession implements ScrcpySession {
     if (_stopped) return;
     await stopRecording();
     _stopped = true;
+    _keyFrameTimer?.cancel();
     _videoSocket?.destroy();
     _controlSocket?.destroy();
-    _consumer?.destroy();
-    await _relay?.close();
     _server?.kill();
     if (_forwardPort case final port?) {
       await _adb(['forward', '--remove', 'tcp:$port']);
     }
+    await _frames.close();
     await _statusController.close();
   }
 
@@ -334,6 +358,7 @@ class _ScrcpySession implements ScrcpySession {
     adbPath,
     arguments: ['-s', serial, ...args],
     timeout: const Duration(seconds: 30),
+    priority: CommandPriority.interactive,
   );
 
   /// GUI apps on macOS do not inherit the shell PATH.

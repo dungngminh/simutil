@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 /// Apple's Simulator device frame for one simulator, read from Xcode's
 /// DeviceKit chrome bundles by the native plugin. Sizes are in points.
 class AppleChrome {
+  /// Creates a chrome from decoded images and insets.
   const AppleChrome({
     required this.body,
     required this.screen,
@@ -33,6 +34,7 @@ class AppleChrome {
   /// Screen shape (rounded corners, sensor cut-out) as an alpha mask.
   final ui.Image? mask;
 
+  /// Loads [udid]'s chrome over [channel]; null when Xcode has none.
   static Future<AppleChrome?> load(MethodChannel channel, String udid) async {
     final map = await channel.invokeMapMethod<String, Object?>('chrome', {
       'udid': udid,

@@ -93,6 +93,16 @@ private final class SimCapture: NSObject, FlutterTexture {
   private var io: NSObject?
   private var rewireTimer: DispatchSourceTimer?
   private var frames = 0
+  /// Under `lock`: a captured frame Flutter has not pulled yet, and how many
+  /// frames it pulled.
+  private var fresh = false
+  private var shown = 0
+
+  var framesShown: Int {
+    lock.lock()
+    defer { lock.unlock() }
+    return shown
+  }
 
   var onFrame: (() -> Void)?
   var onSize: ((Int, Int) -> Void)?
@@ -188,6 +198,7 @@ private final class SimCapture: NSObject, FlutterTexture {
     lock.lock()
     let sizeChanged = latest.map { (CVPixelBufferGetWidth($0), CVPixelBufferGetHeight($0)) != size } ?? true
     latest = copy
+    fresh = true
     lock.unlock()
     frames += 1
     if sizeChanged { onSize?(size.0, size.1) }
@@ -224,9 +235,13 @@ private final class SimCapture: NSObject, FlutterTexture {
     else { return nil }
     let srcStride = CVPixelBufferGetBytesPerRow(source)
     let dstStride = CVPixelBufferGetBytesPerRow(dst)
-    let rowBytes = min(srcStride, dstStride)
-    for row in 0..<h {
-      memcpy(dstAddr + row * dstStride, src + row * srcStride, rowBytes)
+    if srcStride == dstStride {
+      memcpy(dstAddr, src, srcStride * h)
+    } else {
+      let rowBytes = min(srcStride, dstStride)
+      for row in 0..<h {
+        memcpy(dstAddr + row * dstStride, src + row * srcStride, rowBytes)
+      }
     }
     return dst
   }
@@ -235,6 +250,10 @@ private final class SimCapture: NSObject, FlutterTexture {
     lock.lock()
     defer { lock.unlock() }
     guard let latest else { return nil }
+    if fresh {
+      fresh = false
+      shown += 1
+    }
     return Unmanaged.passRetained(latest)
   }
 
@@ -454,7 +473,8 @@ private struct SimStreamError: LocalizedError {
 }
 
 /// `simutil/ios_stream` channel: start(udid) → {textureId, width, height},
-/// stop(udid), touch(udid, phase, x, y), press(udid, button).
+/// stop(udid), touch(udid, phase, x, y), press(udid, button),
+/// frames(udid) → frames shown.
 /// Size changes (rotation) are pushed back as `size` calls.
 final class SimStreamPlugin: NSObject, FlutterPlugin {
   private let textures: FlutterTextureRegistry
@@ -496,6 +516,8 @@ final class SimStreamPlugin: NSObject, FlutterPlugin {
     case "press":
       sessions[udid]?.hid?.press(args["button"] as? String ?? "")
       result(nil)
+    case "frames":
+      result(sessions[udid]?.capture.framesShown ?? 0)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -511,8 +533,20 @@ final class SimStreamPlugin: NSObject, FlutterPlugin {
     }
     let capture = SimCapture()
     let textureId = textures.register(capture)
+    // One main-thread hop per batch of frames, not per frame.
+    let pending = NSLock()
+    var scheduled = false
     capture.onFrame = { [weak self] in
-      DispatchQueue.main.async { self?.textures.textureFrameAvailable(textureId) }
+      pending.lock()
+      defer { pending.unlock() }
+      if scheduled { return }
+      scheduled = true
+      DispatchQueue.main.async {
+        pending.lock()
+        scheduled = false
+        pending.unlock()
+        self?.textures.textureFrameAvailable(textureId)
+      }
     }
     capture.onSize = { [weak self] w, h in
       DispatchQueue.main.async {

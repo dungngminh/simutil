@@ -88,9 +88,6 @@ final class SessionFailed extends SessionStatus {
 }
 
 /// A live connection to one device's screen: status, input and recording.
-///
-/// Platform packages implement it (`ScrcpySession` in `simutil_adb`); how the
-/// video is displayed is up to the UI.
 abstract interface class DeviceSession {
   /// Device id (adb serial or simulator UDID).
   String get deviceId;

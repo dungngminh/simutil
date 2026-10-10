@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 /// Minimal MPEG-TS muxer for one H.264 video stream.
 ///
-/// media_kit's bundled ffmpeg has no raw `h264` demuxer, but it does read
-/// `mpegts`, so Annex-B access units from scrcpy are wrapped in PES packets.
+/// Recordings are written as MPEG-TS so a partial file stays playable;
+/// Annex-B access units from scrcpy are wrapped in PES packets.
 class TsMuxer {
   static const _packetSize = 188;
   static const _pmtPid = 0x1000;

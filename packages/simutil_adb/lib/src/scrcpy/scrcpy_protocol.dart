@@ -31,6 +31,12 @@ abstract final class ScrcpyProtocol {
   /// mouse events instead of touches.
   static const _fingerPointerId = 0;
 
+  /// [frame] prefixed with the codec [config] (SPS/PPS).
+  static Uint8List withConfig(Uint8List config, Uint8List frame) =>
+      Uint8List(config.length + frame.length)
+        ..setAll(0, config)
+        ..setAll(config.length, frame);
+
   /// Encodes `RESET_VIDEO`: restarts the encoder, so a new session, config
   /// and key frame follow right away.
   static Uint8List resetVideo() => Uint8List.fromList([_msgResetVideo]);

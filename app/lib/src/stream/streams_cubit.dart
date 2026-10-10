@@ -5,9 +5,10 @@ import 'package:bloc_signals/bloc_signals.dart';
 import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_core/simutil_core.dart';
 
-import '../settings/device_settings_cubit.dart';
-import 'ios/ios_sim_session.dart';
-import 'streams_state.dart';
+import 'package:simutil_app/src/recording/recording_lock.dart';
+import 'package:simutil_app/src/settings/device_settings_cubit.dart';
+import 'package:simutil_app/src/stream/ios/ios_sim_session.dart';
+import 'package:simutil_app/src/stream/streams_state.dart';
 
 /// Creates the platform session for a device, or throws a user-facing
 /// message when it cannot.
@@ -15,8 +16,13 @@ typedef DeviceSessionFactory = Future<DeviceSession> Function(Device device);
 
 /// Open device sessions shown in the grid.
 class StreamsCubit extends CubitSignal<StreamsState> {
-  StreamsCubit(this._create, {this.onSaved})
-    : super(initialState: const StreamsState());
+  /// Opens sessions with [_create]; [onSaved] gets each finished recording.
+  StreamsCubit(this._create, {this.onSaved, RecordingLock? recordingLock})
+    : _recordingLock = recordingLock ?? RecordingLock(),
+      super(initialState: const StreamsState());
+
+  /// One recording at a time, shared with the grid recorder.
+  final RecordingLock _recordingLock;
 
   final DeviceSessionFactory _create;
 
@@ -38,25 +44,71 @@ class StreamsCubit extends CubitSignal<StreamsState> {
       (device.os == DeviceOs.android ||
           (Platform.isMacOS && !device.type.isPhysical));
 
-  Future<void> open(Device device) async {
-    if (stateValue.isOpen(device.id)) return;
+  /// Session starts waiting to run; they run one at a time (adb
+  /// push/forward, simulator capture) in FIFO order.
+  final _startQueue = <(Device, Object, Completer<void>)>[];
+  bool _draining = false;
+
+  /// The pending start per device; closing or reopening replaces it so a
+  /// stale queued start is skipped.
+  final _queued = <String, Object>{};
+
+  /// Adds [device]'s tile as connecting and queues its session start;
+  /// completes once that start ran (or was skipped). Opening a device that
+  /// is already open does nothing.
+  Future<void> open(Device device) {
+    if (stateValue.isOpen(device.id)) return Future.value();
     _setEntries([
       ...stateValue.entries,
       StreamEntry(device: device, status: const SessionConnecting()),
     ]);
+    final ticket = _queued[device.id] = Object();
+    final done = Completer<void>();
+    _startQueue.add((device, ticket, done));
+    unawaited(_drain());
+    return done.future;
+  }
+
+  Future<void> _drain() async {
+    if (_draining) return;
+    _draining = true;
+    while (_startQueue.isNotEmpty) {
+      final (device, ticket, done) = _startQueue.removeAt(0);
+      try {
+        await _start(device, ticket);
+      } catch (_) {
+        // A failed start must not stall the queue.
+      }
+      done.complete();
+    }
+    _draining = false;
+  }
+
+  Future<void> _start(Device device, Object ticket) async {
+    if (isClosed || _queued[device.id] != ticket) return;
     final DeviceSession session;
     try {
       session = await _create(device);
     } catch (e) {
-      _update(device.id, (e0) => e0.copyWith(status: SessionFailed('$e')));
+      if (_queued.remove(device.id) == ticket) {
+        _update(device.id, (e0) => e0.copyWith(status: SessionFailed('$e')));
+      }
       return;
     }
-    if (!stateValue.isOpen(device.id)) return;
+    if (isClosed || _queued[device.id] != ticket) {
+      await session.stop();
+      return;
+    }
+    _queued.remove(device.id);
     _sessions[device.id] = session;
     _subscriptions[device.id] = session.statusChanges.listen(
       (status) => _update(device.id, (e) => e.copyWith(status: status)),
     );
-    await session.start();
+    try {
+      await session.start();
+    } catch (e) {
+      _update(device.id, (e0) => e0.copyWith(status: SessionFailed('$e')));
+    }
   }
 
   /// Opens [device] once it is booted (after a headless start).
@@ -97,28 +149,45 @@ class StreamsCubit extends CubitSignal<StreamsState> {
     }
   }
 
+  /// Closes [deviceId]'s tile and stops its session (or drops its queued start).
   Future<void> closeStream(String deviceId) async {
+    _queued.remove(deviceId);
     _setEntries([
       for (final e in stateValue.entries)
         if (e.device.id != deviceId) e,
     ]);
     await _subscriptions.remove(deviceId)?.cancel();
     await _sessions.remove(deviceId)?.stop();
+    _recordingLock.release(deviceId);
   }
 
-  /// Starts or stops recording [deviceId] into [directory].
+  /// Starts or stops recording [deviceId] into [directory]. Throws
+  /// [RecordingInProgress] when the grid or another device is recording.
   Future<String?> toggleRecording(String deviceId, String directory) async {
     final session = _sessions[deviceId];
     if (session == null) return null;
     if (session.isRecording) {
       final path = await session.stopRecording();
-      _update(deviceId, (e) => e.copyWith(recording: false));
+      _recordingLock.release(deviceId);
+      _update(deviceId, (e) => e.copyWith(recordingSince: () => null));
       if (path != null) onSaved?.call(path);
       return path;
     }
+    final name = stateValue.entries
+        .where((e) => e.device.id == deviceId)
+        .firstOrNull
+        ?.device
+        .name;
+    _recordingLock.acquire(deviceId, label: name ?? deviceId);
     final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-    await session.startRecording('$directory/simutil-$deviceId-$stamp.mp4');
-    _update(deviceId, (e) => e.copyWith(recording: true));
+    try {
+      await session.startRecording('$directory/simutil-$deviceId-$stamp.mp4');
+    } catch (_) {
+      _recordingLock.release(deviceId);
+      rethrow;
+    }
+    final since = DateTime.now();
+    _update(deviceId, (e) => e.copyWith(recordingSince: () => since));
     return null;
   }
 

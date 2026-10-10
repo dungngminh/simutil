@@ -4,18 +4,21 @@ import 'package:flutter/services.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
 
-import 'apple_chrome.dart';
+import 'package:simutil_app/src/stream/stream_fps.dart';
+import 'package:simutil_app/src/stream/ios/apple_chrome.dart';
 
 /// [DeviceSession] for a booted iOS simulator, backed by the native
 /// `SimStreamPlugin` (macOS): the framebuffer is a Flutter texture and input
 /// goes through SimulatorKit's HID client.
 class IosSimSession implements DeviceSession {
+  /// Creates a session for simulator [udid]; call [start] to connect.
   IosSimSession(this.udid, {required CommandExec exec})
     : _exec = exec,
       _recorder = SimulatorRecorder(udid) {
     _ensureHandler();
   }
 
+  /// Simulator UDID.
   final String udid;
   final CommandExec _exec;
   final SimulatorRecorder _recorder;
@@ -93,6 +96,7 @@ class IosSimSession implements DeviceSession {
         'udid': udid,
       }))!;
       textureId = result['textureId']! as int;
+      setFrameCounter(this, _framesShown);
       chrome ??= await AppleChrome.load(
         _channel,
         udid,
@@ -105,6 +109,9 @@ class IosSimSession implements DeviceSession {
       _emit(SessionFailed(e.message ?? e.code));
     }
   }
+
+  Future<int> _framesShown() async =>
+      await _channel.invokeMethod<int>('frames', {'udid': udid}) ?? 0;
 
   Future<bool> _isInputShadowed() async {
     try {
@@ -170,6 +177,7 @@ class IosSimSession implements DeviceSession {
   Future<void> stop() async {
     await _recorder.stop();
     if (_active[udid] == this) _active.remove(udid);
+    removeFrameCounter(this, _framesShown);
     await _channel.invokeMethod<void>('stop', {'udid': udid});
     await _statusController.close();
   }
