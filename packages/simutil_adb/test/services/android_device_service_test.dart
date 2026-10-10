@@ -96,6 +96,20 @@ void main() {
 
       expect(svc.adbPath, 'adb');
     });
+
+    test('uses .exe binaries and LOCALAPPDATA SDK on Windows', () {
+      const sdk = r'C:\Users\test\AppData\Local/Android/Sdk';
+      final svc = AndroidDeviceService(
+        FakeCommandExec((_, _) => null),
+        environment: {'LOCALAPPDATA': r'C:\Users\test\AppData\Local'},
+        fileExists: (path) => path == '$sdk/platform-tools/adb.exe',
+        isWindows: true,
+      );
+
+      expect(svc.getAndroidHome(), sdk);
+      expect(svc.adbPath, '$sdk/platform-tools/adb.exe');
+      expect(svc.emulatorPath, '$sdk/emulator/emulator.exe');
+    });
   });
 
   group('getSimulators', () {

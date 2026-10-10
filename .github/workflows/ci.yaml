@@ -60,6 +60,24 @@ jobs:
           mode: binary
           source: ${{ matrix.artifact }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools emulator
+
+      - name: Smoke test Android discovery
+        shell: pwsh
+        env:
+          ANDROID_AVD_HOME: ${{ runner.temp }}/avd
+        run: |
+          # Fake AVD: `emulator -list-avds` only scans *.ini, so no system image
+          # download or hardware acceleration is needed.
+          New-Item -ItemType Directory -Force "$env:ANDROID_AVD_HOME/ci_test.avd" | Out-Null
+          Set-Content "$env:ANDROID_AVD_HOME/ci_test.ini" "path=$env:ANDROID_AVD_HOME/ci_test.avd"
+          adb version
+          simutil list --android --json | Tee-Object -Variable out
+          if (-not ($out -match 'ci_test')) { throw 'simutil did not find the Android SDK or AVD' }
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:

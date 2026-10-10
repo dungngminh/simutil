@@ -10,15 +10,17 @@ class AndroidDeviceService implements DeviceService {
   /// Creates a service using [CommandExec] for all shell work.
   ///
   /// [androidHomeOverride] wins over `ANDROID_HOME` / `ANDROID_SDK_ROOT`.
-  /// [environment] and [fileExists] are test seams.
+  /// [environment], [fileExists] and [isWindows] are test seams.
   AndroidDeviceService(
     this._exec, {
     String? androidHomeOverride,
     Map<String, String>? environment,
     bool Function(String path)? fileExists,
+    bool? isWindows,
   }) : _androidHomeOverride = androidHomeOverride,
        _environment = environment,
-       _fileExists = fileExists;
+       _fileExists = fileExists,
+       _isWindows = isWindows ?? Platform.isWindows;
 
   static const Duration _deviceListTimeout = Duration(seconds: 15);
   static final RegExp _physicalDeviceIdPattern = RegExp(r'^[A-Za-z0-9._:-]+$');
@@ -27,6 +29,10 @@ class AndroidDeviceService implements DeviceService {
   final String? _androidHomeOverride;
   final Map<String, String>? _environment;
   final bool Function(String path)? _fileExists;
+  final bool _isWindows;
+
+  /// SDK binaries are `adb.exe` / `emulator.exe` on Windows.
+  String get _exe => _isWindows ? '.exe' : '';
 
   Map<String, String> get _env => _environment ?? Platform.environment;
 
@@ -45,6 +51,8 @@ class AndroidDeviceService implements DeviceService {
     final env = _env['ANDROID_HOME'] ?? _env['ANDROID_SDK_ROOT'];
     if (env != null && env.isNotEmpty) return env;
 
+    if (_isWindows) return '${_env['LOCALAPPDATA'] ?? ''}/Android/Sdk';
+
     final home = _env['HOME'] ?? '';
     if (Platform.isLinux) return '$home/Android/Sdk';
     return '$home/Library/Android/sdk';
@@ -52,14 +60,14 @@ class AndroidDeviceService implements DeviceService {
 
   /// Path to `adb` (SDK `platform-tools` or `PATH`).
   String get adbPath {
-    final sdkAdbPath = '${getAndroidHome()}/platform-tools/adb';
+    final sdkAdbPath = '${getAndroidHome()}/platform-tools/adb$_exe';
     if (_pathExists(sdkAdbPath)) return sdkAdbPath;
 
     return 'adb';
   }
 
   /// Path to the SDK `emulator` binary.
-  String get emulatorPath => '${getAndroidHome()}/emulator/emulator';
+  String get emulatorPath => '${getAndroidHome()}/emulator/emulator$_exe';
 
   @override
   Future<bool> isAvailable() async {
