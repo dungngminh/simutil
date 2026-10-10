@@ -62,7 +62,7 @@ Pass `devices` (ids or names) to pick devices; every step is checked before
 any device moves. iOS simulators that are not slim yet are switched to Slim
 first (rebooted in parallel, which closes open apps); pass `"slim": false` to
 skip that. Every device is readied before any starts, so they begin together;
-the result has `prep_ms` and, per device, `start_ms` / `end_ms` from that
+the result has `prep_ms` (slimming and readying) and, per device, `start_ms` / `end_ms` from that
 common start and `steps_ms`.
 
 ## Requirements

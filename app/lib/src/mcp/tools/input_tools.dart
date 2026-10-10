@@ -122,10 +122,10 @@ List<McpTool> inputTools(ToolContext c) => [
       if (targets.isEmpty) {
         throw ArgumentError('No devices: pass devices or stream some first');
       }
+      final clock = Stopwatch()..start();
       final slimmedNow = args['slim'] == false
           ? const <String>{}
           : await _slimSimulators(c, targets);
-      final clock = Stopwatch()..start();
       final sessions = await Future.wait([
         for (final device in targets) _ready(c, device),
       ]);
