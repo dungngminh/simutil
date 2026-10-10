@@ -14,7 +14,7 @@ List<McpTool> inputTools(ToolContext c) => [
     handler: (args) async {
       final x = _coord(args, 'x');
       final y = _coord(args, 'y');
-      await _tap(await c.live(c.find(args)), x, y);
+      await _tap(await c.input(c.find(args)), x, y);
       return c.text('Tapped ($x, $y)');
     },
   ),
@@ -32,7 +32,7 @@ List<McpTool> inputTools(ToolContext c) => [
     required: ['device', 'x1', 'y1', 'x2', 'y2'],
     handler: (args) async {
       _validateStep({...args, 'action': 'swipe'});
-      await _swipe(await c.live(c.find(args)), args);
+      await _swipe(await c.input(c.find(args)), args);
       return c.text('Swiped');
     },
   ),
@@ -43,8 +43,22 @@ List<McpTool> inputTools(ToolContext c) => [
     required: ['device', 'button'],
     handler: (args) async {
       final b = _button(args);
-      (await c.live(c.find(args))).press(b);
+      (await c.input(c.find(args))).press(b);
       return c.text('Pressed ${b.name}');
+    },
+  ),
+  McpTool(
+    name: 'repair_input',
+    description:
+        'iOS simulator: restore input after Xcode Device Hub took it over '
+        '(tap/swipe/press report it). Restarts backboardd, closing open apps.',
+    properties: deviceArg,
+    required: ['device'],
+    handler: (args) async {
+      final device = c.find(args);
+      await (await c.live(device)).repairInput();
+      await c.input(device);
+      return c.text('Input restored on ${device.name}');
     },
   ),
   McpTool(
@@ -120,7 +134,7 @@ Future<Map<String, Object?>> _runScenario(
   final clock = Stopwatch()..start();
   var done = 0;
   try {
-    final session = await c.live(device);
+    final session = await c.input(device);
     for (final step in steps) {
       await _runStep(session, step);
       done++;

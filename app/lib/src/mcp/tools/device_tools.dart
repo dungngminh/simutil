@@ -166,8 +166,9 @@ List<McpTool> deviceTools(ToolContext c) => [
     properties: deviceArg,
     required: ['device'],
     handler: (args) async {
-      final session = await c.live(c.find(args));
-      return c.text('Streaming ${session.deviceId} (${session.status})');
+      final device = c.find(args);
+      await c.live(device);
+      return c.text('Streaming ${device.name}');
     },
   ),
   McpTool(

@@ -113,6 +113,17 @@ class IosSimSession implements DeviceSession {
   Future<int> _framesShown() async =>
       await _channel.invokeMethod<int>('frames', {'udid': udid}) ?? 0;
 
+  /// Re-reads the Device Hub flag, which Xcode can set after [start], and
+  /// re-emits [SessionLive] when it changed. Returns whether input is blocked.
+  Future<bool> refreshInputBlocked() async {
+    final blocked = await _isInputShadowed();
+    if (blocked != _inputBlocked) {
+      _inputBlocked = blocked;
+      if (_status is SessionLive) _live(_width!, _height!);
+    }
+    return blocked;
+  }
+
   Future<bool> _isInputShadowed() async {
     try {
       final result = await _simctlSpawn([

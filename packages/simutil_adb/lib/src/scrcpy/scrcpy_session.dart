@@ -138,8 +138,9 @@ class _ScrcpySession implements ScrcpySession {
       await _startServer();
       await _connect();
     } catch (e) {
-      await stop();
+      // Emit before stop(): it closes the status stream.
       _emit(SessionFailed('$e'));
+      await stop();
     }
   }
 
