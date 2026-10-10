@@ -62,11 +62,6 @@ class _DeviceSidebarState extends State<DeviceSidebar> {
                     ('iOS devices', state.iosDevices),
                   ])
                     _Section(title, _filter(devices), state),
-                  if (state.message case final message?)
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(message, style: t.caption),
-                    ),
                 ],
               ),
             ),

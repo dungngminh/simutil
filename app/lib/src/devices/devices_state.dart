@@ -11,7 +11,6 @@ final class DevicesState extends Equatable {
     this.loading = false,
     this.slimmed = const {},
     this.busy = const {},
-    this.message,
   });
 
   final List<Device> androidEmulators;
@@ -27,9 +26,6 @@ final class DevicesState extends Equatable {
 
   /// Device ids with a start/stop/slim in progress.
   final Set<String> busy;
-
-  /// Last status or error message, if any.
-  final String? message;
 
   /// Every device, emulators/simulators first.
   List<Device> get all => [
@@ -47,7 +43,6 @@ final class DevicesState extends Equatable {
     bool? loading,
     Set<String>? slimmed,
     Set<String>? busy,
-    String? message,
   }) => DevicesState(
     androidEmulators: androidEmulators ?? this.androidEmulators,
     androidDevices: androidDevices ?? this.androidDevices,
@@ -56,7 +51,6 @@ final class DevicesState extends Equatable {
     loading: loading ?? this.loading,
     slimmed: slimmed ?? this.slimmed,
     busy: busy ?? this.busy,
-    message: message ?? this.message,
   );
 
   @override
@@ -68,7 +62,6 @@ final class DevicesState extends Equatable {
     loading,
     slimmed,
     busy,
-    message,
   ];
 
   static List<String> _keys(List<Device> devices) => [

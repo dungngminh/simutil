@@ -12,6 +12,9 @@ abstract interface class SlimControl {
   Future<void> setSlim(String udid, {required bool slim});
 }
 
+/// A [DevicesCubit.notices] message; [error] for failures.
+typedef DeviceNotice = ({String text, bool error});
+
 /// Loads Android and iOS device lists, reloads them when a platform
 /// reports a change, and starts, stops and slims emulators/simulators.
 class DevicesCubit extends CubitSignal<DevicesState> {
@@ -46,6 +49,11 @@ class DevicesCubit extends CubitSignal<DevicesState> {
   final Duration _pollInterval;
   final bool _loadIos;
   DeviceChangeWatcher? _watcher;
+  final _notices = StreamController<DeviceNotice>.broadcast();
+
+  /// One-off progress and error messages ("Stopping Pixel 7…"), shown as
+  /// toasts; not state, so nothing lingers once the action is done.
+  Stream<DeviceNotice> get notices => _notices.stream;
 
   /// Loads once, then reloads whenever adb / CoreSimulator / usbmuxd report
   /// a change (no polling beyond a slow [kReloadInterval] fallback).
@@ -94,7 +102,6 @@ class DevicesCubit extends CubitSignal<DevicesState> {
         iosDevices: _loadIos ? results[3] : const [],
         slimmed: slimmed,
         busy: stateValue.busy,
-        message: stateValue.message,
       ),
     );
   }
@@ -240,13 +247,13 @@ class DevicesCubit extends CubitSignal<DevicesState> {
         busy: busy
             ? {...stateValue.busy, id}
             : ({...stateValue.busy}..remove(id)),
-        message: message,
       ),
     );
+    if (message != null) _notices.add((text: message, error: false));
   }
 
   void _setMessage(String message) {
-    if (!isClosed) emit(stateValue.copyWith(message: message));
+    if (!isClosed) _notices.add((text: message, error: true));
   }
 
   Future<List<Device>> _load(Future<List<Device>> Function() loader) async {
@@ -259,6 +266,7 @@ class DevicesCubit extends CubitSignal<DevicesState> {
 
   @override
   Future<void> close() async {
+    await _notices.close();
     await _watcher?.stop();
     await super.close();
   }

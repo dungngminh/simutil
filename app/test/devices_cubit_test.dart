@@ -37,6 +37,22 @@ void main() {
     await cubit.close();
   });
 
+  test('shutdown announces progress as a notice, not as state', () async {
+    final cubit = DevicesCubit(
+      android: FakeDeviceService(),
+      ios: FakeDeviceService(),
+      loadIos: false,
+    );
+    final notices = <DeviceNotice>[];
+    cubit.notices.listen(notices.add);
+
+    await cubit.shutdown(emulator('pixel', DeviceState.booted));
+
+    expect(notices, [(text: 'Stopping pixel…', error: false)]);
+    expect(cubit.stateValue.busy, isEmpty);
+    await cubit.close();
+  });
+
   test('launch boots only stopped emulators', () async {
     final android = FakeDeviceService();
     final cubit = DevicesCubit(

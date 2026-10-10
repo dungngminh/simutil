@@ -62,7 +62,6 @@ String _devices(DevicesState s) {
     '${all.length} devices ($booted booted)',
     'busy: ${busy.isEmpty ? 'none' : busy.join(', ')}',
     if (s.loading) 'refreshing',
-    if (s.message case final m?) '"$m"',
   ].join(', ');
 }
 

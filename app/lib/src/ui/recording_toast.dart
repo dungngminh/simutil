@@ -131,6 +131,7 @@ class _ToastFeeds extends StatefulWidget {
 
 class _ToastFeedsState extends State<_ToastFeeds> {
   StreamSubscription<String>? _saved;
+  StreamSubscription<DeviceNotice>? _deviceNotices;
   void Function()? _unsubscribeStreams;
   var _statuses = <String, SessionStatus>{};
 
@@ -158,6 +159,14 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     super.didChangeDependencies();
     if (_unsubscribeStreams != null) return;
     _saved = getIt<SavedRecordings>().saved.listen(_onSaved);
+    _deviceNotices = getIt<DevicesCubit>().notices.listen((n) {
+      if (!mounted) return;
+      showNotice(
+        context,
+        n.text,
+        tone: n.error ? NoticeTone.error : NoticeTone.info,
+      );
+    });
     final streams = getIt<StreamsCubit>();
     // Seeded first so the immediate subscribe call announces nothing.
     _statuses = _statusesOf(streams.stateValue);
@@ -171,6 +180,7 @@ class _ToastFeedsState extends State<_ToastFeeds> {
   @override
   void dispose() {
     _saved?.cancel();
+    _deviceNotices?.cancel();
     _unsubscribeStreams?.call();
     _unsubscribeSlim?.call();
     super.dispose();
