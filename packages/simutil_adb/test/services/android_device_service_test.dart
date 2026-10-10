@@ -27,8 +27,11 @@ void main() {
     sdkDir.deleteSync(recursive: true);
   });
 
-  AndroidDeviceService service(FakeCommandExec exec) =>
-      AndroidDeviceService(exec, androidHomeOverride: sdkDir.path);
+  AndroidDeviceService service(FakeCommandExec exec) => AndroidDeviceService(
+    exec,
+    androidHomeOverride: sdkDir.path,
+    isWindows: false,
+  );
 
   group('paths', () {
     test('resolves adb/emulator paths from the android home override', () {
@@ -44,6 +47,7 @@ void main() {
         FakeCommandExec((_, _) => null),
         environment: {'ANDROID_HOME': '/opt/android-sdk', 'HOME': '/home/test'},
         fileExists: (path) => path == '/opt/android-sdk/platform-tools/adb',
+        isWindows: false,
       );
 
       expect(svc.getAndroidHome(), '/opt/android-sdk');
@@ -69,6 +73,7 @@ void main() {
           'ANDROID_SDK_ROOT': '/opt/android-sdk-root',
           'HOME': '/home/test',
         },
+        isWindows: false,
       );
 
       expect(svc.getAndroidHome(), overrideDir.path);
@@ -81,6 +86,7 @@ void main() {
         environment: {'HOME': '/home/test'},
         fileExists: (path) =>
             path == '/home/test/Android/Sdk/platform-tools/adb',
+        isWindows: false,
       );
 
       expect(svc.getAndroidHome(), '/home/test/Android/Sdk');
@@ -92,6 +98,7 @@ void main() {
         FakeCommandExec((_, _) => null),
         environment: {'HOME': '/home/test'},
         fileExists: (_) => false,
+        isWindows: false,
       );
 
       expect(svc.adbPath, 'adb');
@@ -415,6 +422,7 @@ void main() {
       final svc = AndroidDeviceService(
         exec,
         androidHomeOverride: '${sdkDir.path}/missing',
+        isWindows: false,
       );
 
       expect(await svc.isAvailable(), isFalse);
