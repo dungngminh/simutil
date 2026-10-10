@@ -40,7 +40,7 @@ claude mcp add --transport http simutil http://127.0.0.1:8765/mcp
 | `start_device` / `shutdown_device` | Boot (headless by default) or shut down an emulator / simulator |
 | `stream_device` | Show a running device in the grid |
 | `tap` / `swipe` / `press_button` | Input with coordinates normalized to 0..1; back (Android), home, recents, lock |
-| `run_scenario` | The same steps (`tap`, `swipe`, `press`, `wait`) on several Android and iOS devices in parallel; reports each device's outcome |
+| `run_scenario` | The same steps (`tap`, `swipe`, `press`, `wait`) on several Android and iOS devices in parallel, all starting together; reports each device's outcome and timing |
 | `screenshot` | PNG of a running device |
 | `record_device` / `record_grid` | Start / stop a recording; returns the file when stopping |
 | `set_slim` | iOS simulator: turn background services off / on (reboots a running one) |
@@ -59,7 +59,11 @@ A scenario on every streamed device:
 ```
 
 Pass `devices` (ids or names) to pick devices; every step is checked before
-any device moves.
+any device moves. iOS simulators that are not slim yet are switched to Slim
+first (rebooted in parallel, which closes open apps); pass `"slim": false` to
+skip that. Every device is readied before any starts, so they begin together;
+the result has `prep_ms` and, per device, `start_ms` / `end_ms` from that
+common start and `steps_ms`.
 
 ## Requirements
 

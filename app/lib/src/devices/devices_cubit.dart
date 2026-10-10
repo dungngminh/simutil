@@ -252,9 +252,12 @@ class DevicesCubit extends CubitSignal<DevicesState> {
     if (message != null) _notices.add((text: message, error: false));
   }
 
-  void _setMessage(String message) {
-    if (!isClosed) _notices.add((text: message, error: true));
+  /// Shows [text] as a toast, e.g. progress of an MCP tool.
+  void notify(String text, {bool error = false}) {
+    if (!isClosed) _notices.add((text: text, error: error));
   }
+
+  void _setMessage(String message) => notify(message, error: true);
 
   Future<List<Device>> _load(Future<List<Device>> Function() loader) async {
     try {

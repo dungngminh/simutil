@@ -24,6 +24,8 @@ First version of the desktop app (macOS, Windows, Linux).
   grid's stop button.
 - MCP server so agents can list, start, stream, tap, swipe, screenshot and
   record devices.
+- MCP scenarios run on many devices at once, starting together. iOS
+  simulators switch to Slim mode first, with a notice.
 
 ### Changed
 

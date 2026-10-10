@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:simutil_app/src/mcp/mcp_server.dart';
 import 'package:simutil_app/src/mcp/tools/tool_context.dart';
@@ -66,11 +67,19 @@ List<McpTool> inputTools(ToolContext c) => [
     name: 'run_scenario',
     description:
         'Run the same steps on several devices (Android and iOS) at once. '
-        'Each device runs the steps in order; devices run in parallel. '
+        'All devices are readied first, then start together; each runs the '
+        'steps in order. iOS simulators not yet slim are slimmed first '
+        '(parallel reboot, closes open apps) unless slim is false. '
         'Steps: {action: tap, x, y} | {action: swipe, x1, y1, x2, y2, '
         'duration_ms?} | {action: press, button} | {action: wait, ms}. '
-        "Coordinates are normalized 0..1. Returns each device's outcome.",
+        "Coordinates are normalized 0..1. Returns each device's outcome "
+        'with start/end ms from the common start and per-step ms.',
     properties: {
+      'slim': {
+        'type': 'boolean',
+        'default': true,
+        'description': 'Slim iOS simulators before running',
+      },
       'devices': {
         'type': 'array',
         'items': {'type': 'string'},
@@ -113,10 +122,33 @@ List<McpTool> inputTools(ToolContext c) => [
       if (targets.isEmpty) {
         throw ArgumentError('No devices: pass devices or stream some first');
       }
-      final results = await Future.wait([
-        for (final device in targets) _runScenario(c, device, steps),
+      final slimmedNow = args['slim'] == false
+          ? const <String>{}
+          : await _slimSimulators(c, targets);
+      final clock = Stopwatch()..start();
+      final sessions = await Future.wait([
+        for (final device in targets) _ready(c, device),
       ]);
-      return c.text(results);
+      final prepMs = clock.elapsedMilliseconds;
+      // Every session is ready: all devices start from here together.
+      clock.reset();
+      final results = await Future.wait([
+        for (final (i, device) in targets.indexed)
+          _runScenario(device, sessions[i], steps, clock),
+      ]);
+      final slimmed = c.devices.stateValue.slimmed;
+      for (final (i, device) in targets.indexed) {
+        if (device.os == DeviceOs.ios && !device.type.isPhysical) {
+          results[i]['slim'] = slimmed.contains(device.id);
+          results[i]['slimmed_now'] = slimmedNow.contains(device.id);
+        }
+      }
+      final ok = results.where((r) => r['ok'] == true).length;
+      c.devices.notify(
+        'Scenario done: $ok/${results.length}',
+        error: ok < results.length,
+      );
+      return c.text({'prep_ms': prepMs, 'devices': results});
     },
   ),
 ];
@@ -126,26 +158,74 @@ final _buttonSchema = {
   'enum': [for (final b in DeviceButton.values) b.name],
 };
 
-/// Runs [steps] on [device]; reports where it stopped instead of throwing.
-Future<Map<String, Object?>> _runScenario(
-  ToolContext c,
-  Device device,
-  List<Map<String, Object?>> steps,
-) async {
-  final clock = Stopwatch()..start();
-  var done = 0;
+/// Slims the iOS simulators in [targets] that are not slim yet, rebooting
+/// them in parallel; returns the ids that ended up slim.
+Future<Set<String>> _slimSimulators(ToolContext c, List<Device> targets) async {
+  final slimmed = c.devices.stateValue.slimmed;
+  final pending = [
+    for (final d in targets)
+      if (d.os == DeviceOs.ios && !d.type.isPhysical && !slimmed.contains(d.id))
+        d,
+  ];
+  if (pending.isEmpty) return const {};
+  final n = pending.length;
+  c.devices.notify('Slimming $n simulator${n == 1 ? '' : 's'} (reboot)');
+  await Future.wait([
+    // A failed slim shows its own notice; the device then runs unslimmed.
+    for (final d in pending) c.slim.setSlim(d, on: true).catchError((_) {}),
+  ]);
+  final now = c.devices.stateValue.slimmed;
+  return {
+    for (final d in pending)
+      if (now.contains(d.id)) d.id,
+  };
+}
+
+/// [device]'s session once input works, or why it could not get there.
+Future<Object> _ready(ToolContext c, Device device) async {
   try {
-    final session = await c.input(device);
+    return await c.input(device);
+  } catch (e) {
+    return e;
+  }
+}
+
+/// Runs [steps] on [session] (or reports [session]'s setup error), timed by
+/// [clock] from the common start; reports where it stopped, never throws.
+Future<Map<String, Object?>> _runScenario(
+  Device device,
+  Object session,
+  List<Map<String, Object?>> steps,
+  Stopwatch clock,
+) async {
+  if (session is! DeviceSession) {
+    return {
+      'device': device.name,
+      'ok': false,
+      'failed_step': 0,
+      'error': '$session',
+    };
+  }
+  final start = clock.elapsedMilliseconds;
+  final stepsMs = <int>[];
+  try {
     for (final step in steps) {
+      final at = clock.elapsedMilliseconds;
       await _runStep(session, step);
-      done++;
+      stepsMs.add(clock.elapsedMilliseconds - at);
     }
-    return {'device': device.name, 'ok': true, 'ms': clock.elapsedMilliseconds};
+    return {
+      'device': device.name,
+      'ok': true,
+      'start_ms': start,
+      'end_ms': clock.elapsedMilliseconds,
+      'steps_ms': stepsMs,
+    };
   } catch (e) {
     return {
       'device': device.name,
       'ok': false,
-      'failed_step': done,
+      'failed_step': stepsMs.length,
       'error': '$e',
     };
   }
@@ -181,11 +261,14 @@ Future<void> _swipe(DeviceSession session, Map<String, Object?> args) async {
   final [x1, y1, x2, y2] = [
     for (final k in ['x1', 'y1', 'x2', 'y2']) _coord(args, k),
   ];
-  final steps = ((args['duration_ms'] as int? ?? 300) / 16).ceil();
+  final duration = args['duration_ms'] as int? ?? 300;
+  // Positions follow the clock, not a count of ~16 ms ticks, so a busy UI
+  // isolate cannot stretch the swipe past duration_ms.
+  final clock = Stopwatch()..start();
   session.touch(TouchPhase.down, x1, y1);
-  for (var i = 1; i <= steps; i++) {
+  while (clock.elapsedMilliseconds < duration) {
     await Future<void>.delayed(const Duration(milliseconds: 16));
-    final t = i / steps;
+    final t = min(clock.elapsedMilliseconds / duration, 1.0);
     session.touch(TouchPhase.move, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t);
   }
   session.touch(TouchPhase.up, x2, y2);
