@@ -4,6 +4,7 @@ import 'package:simutil_app/src/mcp/mcp_server.dart';
 import 'package:simutil_app/src/mcp/tools/tool_context.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
+import 'package:simutil_app/src/stream/stream_fps.dart';
 import 'package:simutil_app/src/ui/streams/stream_layout.dart';
 import 'package:simutil_core/simutil_core.dart';
 
@@ -13,8 +14,8 @@ List<McpTool> deviceTools(ToolContext c) => [
     name: 'list_devices',
     description:
         'Android emulators/devices and iOS simulators/devices with their '
-        'state, slim mode, whether they are streamed in SimUtil and, when '
-        'recording, for how many seconds.',
+        'state, slim mode, whether they are streamed in SimUtil (with the '
+        'frames per second shown) and, when recording, for how many seconds.',
     handler: (_) async {
       await c.devices.refresh(silent: true);
       final state = c.devices.stateValue;
@@ -28,6 +29,8 @@ List<McpTool> deviceTools(ToolContext c) => [
             'state': d.state.label,
             'slim': state.slimmed.contains(d.id),
             'streaming': c.streams.stateValue.isOpen(d.id),
+            if (c.streams.sessionFor(d.id) case final session?)
+              'fps': _fps(session),
             'recording_seconds': c.recordingSeconds(d.id),
           },
       ]);
@@ -205,6 +208,22 @@ List<McpTool> deviceTools(ToolContext c) => [
     },
   ),
 ];
+
+/// [session]'s shown frames per second. The meter only runs while
+/// listened to, so the first read keeps it running for the session's
+/// lifetime: tiles hide their fps when small or hidden.
+double _fps(DeviceSession session) {
+  final fps = streamFps(session);
+  if (_metered[session] == null) {
+    _metered[session] = true;
+    fps.addListener(_noop);
+  }
+  return double.parse(fps.value.toStringAsFixed(1));
+}
+
+final _metered = Expando<bool>();
+
+void _noop() {}
 
 /// The device's launch options from the UI, when the app's DI is up.
 DeviceSettings _launchOptions(Device device) =>

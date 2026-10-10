@@ -26,6 +26,7 @@ First version of the desktop app (macOS, Windows, Linux).
   record devices.
 - MCP scenarios run on many devices at once, starting together. iOS
   simulators switch to Slim mode first, with a notice.
+- MCP device list shows each stream's frames per second.
 
 ### Changed
 

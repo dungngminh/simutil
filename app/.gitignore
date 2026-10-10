@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Benchmark reports (machine-specific)
+/benchmark/results/

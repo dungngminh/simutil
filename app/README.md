@@ -35,7 +35,7 @@ claude mcp add --transport http simutil http://127.0.0.1:8765/mcp
 
 | Tool | What it does |
 | ---- | ------------ |
-| `list_devices` | Devices with state, slim mode, streaming, and `recording_seconds` while recording |
+| `list_devices` | Devices with state, slim mode, streaming (with `fps` shown), and `recording_seconds` while recording |
 | `get_spotlight` | Stream layout, the device shown large, how long it and the grid have been recording |
 | `start_device` / `shutdown_device` | Boot (headless by default) or shut down an emulator / simulator |
 | `stream_device` | Show a running device in the grid |
@@ -89,3 +89,20 @@ flutter run -d macos   # or windows / linux
 ```
 
 Tests: `flutter test` here, or `dart run melos run test:flutter` from the root.
+
+## Benchmark
+
+`benchmark/bench.dart` measures the running app through its MCP server:
+CPU and memory of the app and its child processes, stream FPS, recording
+frame rate, MCP latency and `run_scenario` skew / overhead. Build and start a
+release app, boot the devices, then for example:
+
+```bash
+cd app
+dart run benchmark/bench.dart stream --devices "iPhone 17e,Pixel_7" --animate
+dart run benchmark/bench.dart scenario --devices "iPhone 17e,Pixel_7" --runs 20
+dart run benchmark/bench.dart record --quality high --animate --devices "iPhone 17e"
+```
+
+Each run prints and saves a JSON report under `benchmark/results/`
+(ignored by git). The file header lists every case and option.
