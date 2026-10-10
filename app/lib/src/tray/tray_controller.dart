@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
@@ -19,6 +20,9 @@ class TrayController with WindowListener {
   TrayIcon? _trayIcon;
   Menu? _menu;
   void Function()? _unsubscribe;
+
+  /// Shown in the menu (click copies it) once the MCP server runs.
+  Uri? mcpUrl;
 
   Future<void> init() async {
     windowManager.addListener(this);
@@ -48,7 +52,16 @@ class TrayController with WindowListener {
     menu
       ..addSeparator()
       ..addItem(_item('Show SimUtil', onClick: showWindow))
-      ..addItem(_item('Refresh', onClick: _devices.refresh))
+      ..addItem(_item('Refresh', onClick: _devices.refresh));
+    if (mcpUrl case final url?) {
+      menu.addItem(
+        _item(
+          'Copy MCP URL ($url)',
+          onClick: () => Clipboard.setData(ClipboardData(text: '$url')),
+        ),
+      );
+    }
+    menu
       ..addSeparator()
       ..addItem(_item('Quit SimUtil', onClick: _quit));
 
