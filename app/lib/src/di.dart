@@ -5,6 +5,7 @@ import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_shared/simutil_shared.dart';
 
 import 'devices/devices_cubit.dart';
+import 'stream/streams_cubit.dart';
 
 /// App-wide service locator.
 final getIt = GetIt.instance;
@@ -23,6 +24,15 @@ Future<void> configureDependencies() async {
       () => DevicesCubit(
         android: getIt<AndroidDeviceService>(),
         ios: getIt<IOSDeviceService>(),
+      ),
+      dispose: (cubit) => cubit.close(),
+    )
+    ..registerLazySingleton<StreamsCubit>(
+      () => StreamsCubit(
+        defaultStreamFactory(
+          exec: getIt<CommandExec>(),
+          adbPath: () => getIt<AndroidDeviceService>().adbPath,
+        ),
       ),
       dispose: (cubit) => cubit.close(),
     );

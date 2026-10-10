@@ -4,6 +4,7 @@ import 'package:simutil_core/simutil_core.dart';
 
 import '../devices/devices_cubit.dart';
 import '../devices/devices_state.dart';
+import '../stream/streams_cubit.dart';
 
 /// Device sections with launch actions.
 class DeviceSidebar extends StatelessWidget {
@@ -108,13 +109,22 @@ class DeviceTile extends StatelessWidget {
       ),
       title: Text(device.name, overflow: TextOverflow.ellipsis),
       subtitle: Text(device.state.label),
-      trailing: !device.type.isPhysical && device.state == DeviceState.shutdown
-          ? IconButton(
-              tooltip: 'Launch',
-              icon: const Icon(Icons.play_arrow),
-              onPressed: () => context.read<DevicesCubit>().launch(device),
-            )
-          : null,
+      trailing: switch (device) {
+        _ when StreamsCubit.canStream(device) => IconButton(
+          tooltip: 'Stream',
+          icon: const Icon(Icons.cast),
+          onPressed: () => context.read<StreamsCubit>().open(device),
+        ),
+        _
+            when !device.type.isPhysical &&
+                device.state == DeviceState.shutdown =>
+          IconButton(
+            tooltip: 'Launch',
+            icon: const Icon(Icons.play_arrow),
+            onPressed: () => context.read<DevicesCubit>().launch(device),
+          ),
+        _ => null,
+      },
     );
   }
 }

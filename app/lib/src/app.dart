@@ -4,14 +4,18 @@ import 'package:flutter/material.dart';
 import 'devices/devices_cubit.dart';
 import 'di.dart';
 import 'home/home_page.dart';
+import 'stream/streams_cubit.dart';
 
 class SimutilApp extends StatelessWidget {
   const SimutilApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocSignalProvider<DevicesCubit>.value(
-      value: getIt<DevicesCubit>(),
+    return MultiBlocSignalProvider(
+      providers: [
+        BlocSignalProvider<DevicesCubit>.value(value: getIt<DevicesCubit>()),
+        BlocSignalProvider<StreamsCubit>.value(value: getIt<StreamsCubit>()),
+      ],
       child: MaterialApp(
         title: 'SimUtil',
         debugShowCheckedModeBanner: false,
