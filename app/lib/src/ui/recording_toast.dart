@@ -224,17 +224,14 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     final mode = state.enabled ? 'Slim mode' : 'Default mode';
     if (state.applying) {
       _slimSwitching = _show(
-        76,
+        60,
         (close) => SimuToast(
-          height: 76,
+          height: 60,
           icon: LucideIcons.leaf,
           tone: t.accent,
           busy: true,
           title: 'Switching to $mode…',
-          subtitle:
-              'Open simulators reboot one at a time; their streams '
-              'reconnect on their own.',
-          subtitleLines: 2,
+          subtitle: 'Simulators reboot, streams reconnect',
         ),
       );
       return;
@@ -247,10 +244,10 @@ class _ToastFeedsState extends State<_ToastFeeds> {
         height: 60,
         icon: LucideIcons.leaf,
         tone: t.success,
-        title: '$mode is on',
+        title: '$mode on',
         subtitle: state.enabled
-            ? 'New simulators start slim too'
-            : 'Simulators run every service',
+            ? 'New simulators start slim'
+            : 'All services back',
         onClose: close,
       ),
       hideAfter: const Duration(seconds: 3),

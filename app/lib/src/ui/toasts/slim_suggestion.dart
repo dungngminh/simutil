@@ -4,9 +4,8 @@ import 'package:simutil_app/src/stream/streams_state.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
 import 'package:simutil_core/simutil_core.dart';
 
-/// Height of [SlimSuggestionToast]: title, up to six subtitle lines,
-/// buttons.
-const kSlimSuggestionHeight = 170.0;
+/// Height of [SlimSuggestionToast]: title, two subtitle lines, buttons.
+const kSlimSuggestionHeight = 116.0;
 
 /// Whether to suggest Slim mode: two or more simulators are streamed, the
 /// mode is off and at least one of them still runs every background
@@ -43,13 +42,11 @@ class SlimSuggestionToast extends StatelessWidget {
       height: kSlimSuggestionHeight,
       icon: LucideIcons.leaf,
       tone: t.accent,
-      title: 'Run simulators in Slim mode?',
+      title: 'Use Slim mode?',
       subtitle:
-          'Turns off background services in each simulator (widgets, Siri, '
-          'iCloud, Photos, telemetry…) so several stay smooth: roughly 4 GB '
-          '→ 1 GB of memory each. Open simulators reboot; switch back any '
-          'time with the leaf button in the toolbar.',
-      subtitleLines: 6,
+          'No background services: ~4 GB → 1 GB per simulator. '
+          'Open ones reboot.',
+      subtitleLines: 2,
       onClose: onClose,
       actions: [
         SimuButton(

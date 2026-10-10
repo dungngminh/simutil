@@ -333,9 +333,8 @@ class _SlimModeButton extends StatelessWidget {
       icon: LucideIcons.leaf,
       active: state.enabled,
       tooltip: state.enabled
-          ? 'Slim mode: simulators run without background services. '
-                'Click for default (reboots open ones)'
-          : 'Default mode. Click to run simulators slim (reboots open ones)',
+          ? 'Slim mode on. Click to restore (reboots)'
+          : 'Slim mode (reboots)',
       onPressed: () =>
           context.read<SlimModeCubit>().setMode(enabled: !state.enabled),
     );

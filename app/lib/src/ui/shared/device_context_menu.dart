@@ -77,9 +77,7 @@ List<native.MenuItem> _deviceItems(BuildContext context, Device device) {
     ),
     if (device.os == DeviceOs.ios && !device.type.isPhysical)
       menuItem(
-        slim
-            ? 'Restore all services (reboots)'
-            : 'Slim: disable background services (reboots)',
+        slim ? 'Restore services (reboots)' : 'Slim (reboots)',
         () => slimMode.setSlim(device, on: !slim),
       ),
     if (device.os == DeviceOs.android &&
