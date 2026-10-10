@@ -16,7 +16,6 @@ class TrayController with WindowListener {
   /// Called by the Quit item, after the tray icon is removed.
   final Future<void> Function() onQuit;
 
-  // Kept alive on purpose: a collected TrayIcon removes itself from the tray.
   TrayIcon? _trayIcon;
   Menu? _menu;
   void Function()? _unsubscribe;

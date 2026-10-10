@@ -55,8 +55,6 @@ class McpServer {
 
   Future<void> _handle(HttpRequest request) async {
     final response = request.response;
-    // Loopback is still reachable from web pages; reject foreign origins
-    // (DNS rebinding).
     final origin = request.headers.value('origin');
     if (origin != null) {
       final host = Uri.tryParse(origin)?.host;
@@ -83,10 +81,7 @@ class McpServer {
       return _json(response, _error(null, -32700, 'Parse error'));
     }
     final messages = body is List ? body : [body];
-    final replies = [
-      for (final message in messages)
-        ?await _dispatch(message),
-    ];
+    final replies = [for (final message in messages) ?await _dispatch(message)];
     if (replies.isEmpty) {
       response.statusCode = HttpStatus.accepted;
       return response.close();

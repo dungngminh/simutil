@@ -100,7 +100,6 @@ class DevicesCubit extends CubitSignal<DevicesState> {
         if (coldBoot && device.os == DeviceOs.android) '-no-snapshot-load',
       ],
     );
-    // Not awaited: the Android launcher may block until the emulator exits.
     unawaited(
       launching.catchError(
         (Object e) => _setMessage('Failed to start ${device.name}: $e'),

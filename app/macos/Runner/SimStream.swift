@@ -4,10 +4,6 @@
 // Copyright Evan Bacon, Apache License 2.0: FrameCapture.swift,
 // HIDInjector.swift, SimFrameworks.swift, PixelBufferUtils.swift and
 // FramebufferSurfaceSelector.swift, trimmed to capture + touch + buttons.
-//
-// Everything goes through the Objective-C runtime against Xcode's private
-// CoreSimulator / SimulatorKit, loaded with dlopen. Requires the app to run
-// unsandboxed with library validation disabled (see *.entitlements).
 
 import Cocoa
 import CoreVideo
@@ -107,7 +103,6 @@ private final class SimCapture: NSObject, FlutterTexture {
     else { throw SimStreamError("Simulator IO is unavailable") }
     self.io = io
     try queue.sync { try wire() }
-    // If no frame arrives the descriptors are stale; re-wire until one does.
     let timer = DispatchSource.makeTimerSource(queue: queue)
     timer.schedule(deadline: .now() + 1, repeating: 1)
     timer.setEventHandler { [weak self] in
@@ -135,7 +130,6 @@ private final class SimCapture: NSObject, FlutterTexture {
         desc.responds(to: #selector(FramebufferDescriptor.registerScreenCallbacks))
       else { continue }
       let uuid = UUID()
-      // Registering is what makes SimulatorKit populate framebufferSurface.
       unsafeBitCast(desc, to: FramebufferDescriptor.self).registerScreenCallbacks(
         uuid: uuid, callbackQueue: queue,
         frameCallback: { [weak self] in self?.capture() },
@@ -319,8 +313,6 @@ private final class SimHID {
     queue.async { [self] in
       switch name {
       case "home":
-        // Xcode 26+ drops the HID home press; relaunching SpringBoard is the
-        // reliable equivalent.
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
         p.arguments = ["simctl", "launch", udid, "com.apple.springboard"]
@@ -406,9 +398,6 @@ private enum SimChrome {
         "right": sizing["rightWidth"] as? Double ?? 0,
       ]
     ]
-    // Prefer the full-body composite (what Simulator and serve-sim draw);
-    // otherwise lay the 9 slices out as corner | 1pt edge | corner so
-    // Flutter can stretch them with centerSlice.
     if let compositeName = images["composite"] as? String,
       let composite = image(compositeName, in: dir),
       let compositePng = png(size: composite.size, scale: 3, draw: {
@@ -435,7 +424,6 @@ private enum SimChrome {
       result["corner"] = Double(c)
     }
 
-    // Screen size in points: native pixels over the device scale.
     let scaleSel = NSSelectorFromString("mainScreenScale")
     if let pixels = SimFrameworks.mainScreenSize(device), type.responds(to: scaleSel) {
       typealias GetScale = @convention(c) (AnyObject, Selector) -> Float
@@ -446,8 +434,6 @@ private enum SimChrome {
       }
     }
 
-    // The screen's rounded corners and sensor cut-out.
-    // Its units differ per family, so it is only used as a shape.
     if let maskName = profile["framebufferMask"] as? String,
       let mask = image(maskName, in: resources),
       let maskPng = png(size: mask.size, scale: 1, draw: {
@@ -539,7 +525,6 @@ final class SimStreamPlugin: NSObject, FlutterPlugin {
       textures.unregisterTexture(textureId)
       throw error
     }
-    // Input is optional: streaming still works if HID setup fails.
     sessions[udid] = (capture, try? SimHID(device: device, udid: udid), textureId)
     let size = SimFrameworks.mainScreenSize(device) ?? .zero
     return ["textureId": textureId, "width": Int(size.width), "height": Int(size.height)]

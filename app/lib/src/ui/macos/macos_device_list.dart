@@ -106,7 +106,6 @@ class _DeviceRow extends StatelessWidget {
                 leading: MacosIcon(switch (DeviceFormFactor.of(device)) {
                   DeviceFormFactor.phone =>
                     CupertinoIcons.device_phone_portrait,
-                  // Cupertino icons have no tablet or watch glyph.
                   DeviceFormFactor.tablet => Icons.tablet_mac,
                   DeviceFormFactor.tv => CupertinoIcons.tv,
                   DeviceFormFactor.watch => Icons.watch_outlined,

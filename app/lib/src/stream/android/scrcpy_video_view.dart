@@ -17,9 +17,6 @@ class _ScrcpyVideoViewState extends State<ScrcpyVideoView> {
   final _player = Player();
   late final _controller = VideoController(_player);
 
-  // Live loopback feed: force the demuxer, keep probing short, never buffer,
-  // and present frames as soon as they decode. The socket may idle while
-  // the screen is static, so no network timeout.
   static const _mpvOptions = [
     ('load-unsafe-playlists', 'yes'),
     ('demuxer', 'lavf'),

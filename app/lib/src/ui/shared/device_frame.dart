@@ -37,7 +37,6 @@ class DeviceFrame extends StatelessWidget {
       builder: (context, constraints) {
         final (bezelRatio, radiusRatio) = enabled ? _shape : (0.0, 0.0);
         final aspect = screenSize.width / screenSize.height;
-        // Solve for the screen size that fits once the bezel is added.
         final short = min(screenSize.width, screenSize.height);
         final bezelPerPixel = bezelRatio * short;
         final outerW = screenSize.width + 2 * bezelPerPixel;

@@ -16,7 +16,7 @@ class SessionView extends StatelessWidget {
     final ScrcpySession s => ScrcpyVideoView(session: s),
     IosSimSession(:final textureId?) => Texture(
       textureId: textureId,
-      filterQuality: FilterQuality.medium,
+      filterQuality: FilterQuality.low,
     ),
     _ => const SizedBox.shrink(),
   };

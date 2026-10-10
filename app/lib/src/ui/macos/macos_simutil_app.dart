@@ -30,8 +30,6 @@ class MacosSimutilApp extends StatelessWidget {
         sidebar: Sidebar(
           minWidth: 240,
           startWidth: 280,
-          // The sidebar hides itself below this window width; the toolbar
-          // toggle brings it back.
           windowBreakpoint: kCompactWidth,
           builder: (context, scrollController) =>
               MacosDeviceList(scrollController: scrollController),

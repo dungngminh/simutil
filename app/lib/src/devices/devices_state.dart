@@ -71,7 +71,6 @@ final class DevicesState extends Equatable {
     message,
   ];
 
-  // ponytail: Device has no ==, compare by the fields the UI shows.
   static List<String> _keys(List<Device> devices) => [
     for (final d in devices) '${d.id}|${d.name}|${d.state.name}',
   ];

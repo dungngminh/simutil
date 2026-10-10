@@ -70,7 +70,6 @@ class GridRecorderCubit extends CubitSignal<bool> {
       '$fps',
       '-i',
       '-',
-      // Even dimensions for H.264.
       '-vf',
       'pad=ceil(iw/2)*2:ceil(ih/2)*2',
       if (Platform.isMacOS) ...[
@@ -90,7 +89,6 @@ class GridRecorderCubit extends CubitSignal<bool> {
     ];
     for (final ffmpeg in _ffmpegCandidates) {
       try {
-        // Long-lived encoder fed through stdin: Process.start.
         final process = await Process.start(ffmpeg, args);
         unawaited(process.stdout.drain<void>());
         unawaited(process.stderr.drain<void>());
@@ -108,7 +106,6 @@ class GridRecorderCubit extends CubitSignal<bool> {
     try {
       final frame = await _capture();
       final size = _size;
-      // Frames of another size (window resized) are dropped.
       if (frame != null &&
           size != null &&
           frame.$2 == size.width &&

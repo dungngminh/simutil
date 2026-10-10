@@ -138,7 +138,6 @@ class _ScrcpySession implements ScrcpySession {
       throw StateError('adb forward failed: ${forward.stderr.trim()}');
     }
 
-    // Long-lived streaming process: Process.start, not CommandExec.
     _server = await Process.start(adbPath, [
       '-s',
       serial,
@@ -215,7 +214,7 @@ class _ScrcpySession implements ScrcpySession {
           _height = height;
           _emit(SessionLive(width: width, height: height));
         case ScrcpyPacket(config: true, :final data):
-          _config = data; // SPS/PPS, repeated on every key frame
+          _config = data;
         case ScrcpyPacket(:final data, :final keyFrame, :final ptsMicros):
           final config = _config;
           final isKey = keyFrame && config != null;

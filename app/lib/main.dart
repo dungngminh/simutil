@@ -25,7 +25,6 @@ Future<void> main() async {
   final devices = getIt<DevicesCubit>()..start();
   final streams = getIt<StreamsCubit>();
   devices.state.subscribe((state) => streams.onDevices(state.all));
-  // Registered so it stays reachable: a collected TrayIcon removes itself.
   final tray = getIt.registerSingleton(
     TrayController(
       devices,
