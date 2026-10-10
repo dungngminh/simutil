@@ -409,13 +409,15 @@ private enum SimChrome {
       let right = image(images["right"] as? String ?? "", in: dir)
     else { return nil }
 
+    let border = (json["paths"] as? [String: Any])?["simpleOutsideBorder"] as? [String: Any]
     var result: [String: Any] = [
       "insets": [
         "top": sizing["topHeight"] as? Double ?? 0,
         "left": sizing["leftWidth"] as? Double ?? 0,
         "bottom": sizing["bottomHeight"] as? Double ?? 0,
         "right": sizing["rightWidth"] as? Double ?? 0,
-      ]
+      ],
+      "outerRadius": border?["cornerRadiusX"] as? Double ?? 0,
     ]
     if let compositeName = images["composite"] as? String,
       let composite = image(compositeName, in: dir),
@@ -427,20 +429,21 @@ private enum SimChrome {
       result["bodyWidth"] = Double(composite.size.width)
       result["bodyHeight"] = Double(composite.size.height)
     } else {
-      let c = tl.size.width
-      let side = c * 2 + 1
-      guard let nineSlice = png(size: NSSize(width: side, height: side), scale: 3, draw: {
-        tl.draw(in: NSRect(x: 0, y: c + 1, width: c, height: c))
-        top.draw(in: NSRect(x: c, y: c + 1, width: 1, height: c))
-        tr.draw(in: NSRect(x: c + 1, y: c + 1, width: c, height: c))
-        left.draw(in: NSRect(x: 0, y: c, width: c, height: 1))
-        right.draw(in: NSRect(x: c + 1, y: c, width: c, height: 1))
-        bl.draw(in: NSRect(x: 0, y: 0, width: c, height: c))
-        bottom.draw(in: NSRect(x: c, y: 0, width: 1, height: c))
-        br.draw(in: NSRect(x: c + 1, y: 0, width: c, height: c))
+      // Corners are not always square (home-button phones: 97x111).
+      let cw = tl.size.width, ch = tl.size.height
+      guard let nineSlice = png(size: NSSize(width: cw * 2 + 1, height: ch * 2 + 1), scale: 3, draw: {
+        tl.draw(in: NSRect(x: 0, y: ch + 1, width: cw, height: ch))
+        top.draw(in: NSRect(x: cw, y: ch + 1, width: 1, height: ch))
+        tr.draw(in: NSRect(x: cw + 1, y: ch + 1, width: cw, height: ch))
+        left.draw(in: NSRect(x: 0, y: ch, width: cw, height: 1))
+        right.draw(in: NSRect(x: cw + 1, y: ch, width: cw, height: 1))
+        bl.draw(in: NSRect(x: 0, y: 0, width: cw, height: ch))
+        bottom.draw(in: NSRect(x: cw, y: 0, width: 1, height: ch))
+        br.draw(in: NSRect(x: cw + 1, y: 0, width: cw, height: ch))
       }) else { return nil }
       result["nineSlice"] = FlutterStandardTypedData(bytes: nineSlice)
-      result["corner"] = Double(c)
+      result["cornerWidth"] = Double(cw)
+      result["cornerHeight"] = Double(ch)
     }
 
     let scaleSel = NSSelectorFromString("mainScreenScale")

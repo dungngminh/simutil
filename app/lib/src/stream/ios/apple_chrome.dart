@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
@@ -11,7 +12,8 @@ class AppleChrome {
     required this.screen,
     this.composite,
     this.nineSlice,
-    this.corner = 0,
+    this.corner = Size.zero,
+    this.outerRadius = 0,
     this.mask,
   });
 
@@ -28,11 +30,22 @@ class AppleChrome {
   /// [composite] (rendered at 3x).
   final Uint8List? nineSlice;
 
-  /// Corner size of [nineSlice].
-  final double corner;
+  /// Corner size of [nineSlice]; not always square.
+  final Size corner;
+
+  /// Corner radius of the body's outline (`simpleOutsideBorder`).
+  final double outerRadius;
 
   /// Screen shape (rounded corners, sensor cut-out) as an alpha mask.
   final ui.Image? mask;
+
+  /// Corner radius of the screen opening: the outline's radius minus the
+  /// thicker bezel side, as serve-sim does. Zero for square screens (e.g.
+  /// home-button phones, whose top / bottom bezels are deep).
+  double get screenRadius {
+    final inset = max(body.width - screen.width, body.height - screen.height);
+    return max(0, outerRadius - inset / 2);
+  }
 
   /// Loads [udid]'s chrome over [channel]; null when Xcode has none.
   static Future<AppleChrome?> load(MethodChannel channel, String udid) async {
@@ -62,7 +75,11 @@ class AppleChrome {
       screen: screen,
       composite: map['composite'] as Uint8List?,
       nineSlice: map['nineSlice'] as Uint8List?,
-      corner: (map['corner'] as double?) ?? 0,
+      corner: Size(
+        (map['cornerWidth'] as double?) ?? 0,
+        (map['cornerHeight'] as double?) ?? 0,
+      ),
+      outerRadius: (map['outerRadius'] as double?) ?? 0,
       mask: mask,
     );
   }
