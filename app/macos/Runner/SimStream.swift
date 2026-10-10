@@ -345,6 +345,121 @@ private final class SimHID {
   }
 }
 
+// MARK: - Device chrome
+
+/// Apple's own Simulator device frame for a simulator, read from Xcode's
+/// DeviceKit chrome bundles at runtime (nothing is bundled with the app).
+private enum SimChrome {
+  /// Renders a PDF from [dir] into an `NSImage` sized in points.
+  private static func image(_ name: String, in dir: URL) -> NSImage? {
+    NSImage(contentsOf: dir.appendingPathComponent("\(name).pdf"))
+  }
+
+  private static func png(size: NSSize, scale: CGFloat, draw: () -> Void) -> Data? {
+    guard let rep = NSBitmapImageRep(
+      bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale),
+      pixelsHigh: Int(size.height * scale), bitsPerSample: 8, samplesPerPixel: 4,
+      hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0,
+      bitsPerPixel: 0)
+    else { return nil }
+    rep.size = size
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+    draw()
+    NSGraphicsContext.restoreGraphicsState()
+    return rep.representation(using: .png, properties: [:])
+  }
+
+  /// `{composite + bodyWidth/bodyHeight | nineSlice + corner, insets, mask?,
+  /// screenWidth, screenHeight}` in points, or nil without chrome.
+  /// Same sources as serve-sim's `devicekit-chrome.ts`.
+  static func load(device: NSObject) -> [String: Any]? {
+    guard let type = device.perform(NSSelectorFromString("deviceType"))?
+      .takeUnretainedValue() as? NSObject,
+      let bundle = type.value(forKey: "bundlePath") as? String
+    else { return nil }
+    let resources = URL(fileURLWithPath: bundle).appendingPathComponent("Contents/Resources")
+    guard let profile = NSDictionary(contentsOf: resources.appendingPathComponent("profile.plist")),
+      let chromeId = profile["chromeIdentifier"] as? String,
+      let name = chromeId.split(separator: ".").last
+    else { return nil }
+    let dir = URL(fileURLWithPath: "/Library/Developer/DeviceKit/Chrome/\(name).devicechrome/Contents/Resources")
+    guard let data = try? Data(contentsOf: dir.appendingPathComponent("chrome.json")),
+      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+      let images = json["images"] as? [String: Any],
+      let sizing = images["sizing"] as? [String: Any],
+      let tl = image(images["topLeft"] as? String ?? "", in: dir),
+      let tr = image(images["topRight"] as? String ?? "", in: dir),
+      let bl = image(images["bottomLeft"] as? String ?? "", in: dir),
+      let br = image(images["bottomRight"] as? String ?? "", in: dir),
+      let top = image(images["top"] as? String ?? "", in: dir),
+      let bottom = image(images["bottom"] as? String ?? "", in: dir),
+      let left = image(images["left"] as? String ?? "", in: dir),
+      let right = image(images["right"] as? String ?? "", in: dir)
+    else { return nil }
+
+    var result: [String: Any] = [
+      "insets": [
+        "top": sizing["topHeight"] as? Double ?? 0,
+        "left": sizing["leftWidth"] as? Double ?? 0,
+        "bottom": sizing["bottomHeight"] as? Double ?? 0,
+        "right": sizing["rightWidth"] as? Double ?? 0,
+      ]
+    ]
+    // Prefer the full-body composite (what Simulator and serve-sim draw);
+    // otherwise lay the 9 slices out as corner | 1pt edge | corner so
+    // Flutter can stretch them with centerSlice.
+    if let compositeName = images["composite"] as? String,
+      let composite = image(compositeName, in: dir),
+      let compositePng = png(size: composite.size, scale: 3, draw: {
+        composite.draw(in: NSRect(origin: .zero, size: composite.size))
+      })
+    {
+      result["composite"] = FlutterStandardTypedData(bytes: compositePng)
+      result["bodyWidth"] = Double(composite.size.width)
+      result["bodyHeight"] = Double(composite.size.height)
+    } else {
+      let c = tl.size.width
+      let side = c * 2 + 1
+      guard let nineSlice = png(size: NSSize(width: side, height: side), scale: 3, draw: {
+        tl.draw(in: NSRect(x: 0, y: c + 1, width: c, height: c))
+        top.draw(in: NSRect(x: c, y: c + 1, width: 1, height: c))
+        tr.draw(in: NSRect(x: c + 1, y: c + 1, width: c, height: c))
+        left.draw(in: NSRect(x: 0, y: c, width: c, height: 1))
+        right.draw(in: NSRect(x: c + 1, y: c, width: c, height: 1))
+        bl.draw(in: NSRect(x: 0, y: 0, width: c, height: c))
+        bottom.draw(in: NSRect(x: c, y: 0, width: 1, height: c))
+        br.draw(in: NSRect(x: c + 1, y: 0, width: c, height: c))
+      }) else { return nil }
+      result["nineSlice"] = FlutterStandardTypedData(bytes: nineSlice)
+      result["corner"] = Double(c)
+    }
+
+    // Screen size in points: native pixels over the device scale.
+    let scaleSel = NSSelectorFromString("mainScreenScale")
+    if let pixels = SimFrameworks.mainScreenSize(device), type.responds(to: scaleSel) {
+      typealias GetScale = @convention(c) (AnyObject, Selector) -> Float
+      let scale = CGFloat(unsafeBitCast(type.method(for: scaleSel), to: GetScale.self)(type, scaleSel))
+      if scale > 0 {
+        result["screenWidth"] = Double(pixels.width / scale)
+        result["screenHeight"] = Double(pixels.height / scale)
+      }
+    }
+
+    // The screen's rounded corners and sensor cut-out.
+    // Its units differ per family, so it is only used as a shape.
+    if let maskName = profile["framebufferMask"] as? String,
+      let mask = image(maskName, in: resources),
+      let maskPng = png(size: mask.size, scale: 1, draw: {
+        mask.draw(in: NSRect(origin: .zero, size: mask.size))
+      })
+    {
+      result["mask"] = FlutterStandardTypedData(bytes: maskPng)
+    }
+    return result
+  }
+}
+
 // MARK: - Plugin
 
 private struct SimStreamError: LocalizedError {
@@ -390,6 +505,8 @@ final class SimStreamPlugin: NSObject, FlutterPlugin {
         phase: args["phase"] as? String ?? "up",
         x: args["x"] as? Double ?? 0, y: args["y"] as? Double ?? 0)
       result(nil)
+    case "chrome":
+      result(SimFrameworks.device(udid: udid).flatMap(SimChrome.load))
     case "press":
       sessions[udid]?.hid?.press(args["button"] as? String ?? "")
       result(nil)

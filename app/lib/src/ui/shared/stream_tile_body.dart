@@ -2,7 +2,9 @@ import 'package:flutter/widgets.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 import '../../devices/device_form_factor.dart';
+import '../../stream/ios/ios_sim_session.dart';
 import '../../stream/streams_state.dart';
+import 'apple_device_frame.dart';
 import 'device_frame.dart';
 import 'touch_surface.dart';
 
@@ -38,13 +40,21 @@ class StreamTileBody extends StatelessWidget {
             if (inputBlocked) banner(session),
             Padding(
               padding: const EdgeInsets.all(8),
-              child: DeviceFrame(
-                formFactor: DeviceFormFactor.of(entry.device),
-                screenSize: Size(width.toDouble(), height.toDouble()),
-                maxHeight: maxVideoHeight,
-                enabled: showFrame,
-                child: TouchSurface(session: session),
-              ),
+              child: switch (session) {
+                IosSimSession(:final chrome?) when showFrame =>
+                  AppleDeviceFrame(
+                    chrome: chrome,
+                    maxHeight: maxVideoHeight,
+                    child: TouchSurface(session: session),
+                  ),
+                _ => DeviceFrame(
+                  formFactor: DeviceFormFactor.of(entry.device),
+                  screenSize: Size(width.toDouble(), height.toDouble()),
+                  maxHeight: maxVideoHeight,
+                  enabled: showFrame,
+                  child: TouchSurface(session: session),
+                ),
+              },
             ),
           ],
         ),

@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
 
+import 'apple_chrome.dart';
+
 /// [DeviceSession] for a booted iOS simulator, backed by the native
 /// `SimStreamPlugin` (macOS): the framebuffer is a Flutter texture and input
 /// goes through SimulatorKit's HID client.
@@ -34,6 +36,9 @@ class IosSimSession implements DeviceSession {
 
   /// Texture id once [start] succeeded.
   int? textureId;
+
+  /// Apple's device frame, when Xcode has one for this device type.
+  AppleChrome? chrome;
 
   static void _ensureHandler() {
     if (_handlerSet) return;
@@ -88,6 +93,10 @@ class IosSimSession implements DeviceSession {
         'udid': udid,
       }))!;
       textureId = result['textureId']! as int;
+      chrome ??= await AppleChrome.load(
+        _channel,
+        udid,
+      ).catchError((Object _) => null);
       final width = result['width']! as int;
       final height = result['height']! as int;
       if (width > 0 && height > 0) _live(width, height);
