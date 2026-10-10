@@ -2,22 +2,19 @@
 
 UI-agnostic app layer shared by the SimUtil TUI (`simutil_tui`) and the
 desktop GUI: settings in `~/.simutil/settings.yaml`, app state in
-`~/.simutil/state.json`, the bundled changelog, refresh intervals, and the
-`ServiceLocator` that wires device and plugin services.
+`~/.simutil/state.json`, the bundled changelog, and refresh intervals.
 
 Part of [SimUtil](https://github.com/dungngminh/simutil).
 
 ## Usage
 
 ```dart
+import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_shared/simutil_shared.dart';
 
 Future<void> main() async {
-  final services = ServiceLocator.instance;
-  await services.init();
-  final settings = await services.settingsService.load();
+  final settings = await SettingsService(CommandExec()).load();
   print(settings.themeName);
-  await services.dispose();
 }
 ```
 

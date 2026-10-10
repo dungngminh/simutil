@@ -1,13 +1,10 @@
-import 'package:simutil_shared/src/app_state.dart';
-import 'package:simutil_shared/src/settings_service.dart';
-import 'package:simutil_shared/src/update_checker.dart';
 import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_plugins/simutil_plugins.dart';
+import 'package:simutil_shared/simutil_shared.dart';
 
-/// Wires app services (core exec, adb, Apple, settings, plugins) shared by
-/// the TUI and the GUI.
+/// Wires the TUI's services (core exec, adb, Apple, settings, plugins).
 class ServiceLocator {
   ServiceLocator._();
 
@@ -46,6 +43,12 @@ class ServiceLocator {
   /// mDNS watcher for wireless ADB pairing.
   late final WifiDiscoveryService wifiDiscoveryService =
       MdnsWifiDiscoveryService();
+
+  /// Pairs and connects devices over Wi-Fi (pairing code and QR).
+  late final AdbWirelessPairing wirelessPairing = AdbWirelessPairing(
+    adbService,
+    wifiDiscoveryService,
+  );
 
   /// Reads the YAML plugin catalog from `~/.simutil/settings.yaml`.
   final PluginCatalogLoader pluginCatalogLoader = loadPluginCatalog;
