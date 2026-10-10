@@ -2,13 +2,13 @@ import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:simutil_core/simutil_core.dart';
 
-import '../devices/devices_cubit.dart';
-import '../devices/devices_state.dart';
-import '../stream/streams_cubit.dart';
+import '../../devices/devices_cubit.dart';
+import '../../devices/devices_state.dart';
+import '../../stream/streams_cubit.dart';
 
-/// Device sections with launch actions.
-class DeviceSidebar extends StatelessWidget {
-  const DeviceSidebar({super.key});
+/// Device sections with Launch / Stream actions.
+class MaterialDeviceList extends StatelessWidget {
+  const MaterialDeviceList({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +16,7 @@ class DeviceSidebar extends StatelessWidget {
       builder: (context, state) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SidebarHeader(loading: state.loading),
+          if (state.loading) const LinearProgressIndicator(),
           Expanded(
             child: ListView(
               children: [
@@ -41,35 +41,6 @@ class DeviceSidebar extends StatelessWidget {
   }
 }
 
-class _SidebarHeader extends StatelessWidget {
-  const _SidebarHeader({required this.loading});
-
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
-      child: Row(
-        children: [
-          Text('Devices', style: Theme.of(context).textTheme.titleMedium),
-          const Spacer(),
-          if (loading)
-            const SizedBox.square(
-              dimension: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-            onPressed: () => context.read<DevicesCubit>().refresh(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _DeviceSection extends StatelessWidget {
   const _DeviceSection(this.title, this.devices);
 
@@ -86,15 +57,14 @@ class _DeviceSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: Text(title, style: Theme.of(context).textTheme.labelLarge),
         ),
-        for (final device in devices) DeviceTile(device: device),
+        for (final device in devices) _DeviceTile(device: device),
       ],
     );
   }
 }
 
-/// One device row: name, state, launch button.
-class DeviceTile extends StatelessWidget {
-  const DeviceTile({super.key, required this.device});
+class _DeviceTile extends StatelessWidget {
+  const _DeviceTile({required this.device});
 
   final Device device;
 

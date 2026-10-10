@@ -1,15 +1,22 @@
 import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
 import 'package:flutter/material.dart';
 
-import '../stream/device_stream.dart';
-import '../stream/streams_cubit.dart';
-import '../stream/streams_state.dart';
+import '../../stream/device_stream.dart';
+import '../../stream/streams_cubit.dart';
+import '../../stream/streams_state.dart';
+import '../shared/responsive.dart';
+import '../shared/touch_surface.dart';
 
 /// One device: title bar with buttons, then the live screen.
-class StreamTile extends StatelessWidget {
-  const StreamTile({super.key, required this.entry});
+class MaterialStreamTile extends StatelessWidget {
+  const MaterialStreamTile({
+    super.key,
+    required this.entry,
+    required this.maxVideoHeight,
+  });
 
   final StreamEntry entry;
+  final double maxVideoHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -27,9 +34,18 @@ class StreamTile extends StatelessWidget {
             onClose: () => cubit.closeStream(entry.device.id),
           ),
           switch (entry.status) {
-            StreamLive(:final size) when stream != null => AspectRatio(
-              aspectRatio: size.width / size.height,
-              child: _TouchSurface(stream: stream),
+            StreamLive(:final size) when stream != null => LayoutBuilder(
+              builder: (context, constraints) {
+                final fit = fitVideo(
+                  size.width / size.height,
+                  constraints.maxWidth,
+                  maxVideoHeight,
+                );
+                return SizedBox.fromSize(
+                  size: fit,
+                  child: TouchSurface(stream: stream),
+                );
+              },
             ),
             StreamFailed(:final message) => _Placeholder(
               child: Text(message, textAlign: TextAlign.center),
@@ -84,32 +100,6 @@ class _TileHeader extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Video plus pointer input, normalized to the video's own bounds.
-class _TouchSurface extends StatelessWidget {
-  const _TouchSurface({required this.stream});
-
-  final DeviceStream stream;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        Offset norm(Offset p) =>
-            Offset(p.dx / constraints.maxWidth, p.dy / constraints.maxHeight);
-        return Listener(
-          onPointerDown: (e) =>
-              stream.touch(TouchPhase.down, norm(e.localPosition)),
-          onPointerMove: (e) =>
-              stream.touch(TouchPhase.move, norm(e.localPosition)),
-          onPointerUp: (e) =>
-              stream.touch(TouchPhase.up, norm(e.localPosition)),
-          child: stream.buildView(),
-        );
-      },
     );
   }
 }

@@ -1,11 +1,16 @@
+import 'dart:io';
+
 import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 import 'devices/devices_cubit.dart';
 import 'di.dart';
-import 'home/home_page.dart';
 import 'stream/streams_cubit.dart';
+import 'ui/macos/macos_simutil_app.dart';
+import 'ui/material/material_app.dart';
 
+/// Provides the cubits, then picks the platform design: macos_ui on macOS,
+/// Material on Windows and Linux.
 class SimutilApp extends StatelessWidget {
   const SimutilApp({super.key});
 
@@ -16,17 +21,9 @@ class SimutilApp extends StatelessWidget {
         BlocSignalProvider<DevicesCubit>.value(value: getIt<DevicesCubit>()),
         BlocSignalProvider<StreamsCubit>.value(value: getIt<StreamsCubit>()),
       ],
-      child: MaterialApp(
-        title: 'SimUtil',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
-        darkTheme: ThemeData(
-          colorSchemeSeed: Colors.teal,
-          brightness: Brightness.dark,
-          useMaterial3: true,
-        ),
-        home: const HomePage(),
-      ),
+      child: Platform.isMacOS
+          ? const MacosSimutilApp()
+          : const MaterialSimutilApp(),
     );
   }
 }

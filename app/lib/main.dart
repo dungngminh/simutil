@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
@@ -6,11 +8,13 @@ import 'src/app.dart';
 import 'src/devices/devices_cubit.dart';
 import 'src/di.dart';
 import 'src/tray/tray_controller.dart';
+import 'src/ui/macos/macos_simutil_app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   await windowManager.ensureInitialized();
+  if (Platform.isMacOS) await configureMacosWindow();
   await configureDependencies();
 
   final devices = getIt<DevicesCubit>()..start();
