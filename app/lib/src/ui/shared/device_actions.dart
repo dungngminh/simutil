@@ -4,6 +4,7 @@ import 'package:simutil_core/simutil_core.dart';
 
 import '../../devices/devices_cubit.dart';
 import '../../devices/devices_state.dart';
+import '../../settings/device_settings_cubit.dart';
 import '../../settings/view_settings_cubit.dart';
 import '../../stream/streams_cubit.dart';
 
@@ -13,7 +14,7 @@ enum DeviceActionKind { start, stop, stream, slimOn, slimOff }
 typedef DeviceAction = ({
   DeviceActionKind kind,
   String label,
-  VoidCallback onPressed,
+  Future<void> Function() onPressed,
 });
 
 /// Actions for [device] in its current state.
@@ -25,7 +26,10 @@ List<DeviceAction> deviceActions(
   if (state.busy.contains(device.id)) return const [];
   final devices = context.read<DevicesCubit>();
   final streams = context.read<StreamsCubit>();
-  final headless = context.read<ViewSettingsCubit>().stateValue.headless;
+  final settings = context.read<DeviceSettingsCubit>().of(device);
+  final headless =
+      settings.headless ??
+      context.read<ViewSettingsCubit>().stateValue.headless;
   final isSim = !device.type.isPhysical;
   final booted = device.state == DeviceState.booted;
   final slim = state.slimmed.contains(device.id);
@@ -40,18 +44,22 @@ List<DeviceAction> deviceActions(
       (
         kind: DeviceActionKind.start,
         label: headless ? 'Start and stream' : 'Start',
-        onPressed: () {
+        onPressed: () async {
           if (headless) streams.openWhenBooted(device);
-          devices.launch(device, headless: headless);
+          await devices.launch(
+            device,
+            headless: headless,
+            coldBoot: settings.coldBoot,
+          );
         },
       ),
     if (isSim && booted)
       (
         kind: DeviceActionKind.stop,
         label: 'Shut down',
-        onPressed: () {
-          streams.closeStream(device.id);
-          devices.shutdown(device);
+        onPressed: () async {
+          await streams.closeStream(device.id);
+          await devices.shutdown(device);
         },
       ),
     if (isSim && device.os == DeviceOs.ios)

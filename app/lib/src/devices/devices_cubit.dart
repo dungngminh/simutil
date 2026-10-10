@@ -83,14 +83,22 @@ class DevicesCubit extends CubitSignal<DevicesState> {
     );
   }
 
-  /// Boots an emulator/simulator; [headless] skips its window.
-  Future<void> launch(Device device, {bool headless = false}) async {
+  /// Boots an emulator/simulator; [headless] skips its window, [coldBoot]
+  /// skips the Android snapshot.
+  Future<void> launch(
+    Device device, {
+    bool headless = false,
+    bool coldBoot = false,
+  }) async {
     if (device.type.isPhysical || device.state != DeviceState.shutdown) return;
     _setBusy(device.id, true, 'Starting ${device.name}…');
     final service = device.os == DeviceOs.android ? _android : _ios;
     final launching = service.launchDevice(
       deviceId: device.id,
       headless: headless,
+      additionalArgs: [
+        if (coldBoot && device.os == DeviceOs.android) '-no-snapshot-load',
+      ],
     );
     // Not awaited: the Android launcher may block until the emulator exits.
     unawaited(

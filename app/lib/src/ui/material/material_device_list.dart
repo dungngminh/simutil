@@ -6,6 +6,7 @@ import '../../devices/device_form_factor.dart';
 import '../../devices/devices_cubit.dart';
 import '../../devices/devices_state.dart';
 import '../shared/device_actions.dart';
+import '../shared/device_context_menu.dart';
 
 /// Device sections with Launch / Stream actions.
 class MaterialDeviceList extends StatelessWidget {
@@ -88,39 +89,44 @@ class _DeviceTile extends StatelessWidget {
     final booted = device.state == DeviceState.booted;
     final busy = state.busy.contains(device.id);
     final slim = state.slimmed.contains(device.id);
-    return ListTile(
-      dense: true,
-      leading: Icon(switch (DeviceFormFactor.of(device)) {
-        DeviceFormFactor.phone =>
-          device.os == DeviceOs.android ? Icons.smartphone : Icons.phone_iphone,
-        DeviceFormFactor.tablet =>
-          device.os == DeviceOs.android
-              ? Icons.tablet_android
-              : Icons.tablet_mac,
-        DeviceFormFactor.tv => Icons.tv,
-        DeviceFormFactor.watch => Icons.watch,
-      }, color: booted ? Colors.green : null),
-      title: Text(device.name, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        slim ? '${device.state.label} · slim' : device.state.label,
+    return GestureDetector(
+      onSecondaryTap: () => showDeviceContextMenu(context, device),
+      child: ListTile(
+        dense: true,
+        leading: Icon(switch (DeviceFormFactor.of(device)) {
+          DeviceFormFactor.phone =>
+            device.os == DeviceOs.android
+                ? Icons.smartphone
+                : Icons.phone_iphone,
+          DeviceFormFactor.tablet =>
+            device.os == DeviceOs.android
+                ? Icons.tablet_android
+                : Icons.tablet_mac,
+          DeviceFormFactor.tv => Icons.tv,
+          DeviceFormFactor.watch => Icons.watch,
+        }, color: booted ? Colors.green : null),
+        title: Text(device.name, overflow: TextOverflow.ellipsis),
+        subtitle: Text(
+          slim ? '${device.state.label} · slim' : device.state.label,
+        ),
+        trailing: busy
+            ? const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final action in deviceActions(context, device, state))
+                    IconButton(
+                      tooltip: action.label,
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(_actionIcon(action.kind), size: 18),
+                      onPressed: action.onPressed,
+                    ),
+                ],
+              ),
       ),
-      trailing: busy
-          ? const SizedBox.square(
-              dimension: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final action in deviceActions(context, device, state))
-                  IconButton(
-                    tooltip: action.label,
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(_actionIcon(action.kind), size: 18),
-                    onPressed: action.onPressed,
-                  ),
-              ],
-            ),
     );
   }
 }

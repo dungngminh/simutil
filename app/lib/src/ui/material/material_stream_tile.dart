@@ -6,6 +6,7 @@ import '../../settings/recordings_dir.dart';
 import '../../settings/view_settings_cubit.dart';
 import '../../stream/streams_cubit.dart';
 import '../../stream/streams_state.dart';
+import '../shared/device_context_menu.dart';
 import '../shared/stream_tile_body.dart';
 
 /// One device: title bar with buttons, then the live screen.
@@ -31,12 +32,15 @@ class MaterialStreamTile extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _TileHeader(
-            entry: entry,
-            buttons: session?.buttons ?? const [],
-            onPress: (b) => session?.press(b),
-            onRecord: () => _toggleRecording(context, cubit),
-            onClose: () => cubit.closeStream(entry.device.id),
+          GestureDetector(
+            onSecondaryTap: () => showDeviceContextMenu(context, entry.device),
+            child: _TileHeader(
+              entry: entry,
+              buttons: session?.buttons ?? const [],
+              onPress: (b) => session?.press(b),
+              onRecord: () => _toggleRecording(context, cubit),
+              onClose: () => cubit.closeStream(entry.device.id),
+            ),
           ),
           StreamTileBody(
             entry: entry,

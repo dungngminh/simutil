@@ -8,6 +8,7 @@ import '../../devices/device_form_factor.dart';
 import '../../devices/devices_cubit.dart';
 import '../../devices/devices_state.dart';
 import '../shared/device_actions.dart';
+import '../shared/device_context_menu.dart';
 
 /// Sidebar sections with Launch / Stream actions.
 class MacosDeviceList extends StatelessWidget {
@@ -94,41 +95,45 @@ class _DeviceRow extends StatelessWidget {
     final booted = device.state == DeviceState.booted;
     final busy = state.busy.contains(device.id);
     final slim = state.slimmed.contains(device.id);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: MacosListTile(
-              leading: MacosIcon(switch (DeviceFormFactor.of(device)) {
-                DeviceFormFactor.phone => CupertinoIcons.device_phone_portrait,
-                // Cupertino icons have no tablet or watch glyph.
-                DeviceFormFactor.tablet => Icons.tablet_mac,
-                DeviceFormFactor.tv => CupertinoIcons.tv,
-                DeviceFormFactor.watch => Icons.watch_outlined,
-              }, color: booted ? MacosColors.systemGreenColor : null),
-              title: Text(device.name, overflow: TextOverflow.ellipsis),
-              subtitle: Text(
-                slim ? '${device.state.label} · slim' : device.state.label,
-              ),
-            ),
-          ),
-          if (busy)
-            const Padding(
-              padding: EdgeInsets.all(6),
-              child: ProgressCircle(radius: 7),
-            )
-          else
-            for (final action in deviceActions(context, device, state))
-              MacosTooltip(
-                message: action.label,
-                child: MacosIconButton(
-                  icon: MacosIcon(_actionIcon(action.kind), size: 15),
-                  semanticLabel: action.label,
-                  onPressed: action.onPressed,
+    return GestureDetector(
+      onSecondaryTap: () => showDeviceContextMenu(context, device),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Expanded(
+              child: MacosListTile(
+                leading: MacosIcon(switch (DeviceFormFactor.of(device)) {
+                  DeviceFormFactor.phone =>
+                    CupertinoIcons.device_phone_portrait,
+                  // Cupertino icons have no tablet or watch glyph.
+                  DeviceFormFactor.tablet => Icons.tablet_mac,
+                  DeviceFormFactor.tv => CupertinoIcons.tv,
+                  DeviceFormFactor.watch => Icons.watch_outlined,
+                }, color: booted ? MacosColors.systemGreenColor : null),
+                title: Text(device.name, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                  slim ? '${device.state.label} · slim' : device.state.label,
                 ),
               ),
-        ],
+            ),
+            if (busy)
+              const Padding(
+                padding: EdgeInsets.all(6),
+                child: ProgressCircle(radius: 7),
+              )
+            else
+              for (final action in deviceActions(context, device, state))
+                MacosTooltip(
+                  message: action.label,
+                  child: MacosIconButton(
+                    icon: MacosIcon(_actionIcon(action.kind), size: 15),
+                    semanticLabel: action.label,
+                    onPressed: action.onPressed,
+                  ),
+                ),
+          ],
+        ),
       ),
     );
   }

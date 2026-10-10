@@ -6,6 +6,7 @@ import 'package:simutil_shared/simutil_shared.dart';
 
 import 'devices/devices_cubit.dart';
 import 'recording/grid_recorder.dart';
+import 'settings/device_settings_cubit.dart';
 import 'settings/view_settings_cubit.dart';
 import 'stream/streams_cubit.dart';
 
@@ -30,6 +31,10 @@ Future<void> configureDependencies() async {
       ),
       dispose: (cubit) => cubit.close(),
     )
+    ..registerLazySingleton<DeviceSettingsCubit>(
+      DeviceSettingsCubit.new,
+      dispose: (cubit) => cubit.close(),
+    )
     ..registerLazySingleton<GridRecorderCubit>(
       GridRecorderCubit.new,
       dispose: (cubit) => cubit.close(),
@@ -43,6 +48,7 @@ Future<void> configureDependencies() async {
         defaultSessionFactory(
           exec: getIt<CommandExec>(),
           adbPath: () => getIt<AndroidDeviceService>().adbPath,
+          settings: (device) => getIt<DeviceSettingsCubit>().of(device),
         ),
       ),
       dispose: (cubit) => cubit.close(),

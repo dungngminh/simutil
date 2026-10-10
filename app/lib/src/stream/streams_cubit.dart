@@ -5,6 +5,7 @@ import 'package:bloc_signals/bloc_signals.dart';
 import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_core/simutil_core.dart';
 
+import '../settings/device_settings_cubit.dart';
 import 'ios/ios_sim_session.dart';
 import 'streams_state.dart';
 
@@ -120,6 +121,7 @@ class StreamsCubit extends CubitSignal<StreamsState> {
 DeviceSessionFactory defaultSessionFactory({
   required CommandExec exec,
   required String Function() adbPath,
+  required DeviceSettings Function(Device device) settings,
 }) {
   Future<ScrcpyInstall?>? scrcpy;
   return (device) async {
@@ -130,11 +132,15 @@ DeviceSessionFactory defaultSessionFactory({
           scrcpy = null;
           throw ScrcpyInstall.installHint;
         }
+        final options = settings(device);
         return ScrcpySession(
           serial: device.id,
           adbPath: adbPath(),
           install: install,
           exec: exec,
+          maxSize: options.maxSize,
+          maxFps: options.maxFps,
+          videoBitRate: options.bitRateMbps * 1000000,
         );
       case DeviceOs.ios:
         if (!Platform.isMacOS || device.type.isPhysical) {
