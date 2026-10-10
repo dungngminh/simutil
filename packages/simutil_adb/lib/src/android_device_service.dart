@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 
+import 'package:simutil_adb/src/adb_device_watch.dart';
 import 'package:simutil_adb/src/models/adb_connect_result.dart';
 import 'package:simutil_adb/src/models/wireless_pairing_info.dart';
 import 'package:simutil_core/simutil_core.dart';
@@ -23,6 +25,8 @@ class AndroidDeviceService implements DeviceService {
        _isWindows = isWindows ?? Platform.isWindows;
 
   static const Duration _deviceListTimeout = Duration(seconds: 15);
+  static const Duration _wirelessTimeout = Duration(seconds: 15);
+  static const Duration _pairTimeout = Duration(seconds: 30);
   static final RegExp _physicalDeviceIdPattern = RegExp(r'^[A-Za-z0-9._:-]+$');
 
   final CommandExec _exec;
@@ -70,6 +74,11 @@ class AndroidDeviceService implements DeviceService {
   String get emulatorPath => '${getAndroidHome()}/emulator/emulator$_exe';
 
   @override
+  Stream<void> watchDevices() => _hasAdb
+      ? watchAndroidDevices(adbPath: adbPath, avdHome: avdHome)
+      : const Stream.empty();
+
+  @override
   Future<bool> isAvailable() async {
     if (!_hasAdb || !_hasSdkEmulator) return false;
     try {
@@ -91,6 +100,7 @@ class AndroidDeviceService implements DeviceService {
       final result = await _exec.run(
         emulatorPath,
         arguments: ['-list-avds'],
+        priority: CommandPriority.background,
         timeout: _deviceListTimeout,
       );
       if (!result.success) return [];
@@ -128,6 +138,7 @@ class AndroidDeviceService implements DeviceService {
       final result = await _exec.run(
         adbPath,
         arguments: ['devices'],
+        priority: CommandPriority.background,
         timeout: _deviceListTimeout,
       );
       if (!result.success) return {};
@@ -149,6 +160,7 @@ class AndroidDeviceService implements DeviceService {
             final nameResult = await _exec.run(
               adbPath,
               arguments: ['-s', serial, 'emu', 'avd', 'name'],
+              priority: CommandPriority.background,
               timeout: _deviceListTimeout,
             );
             if (nameResult.success) {
@@ -172,12 +184,17 @@ class AndroidDeviceService implements DeviceService {
     List<String> additionalArgs = const [],
     bool headless = false,
   }) async {
-    final launchArgs = [
+    // A set: `-no-audio` may come from both headless and the caller.
+    final launchArgs = {
       '@$deviceId',
       if (headless) ...headlessArgs,
       ...additionalArgs,
-    ];
-    await _exec.run(emulatorPath, arguments: launchArgs);
+    }.toList();
+    await _exec.run(
+      emulatorPath,
+      arguments: launchArgs,
+      priority: CommandPriority.interactive,
+    );
   }
 
   /// Emulator flags added by `headless`: no window, audio or boot animation,
@@ -187,7 +204,12 @@ class AndroidDeviceService implements DeviceService {
   /// Runs `adb connect [host]`.
   Future<AdbConnectResult> connectDevice(String host) async {
     try {
-      final result = await _exec.run(adbPath, arguments: ['connect', host]);
+      final result = await _exec.run(
+        adbPath,
+        arguments: ['connect', host],
+        timeout: _wirelessTimeout,
+        priority: CommandPriority.interactive,
+      );
       final output = result.stdout.trim();
 
       if (output.contains('connected to') ||
@@ -198,6 +220,11 @@ class AndroidDeviceService implements DeviceService {
         success: false,
         message: result.stderr.isNotEmpty ? result.stderr : output,
       );
+    } on TimeoutException catch (e) {
+      return AdbConnectResult(
+        success: false,
+        message: 'Timed out after ${e.duration?.inSeconds ?? '?'} s',
+      );
     } catch (e) {
       return AdbConnectResult(success: false, message: e.toString());
     }
@@ -206,7 +233,12 @@ class AndroidDeviceService implements DeviceService {
   /// Runs `adb disconnect [host]`.
   Future<bool> disconnectDevice(String host) async {
     try {
-      final result = await _exec.run(adbPath, arguments: ['disconnect', host]);
+      final result = await _exec.run(
+        adbPath,
+        arguments: ['disconnect', host],
+        timeout: _wirelessTimeout,
+        priority: CommandPriority.interactive,
+      );
       return result.success;
     } catch (_) {
       return false;
@@ -297,6 +329,8 @@ class AndroidDeviceService implements DeviceService {
       final result = await _exec.run(
         adbPath,
         arguments: ['pair', host, pairingCode],
+        timeout: _pairTimeout,
+        priority: CommandPriority.interactive,
       );
 
       final output = result.stdout.trim();
@@ -306,6 +340,11 @@ class AndroidDeviceService implements DeviceService {
       return AdbConnectResult(
         success: false,
         message: result.stderr.isNotEmpty ? result.stderr : output,
+      );
+    } on TimeoutException catch (e) {
+      return AdbConnectResult(
+        success: false,
+        message: 'Timed out after ${e.duration?.inSeconds ?? '?'} s',
       );
     } catch (e) {
       return AdbConnectResult(success: false, message: e.toString());
@@ -318,6 +357,7 @@ class AndroidDeviceService implements DeviceService {
       final result = await _exec.run(
         adbPath,
         arguments: ['devices', '-l'],
+        priority: CommandPriority.background,
         timeout: _deviceListTimeout,
       );
       if (!result.success) return [];
@@ -377,12 +417,50 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
+  /// Directory holding `<name>.ini` + `<name>.avd`: `ANDROID_AVD_HOME`,
+  /// else `ANDROID_USER_HOME/avd`, else `~/.android/avd`.
+  String get avdHome {
+    final avdHome = _env['ANDROID_AVD_HOME'];
+    if (avdHome != null && avdHome.isNotEmpty) return avdHome;
+    final userHome = _env['ANDROID_USER_HOME'];
+    if (userHome != null && userHome.isNotEmpty) return '$userHome/avd';
+    final home = _env[_isWindows ? 'USERPROFILE' : 'HOME'] ?? '';
+    return '$home/.android/avd';
+  }
+
+  /// Deletes the AVD [deviceId] (its name) by removing its `.ini` and the
+  /// directory the `.ini` points to, as `avdmanager delete avd` does.
+  ///
+  /// ponytail: files instead of `avdmanager`, which needs a Java runtime
+  /// that GUI apps often cannot find.
+  @override
+  Future<bool> deleteSimulator({required String deviceId}) async {
+    final ini = File('$avdHome/$deviceId.ini');
+    if (!ini.existsSync()) return false;
+    try {
+      final pathLine = (await ini.readAsLines())
+          .map((l) => l.trim())
+          .where((l) => l.startsWith('path='))
+          .firstOrNull;
+      final avdDir = Directory(
+        pathLine?.substring('path='.length) ?? '$avdHome/$deviceId.avd',
+      );
+      if (avdDir.existsSync()) await avdDir.delete(recursive: true);
+      await ini.delete();
+      return true;
+    } catch (e) {
+      log('AndroidDeviceService.deleteSimulator error: $e');
+      return false;
+    }
+  }
+
   @override
   Future<bool> shutdownSimulator({required String deviceId}) async {
     try {
       final result = await _exec.run(
         adbPath,
         arguments: ['-s', deviceId, 'emu', 'kill'],
+        priority: CommandPriority.interactive,
       );
       return result.success;
     } catch (e) {

@@ -13,6 +13,7 @@
 /// ```
 library;
 
+export 'src/adb_wireless_pairing.dart';
 export 'src/android_device_service.dart';
 export 'src/logcat_helper.dart';
 export 'src/scrcpy/scrcpy_install.dart';

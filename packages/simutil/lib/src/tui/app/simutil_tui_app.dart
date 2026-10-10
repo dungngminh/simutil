@@ -16,6 +16,7 @@ import 'package:simutil/src/tui/components/input_dialog.dart';
 import 'package:simutil/src/tui/components/simutil_theme.dart';
 import 'package:simutil/src/tui/components/success_dialog.dart';
 import 'package:simutil/src/tui/components/welcome_dialog.dart';
+import 'package:simutil/src/tui/service_locator.dart';
 import 'package:simutil_shared/simutil_shared.dart';
 import 'package:simutil/src/tui/dialogs/adb_tools/adb_tools_dialog.dart';
 import 'package:simutil/src/tui/dialogs/adb_tools/qr_connect_dialog.dart';
@@ -77,7 +78,7 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
     'ios-simulators',
   ];
 
-  Timer? _refreshTimer;
+  DeviceChangeWatcher? _deviceWatcher;
 
   @override
   void initState() {
@@ -93,7 +94,7 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
     await _loadPlugins();
     await _refreshDevices();
     _showPluginWarnings();
-    _initRefreshTimer();
+    _watchDevices();
     await _checkFirstRunOrChangelog();
     await _checkForUpdate();
   }
@@ -135,10 +136,13 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
     );
   }
 
-  void _initRefreshTimer() {
-    _refreshTimer = Timer.periodic(kReloadInterval, (_) {
-      _refreshDevices(silent: true);
-    });
+  /// Reloads when adb / CoreSimulator / usbmuxd report a change instead of
+  /// polling (slow fallback reload inside [DeviceChangeWatcher]).
+  void _watchDevices() {
+    _deviceWatcher = DeviceChangeWatcher([
+      _di.adbService,
+      if (Platform.isMacOS) _di.simctlService,
+    ], () => _refreshDevices(silent: true))..start();
   }
 
   Future<void> _loadSettings() async {
@@ -151,8 +155,8 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
-    _refreshTimer = null;
+    unawaited(_deviceWatcher?.stop());
+    _deviceWatcher = null;
     _di.dispose();
     super.dispose();
   }
@@ -571,34 +575,44 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
 
     if (request == null) return;
 
-    if (request.pairingCode != null) {
-      setState(() => _statusMessage = 'Pairing with ${request.host}…');
-
-      final pairResult = await _di.adbService.pairDevice(
-        request.host,
-        request.pairingCode!,
-      );
-
-      if (!pairResult.success) {
-        showErrorDialog(
-          context,
-          title: 'Pairing Failed',
-          message: pairResult.message,
-        );
-        return;
-      }
-
-      await showSuccessDialog(
-        context: context,
-        title: 'Paired Successfully',
-        message: pairResult.message,
-      );
-      _refreshDevices();
-    }
+    final code = request.pairingCode;
+    setState(
+      () => _statusMessage = code == null
+          ? 'Connecting to ${request.host}…'
+          : 'Pairing with ${request.host}…',
+    );
+    // Pairing alone leaves the device unconnected; connect right after.
+    final result = code == null
+        ? await _di.adbService.connectDevice(request.host)
+        : await _di.wirelessPairing.pairAndConnect(request.host, code);
+    await _showConnectResult(result);
   }
 
   Future<void> _handleQrConnect() async {
-    await showQrConnectDialog(context);
+    final result = await showQrConnectDialog(
+      context,
+      pairing: _di.wirelessPairing,
+    );
+    if (result != null) await _showConnectResult(result);
+  }
+
+  Future<void> _showConnectResult(AdbConnectResult result) async {
+    if (!mounted) return;
+    if (!result.success) {
+      await showErrorDialog(
+        context,
+        title: 'Connection Failed',
+        message: result.message,
+      );
+      setState(() => _statusMessage = 'Connection failed');
+      return;
+    }
+    await showSuccessDialog(
+      context: context,
+      title: 'Connected',
+      message: result.message,
+    );
+    await _refreshDevices();
   }
 
   Future<void> _onDeviceDefaultLaunch(Device device) async {
