@@ -6,18 +6,34 @@ import 'package:bloc_signals/bloc_signals.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:simutil_app/src/recording/grid_record_quality.dart';
+import 'package:simutil_app/src/recording/recording_lock.dart';
 
-/// Records the stream grid: the grid's [RepaintBoundary] is captured
-/// [fps] times a second and piped as raw RGBA into ffmpeg.
+/// Records the stream grid: the grid's [RepaintBoundary] is captured at the
+/// [GridRecordQuality]'s frame rate and scale and piped as raw RGBA into
+/// ffmpeg.
 class GridRecorderCubit extends CubitSignal<bool> {
-  GridRecorderCubit({this.fps = 20, this.onSaved}) : super(initialState: false);
+  /// [onSaved] gets each finished file.
+  GridRecorderCubit({this.onSaved, RecordingLock? recordingLock})
+    : _recordingLock = recordingLock ?? RecordingLock(),
+      super(initialState: false);
+
+  static const _lockHolder = 'grid';
+
+  /// One recording at a time, shared with per-device recording.
+  final RecordingLock _recordingLock;
 
   /// Called with each finished recording.
   final void Function(String path)? onSaved;
 
   /// Wrap the grid in a `RepaintBoundary` with this key.
   final boundaryKey = GlobalKey();
-  final int fps;
+
+  GridRecordQuality _quality = GridRecordQuality.standard;
+  double _pixelRatio = 1;
+
+  /// Captured frames per second of the current recording.
+  int get fps => _quality.fps;
 
   static const _ffmpegCandidates = [
     'ffmpeg',
@@ -35,11 +51,32 @@ class GridRecorderCubit extends CubitSignal<bool> {
   int _written = 0;
   Uint8List? _last;
 
+  /// Whether a recording is running.
   bool get isRecording => stateValue;
 
-  /// Starts recording to [path] (`.mp4`); throws when ffmpeg is missing.
-  Future<void> start(String path) async {
+  /// Length of the current recording; zero when not recording.
+  Duration get elapsed => stateValue ? _clock.elapsed : Duration.zero;
+
+  /// Starts recording to [path] (`.mp4`) at [quality]; throws when ffmpeg
+  /// is missing or [RecordingInProgress] while a device is recording.
+  Future<void> start(
+    String path, {
+    GridRecordQuality quality = GridRecordQuality.standard,
+  }) async {
     if (stateValue) return;
+    _quality = quality;
+    final view = WidgetsBinding.instance.platformDispatcher.views.firstOrNull;
+    _pixelRatio = quality.pixelRatio(view?.devicePixelRatio ?? 1);
+    _recordingLock.acquire(_lockHolder, label: 'the grid');
+    try {
+      await _start(path);
+    } catch (_) {
+      _recordingLock.release(_lockHolder);
+      rethrow;
+    }
+  }
+
+  Future<void> _start(String path) async {
     final first = await _capture();
     if (first == null) throw StateError('Nothing to record yet');
     final (image, width, height) = first;
@@ -79,12 +116,14 @@ class GridRecorderCubit extends CubitSignal<bool> {
         '-c:v',
         'h264_videotoolbox',
         '-b:v',
-        '8M',
+        '${_quality.bitRateMbps}M',
       ] else ...[
         '-c:v',
         'libx264',
         '-preset',
         'veryfast',
+        '-crf',
+        '${_quality.crf}',
       ],
       '-pix_fmt',
       'yuv420p',
@@ -103,9 +142,14 @@ class GridRecorderCubit extends CubitSignal<bool> {
     throw StateError('ffmpeg not found; install it to record the grid');
   }
 
+  /// The running tick; [stop] waits for it before closing ffmpeg's stdin.
+  Future<void>? _ticking;
+
   Future<void> _tick() async {
     if (_capturing) return;
     _capturing = true;
+    final done = Completer<void>();
+    _ticking = done.future;
     try {
       final frame = await _capture();
       final size = _size;
@@ -117,8 +161,14 @@ class GridRecorderCubit extends CubitSignal<bool> {
       } else if (_last case final last?) {
         _write(last);
       }
+      // Backpressure: no new capture until ffmpeg took this one, so a slow
+      // encoder skips frames instead of buffering raw ones in memory.
+      await _ffmpeg?.stdin.flush();
+    } catch (_) {
+      // ffmpeg exited; stop() reports the result.
     } finally {
       _capturing = false;
+      done.complete();
     }
   }
 
@@ -137,7 +187,7 @@ class GridRecorderCubit extends CubitSignal<bool> {
   Future<(Uint8List, int, int)?> _capture() async {
     final boundary = boundaryKey.currentContext?.findRenderObject();
     if (boundary is! RenderRepaintBoundary || !boundary.hasSize) return null;
-    final image = await boundary.toImage();
+    final image = await boundary.toImage(pixelRatio: _pixelRatio);
     try {
       final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
       if (data == null) return null;
@@ -152,12 +202,14 @@ class GridRecorderCubit extends CubitSignal<bool> {
     if (!stateValue) return null;
     _timer?.cancel();
     _timer = null;
+    await _ticking;
     final ffmpeg = _ffmpeg;
     _ffmpeg = null;
     final path = _path;
     _clock.stop();
     _last = null;
     emit(false);
+    _recordingLock.release(_lockHolder);
     if (ffmpeg == null) return null;
     await ffmpeg.stdin.close();
     await ffmpeg.exitCode;
