@@ -49,7 +49,7 @@ jobs:
         shell: pwsh
         run: echo "version=$($env:GITHUB_REF_NAME -replace '^app-v', '')" >> $env:GITHUB_OUTPUT
 
-      - uses: vedantmgoyal9/winget-releaser@main
+      - uses: vedantmgoyal9/winget-releaser@f29ed1ffd34f91223a2aebaa71beaab0901ff9fd # v2
         with:
           identifier: me.dungngminh.simutil
           version: ${{ steps.v.outputs.version }}

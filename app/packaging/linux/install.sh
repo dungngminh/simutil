@@ -38,7 +38,7 @@ fi
 
 # Desktop app releases are tagged app-vX.Y.Z next to the CLI's vX.Y.Z, so
 # "latest release" may be the CLI; take the newest app-v tag instead.
-tag=$(curl -fsSL "https://api.github.com/repos/$repo/releases" |
+tag=$(curl -fsSL "https://api.github.com/repos/$repo/releases?per_page=100" |
   grep -o '"tag_name": *"app-v[^"]*"' | head -n 1 | cut -d '"' -f 4)
 if [ -z "$tag" ]; then
   echo "No SimUtil desktop release found." >&2
@@ -47,8 +47,17 @@ fi
 
 echo "Downloading SimUtil ${tag#app-v}..."
 mkdir -p "$(dirname "$bin")" "$(dirname "$desktop")" "$(dirname "$icon")"
-curl -fL --progress-bar -o "$bin.part" \
-  "https://github.com/$repo/releases/download/$tag/SimUtil-linux-x86_64.AppImage"
+release="https://github.com/$repo/releases/download/$tag"
+curl -fL --progress-bar -o "$bin.part" "$release/SimUtil-linux-x86_64.AppImage"
+# Check against the release's checksums.txt before installing.
+expected=$(curl -fsSL "$release/checksums.txt" |
+  awk '$2 == "SimUtil-linux-x86_64.AppImage" { print $1 }')
+actual=$(sha256sum "$bin.part" | cut -d ' ' -f 1)
+if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+  rm -f "$bin.part"
+  echo "Checksum mismatch for the AppImage; nothing installed." >&2
+  exit 1
+fi
 chmod +x "$bin.part"
 mv "$bin.part" "$bin"
 
