@@ -37,6 +37,8 @@ First version of the desktop app (macOS, Windows, Linux).
 - Scenario studio beside the streams: write a scenario in YAML (or open a
   .yaml file), run it, and watch each step's status next to its line; a
   failed step shows its error. Scenarios agents run show there too.
+- The scenario editor colors the YAML and suggests actions, options,
+  buttons and device names as you type.
 - MCP swipes can start on an element and repeat until another shows up, to
   scroll lists and pickers to a value.
 

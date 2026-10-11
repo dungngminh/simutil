@@ -1,5 +1,6 @@
 import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
@@ -80,6 +81,30 @@ void main() {
     await tester.tap(find.text('Run'));
     await tester.pump();
     expect(find.textContaining('Step 1 needs exactly one of'), findsOneWidget);
+  });
+
+  testWidgets('typing offers keywords; Enter accepts the picked one', (
+    tester,
+  ) async {
+    await pump(tester);
+    final field = find.byType(TextField);
+    await tester.tap(field);
+    await tester.enterText(field, 'steps:\n  - sw');
+    await tester.pump();
+    expect(find.text('swipe'), findsOneWidget); // in the popup
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    final text = tester.widget<TextField>(field).controller!.text;
+    expect(text, 'steps:\n  - swipe: ');
+    expect(find.text('swipe'), findsNothing); // popup gone
+
+    await tester.enterText(field, 'steps:\n  - ');
+    await tester.pump();
+    expect(find.text('launch'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.text('launch'), findsNothing);
   });
 
   testWidgets('devices fold into counts; Clear hides the results', (

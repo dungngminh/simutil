@@ -11,7 +11,9 @@ import 'package:simutil_app/src/mcp/tools/tool_context.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/scenarios/scenario_yaml.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
+import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/ui/scenarios/scenario_code_editor.dart';
+import 'package:simutil_app/src/ui/scenarios/scenario_syntax.dart';
 
 /// Scenario studio: the scenario's YAML, editable in place, with each
 /// step's status in the gutter while it runs (a spinner, a check, a cross)
@@ -27,7 +29,7 @@ class ScenariosPanel extends StatefulWidget {
 }
 
 class _ScenariosPanelState extends State<ScenariosPanel> {
-  final _text = TextEditingController(text: scenarioTemplate);
+  final _text = ScenarioSyntaxController(text: scenarioTemplate);
   int? _shownRun;
 
   /// A finished run whose results the user cleared.
@@ -142,6 +144,7 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
                 controller: _text,
                 readOnly: running,
                 marks: run == null ? const {} : _marks(run),
+                devices: _streamedDevices(),
               ),
             ),
           ),
@@ -155,6 +158,14 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
       ),
     );
   }
+
+  /// Names of streamed devices, offered in `devices: [...]`.
+  List<String> _streamedDevices() => getIt.isRegistered<StreamsCubit>()
+      ? [
+          for (final e in getIt<StreamsCubit>().stateValue.entries)
+            e.device.name,
+        ]
+      : const [];
 
   /// Hides [run]'s results (statuses, errors) and any YAML error.
   void _clear(ScenarioRun? run) => setState(() {
