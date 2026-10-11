@@ -387,7 +387,7 @@ void main() {
     expect(r.stepStatus(1), ScenarioStatus.ok);
     expect(r.stepErrors(1), isEmpty);
     expect(r.source, contains('- tap: [0.5, 0.5]'));
-    expect(r.lines, [2, 3]); // after devices: and steps:
+    expect(r.lines, [3, 4]); // after devices:, slim: and steps:
   });
 
   test(
@@ -486,4 +486,41 @@ void main() {
       expect(runs.stateValue.single.status, ScenarioStatus.failed);
     },
   );
+
+  test('the same label in if_visible and if_not_visible is rejected', () async {
+    await expectLater(
+      run({
+        'devices': ['pixel'],
+        'steps': [
+          {'action': 'wait', 'ms': 1, 'if_visible': 'a', 'if_not_visible': 'a'},
+        ],
+      }),
+      throwsArgumentError,
+    );
+  });
+
+  test('stop_scenario says so when the run is not running', () async {
+    await run({
+      'devices': ['pixel'],
+      'steps': [
+        {'action': 'wait', 'ms': 1},
+      ],
+    });
+    final stop = inputTools(
+      ToolContext(
+        devices: devices,
+        streams: streams,
+        grid: GridRecorderCubit(),
+        view: ViewSettingsCubit(),
+        slim: mode,
+        adbPath: () => 'adb',
+        automation: automation,
+        runs: runs,
+      ),
+    ).firstWhere((t) => t.name == 'stop_scenario');
+    for (final id in [0, 99]) {
+      final reply = await stop.handler({'run_id': id});
+      expect(reply.single['text'], 'Run $id is not running');
+    }
+  });
 }

@@ -77,12 +77,16 @@ class _IosAutomation implements IosAutomation {
             .trim(),
       );
     }
-    for (final entry in Directory(path).listSync()) {
-      entry.deleteSync(recursive: true);
-    }
-    // The app expects these to exist on first launch.
-    for (final dir in ['Documents', 'Library', 'tmp']) {
-      Directory('$path/$dir').createSync(recursive: true);
+    try {
+      for (final entry in Directory(path).listSync()) {
+        entry.deleteSync(recursive: true);
+      }
+      // The app expects these to exist on first launch.
+      for (final dir in ['Documents', 'Library', 'tmp']) {
+        Directory('$path/$dir').createSync(recursive: true);
+      }
+    } on FileSystemException catch (e) {
+      throw StateError('Could not clear $appId on ${device.name}: $e');
     }
   }
 

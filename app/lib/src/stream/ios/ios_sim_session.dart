@@ -191,17 +191,24 @@ class IosSimSession implements DeviceSession {
         const [];
     return [
       for (final e in raw)
-        UiElement(
-          label: e['label'] as String? ?? '',
-          id: e['id'] as String? ?? '',
-          value: e['value'] as String? ?? '',
-          role: e['role'] as String? ?? '',
-          left: (e['left']! as num).toDouble(),
-          top: (e['top']! as num).toDouble(),
-          right: (e['right']! as num).toDouble(),
-          bottom: (e['bottom']! as num).toDouble(),
-          handle: e['handle'] as int?,
-        ),
+        // Skips an element the plugin sent without a usable frame.
+        if (e case {
+          'left': final num left,
+          'top': final num top,
+          'right': final num right,
+          'bottom': final num bottom,
+        })
+          UiElement(
+            label: e['label'] as String? ?? '',
+            id: e['id'] as String? ?? '',
+            value: e['value'] as String? ?? '',
+            role: e['role'] as String? ?? '',
+            left: left.toDouble(),
+            top: top.toDouble(),
+            right: right.toDouble(),
+            bottom: bottom.toDouble(),
+            handle: e['handle'] as int?,
+          ),
     ];
   }
 

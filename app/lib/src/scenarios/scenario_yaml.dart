@@ -134,6 +134,7 @@ String scenarioToYaml(Map<String, Object?> args) {
   if (args['devices'] case final List<Object?> devices) {
     out.writeln('devices: ${_yaml(devices)}');
   }
+  if (args['slim'] case final bool slim) out.writeln('slim: $slim');
   out.writeln('steps:');
   for (final raw in args['steps']! as List) {
     final step = {...(raw as Map).cast<String, Object?>()};
@@ -178,7 +179,14 @@ String _yaml(Object? v) => switch (v) {
 
 bool _plainString(String s) {
   if (s.isEmpty || s.trim() != s) return false;
+  // Newlines (Android content-desc has them) and other control characters
+  // only survive quoted.
+  if (s.codeUnits.any((u) => u < 0x20 || u == 0x7f)) return false;
   if (RegExp(r'''[:#\[\]{},&*!|>'"%@`]''').hasMatch(s)) return false;
   // Would load as a number, bool or null instead of a string.
-  return loadYaml(s) is String;
+  try {
+    return loadYaml(s) == s;
+  } on YamlException {
+    return false;
+  }
 }

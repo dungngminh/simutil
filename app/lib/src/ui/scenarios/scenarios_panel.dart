@@ -70,9 +70,14 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
       ],
     );
     if (file == null) return;
-    final text = await File(file.path).readAsString();
-    setState(() => _file = file.name);
-    _text.text = text;
+    try {
+      final text = await File(file.path).readAsString();
+      if (!mounted) return;
+      setState(() => _file = file.name);
+      _text.text = text;
+    } on FileSystemException catch (e) {
+      if (mounted) setState(() => _error = 'Could not open ${file.name}: $e');
+    }
   }
 
   void _run() {

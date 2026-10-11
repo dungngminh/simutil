@@ -33,12 +33,6 @@
   `requestKeyFrame()` asks for a fresh key frame (at most once a second;
   requests in between are deferred, not dropped). Session setup commands
   run at `CommandPriority.interactive`.
-
-## 1.0.1
-
-- Windows: resolves `adb.exe` / `emulator.exe` and defaults the SDK root to
-  `%LOCALAPPDATA%\Android\Sdk`. New `isWindows` test seam on
-  `AndroidDeviceService`.
 - `AndroidAutomation.tapElement` taps a node at its own pixel center with
   `input tap` (works on permission prompts too).
 - `AndroidAutomation`: relaunches apps (`am force-stop`, or `pm clear`
@@ -46,6 +40,12 @@
   (ASCII) and reads elements from `uiautomator dump`
   (`parseUiautomatorDump`, normalized to the `wm size` screen so dialogs
   and permission prompts map right).
+
+## 1.0.1
+
+- Windows: resolves `adb.exe` / `emulator.exe` and defaults the SDK root to
+  `%LOCALAPPDATA%\Android\Sdk`. New `isWindows` test seam on
+  `AndroidDeviceService`.
 
 ## 1.0.0
 

@@ -78,4 +78,18 @@ steps:
     expect(stepLines(yaml), [2, 3, 5, 6, 7, 10, 11]);
     expect(stepLines('steps: ['), isEmpty);
   });
+
+  test('multi-line labels are quoted and slim survives the round trip', () {
+    final args = {
+      'slim': false,
+      'steps': [
+        {'action': 'tap', 'label': 'month\nTab 2 of 2'},
+        {'action': 'type', 'text': 'tab\tseparated'},
+      ],
+    };
+    final yaml = scenarioToYaml(args);
+    expect(yaml, contains('slim: false'));
+    expect(scenarioFromYaml(yaml), args);
+    expect(stepLines(yaml), [2, 3]);
+  });
 }

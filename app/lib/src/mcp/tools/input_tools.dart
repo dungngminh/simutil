@@ -157,6 +157,10 @@ List<McpTool> inputTools(ToolContext c) => [
       if (id != null && id is! int) throw ArgumentError('run_id: integer');
       final List<int> stopped;
       if (id is int) {
+        final running = runs.stateValue.any(
+          (r) => r.id == id && r.status == ScenarioStatus.running,
+        );
+        if (!running) return c.text('Run $id is not running');
         runs.stop(id);
         stopped = [id];
       } else {
@@ -688,6 +692,13 @@ void _validateStep(Map<String, Object?> step) {
     if (v != null && (v is! String || v.trim().isEmpty)) {
       throw ArgumentError('$key must be a label');
     }
+  }
+  if (step['if_visible'] != null &&
+      step['if_visible'] == step['if_not_visible']) {
+    throw ArgumentError(
+      'if_visible and if_not_visible name the same label; the step would '
+      'never run',
+    );
   }
   final repeat = step['repeat'];
   if (repeat != null && (repeat is! int || repeat < 1)) {

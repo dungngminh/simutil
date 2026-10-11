@@ -438,7 +438,20 @@ private final class SimAccessibility: NSObject {
   /// their translations carry, for press(udid:handle:).
   private var listed: [String: (token: String, elements: [NSObject])] = [:]
 
-  private lazy var translator: NSObject? = {
+  private var translatorValue: NSObject??
+
+  /// Set up once even when two simulators look up labels at the same time
+  /// (a lazy var's first access is not synchronized).
+  private var translator: NSObject? {
+    lock.lock()
+    defer { lock.unlock() }
+    if let value = translatorValue { return value }
+    let value = makeTranslator()
+    translatorValue = value
+    return value
+  }
+
+  private func makeTranslator() -> NSObject? {
     _ = dlopen(
       "/System/Library/PrivateFrameworks/AccessibilityPlatformTranslation.framework/AccessibilityPlatformTranslation",
       RTLD_NOW)
@@ -450,7 +463,7 @@ private final class SimAccessibility: NSObject {
     Self.set(t, "supportsDelegateTokens", true)
     Self.set(t, "accessibilityEnabled", true)
     return t
-  }()
+  }
 
   /// KVC set that skips keys this OS version lacks instead of raising.
   private static func set(_ obj: NSObject, _ key: String, _ value: Any?) {

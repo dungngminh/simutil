@@ -36,8 +36,13 @@ Future<void> main() async {
   // Closing the window quits, after streams and recordings are released.
   windowManager.addListener(
     _QuitOnClose(() async {
-      await disposeDependencies();
-      await windowManager.destroy();
+      try {
+        await disposeDependencies();
+      } catch (e, s) {
+        debugPrint('Dispose on quit failed: $e\n$s');
+      } finally {
+        await windowManager.destroy();
+      }
     }),
   );
   await windowManager.setPreventClose(true);
@@ -99,7 +104,13 @@ class _QuitOnClose with WindowListener {
   _QuitOnClose(this.quit);
 
   final Future<void> Function() quit;
+  var _quitting = false;
 
+  /// Quits once; further close clicks while quitting are ignored.
   @override
-  void onWindowClose() => quit();
+  Future<void> onWindowClose() async {
+    if (_quitting) return;
+    _quitting = true;
+    await quit();
+  }
 }

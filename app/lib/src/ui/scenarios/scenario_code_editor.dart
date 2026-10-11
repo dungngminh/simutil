@@ -62,6 +62,12 @@ class _ScenarioCodeEditorState extends State<ScenarioCodeEditor> {
       old.controller.removeListener(_update);
       widget.controller.addListener(_update);
     }
+    if (old.readOnly != widget.readOnly || old.devices != widget.devices) {
+      // After this frame: _update may setState.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _update();
+      });
+    }
   }
 
   @override
@@ -97,7 +103,7 @@ class _ScenarioCodeEditorState extends State<ScenarioCodeEditor> {
 
   void _accept() {
     final s = _suggest;
-    if (s == null) return;
+    if (s == null || widget.readOnly) return;
     final value = widget.controller.value;
     final insert = s.items[_picked].insert;
     widget.controller.value = value.replaced(

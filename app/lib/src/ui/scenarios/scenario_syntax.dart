@@ -10,7 +10,7 @@ class ScenarioSyntaxController extends TextEditingController {
   ScenarioSyntaxController({super.text});
 
   static final _token = RegExp(
-    r'''(#.*$)|("(?:[^"\\]|\\.)*"?|'[^']*'?)|(^\s*-(?=\s|$))|([A-Za-z_]\w*(?=:(?:\s|$)))|(-?\b\d+(?:\.\d+)?\b)|(\b(?:true|false|null)\b)|([\[\]{},:])''',
+    r'''("(?:[^"\\]|\\.)*"?|'[^']*'?)|(#.*$)|(^\s*-(?=\s|$))|([A-Za-z_]\w*(?=:(?:\s|$)))|(-?\b\d+(?:\.\d+)?\b)|(\b(?:true|false|null)\b)|([\[\]{},:])''',
     multiLine: true,
   );
 
@@ -26,8 +26,8 @@ class ScenarioSyntaxController extends TextEditingController {
     for (final m in _token.allMatches(text)) {
       if (m.start > at) spans.add(TextSpan(text: text.substring(at, m.start)));
       final color = switch (m) {
-        _ when m[1] != null => t.textFaint,
-        _ when m[2] != null => t.success,
+        _ when m[1] != null => t.success,
+        _ when m[2] != null => t.textFaint,
         _ when m[3] != null => t.textMuted,
         _ when m[4] != null =>
           scenarioActions.contains(m[4]) ? t.accent : t.warning,

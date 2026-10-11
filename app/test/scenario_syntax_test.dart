@@ -10,7 +10,7 @@ void main() {
     late TextSpan span;
     late SimuTokens t;
     final controller = ScenarioSyntaxController(
-      text: 'steps:\n  - tap: "Sign in"  # go\n    repeat: 3\n',
+      text: 'steps:\n  - tap: "Sign # in"  # go\n    repeat: 3\n',
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -34,7 +34,7 @@ void main() {
         ?.color;
     expect(colorOf('tap'), t.accent);
     expect(colorOf('repeat'), t.warning);
-    expect(colorOf('"Sign in"'), t.success);
+    expect(colorOf('"Sign # in"'), t.success); // # in a string is no comment
     expect(colorOf('3'), t.apple);
     expect(colorOf('# go'), t.textFaint);
     expect(span.toPlainText(), controller.text);
