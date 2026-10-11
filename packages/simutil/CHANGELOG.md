@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Android emulators and devices show their Android version (e.g.
+  Android 15), like iOS simulators do.
 - `simutil launch --headless` starts an emulator or simulator without its window.
 
 ### Changed

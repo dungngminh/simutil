@@ -40,6 +40,9 @@
   (ASCII) and reads elements from `uiautomator dump`
   (`parseUiautomatorDump`, normalized to the `wm size` screen so dialogs
   and permission prompts map right).
+- Devices carry their Android version in `platform`: emulators from the
+  AVD `.ini` target, booted hardware from `ro.build.version.release`
+  (`androidPlatformName` maps API levels to versions).
 
 ## 1.0.1
 

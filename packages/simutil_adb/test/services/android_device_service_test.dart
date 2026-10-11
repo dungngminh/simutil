@@ -483,4 +483,58 @@ void main() {
       expect(await svc.isAvailable(), isFalse);
     });
   });
+
+  group('Android versions', () {
+    test('androidPlatformName maps API levels to versions', () {
+      expect(androidPlatformName('android-35'), 'Android 15');
+      expect(androidPlatformName('android-32'), 'Android 12L');
+      expect(androidPlatformName('36'), 'Android 16');
+      expect(androidPlatformName('android-99'), 'Android API 99');
+      expect(androidPlatformName(null), 'Android');
+      expect(androidPlatformName('android-Baklava'), 'Android');
+    });
+
+    test('emulators read their version from the AVD ini', () async {
+      final avdHome = Directory('${sdkDir.path}/avd')..createSync();
+      File(
+        '${avdHome.path}/Pixel_7.ini',
+      ).writeAsStringSync('avd.ini.encoding=UTF-8\ntarget=android-34\n');
+      final exec = FakeCommandExec((command, args) {
+        if (command == emulatorPath && args.contains('-list-avds')) {
+          return FakeCommandExec.ok('Pixel_7\nNo_Ini\n');
+        }
+        return null;
+      });
+      final devices = await AndroidDeviceService(
+        exec,
+        androidHomeOverride: sdkDir.path,
+        environment: {'ANDROID_AVD_HOME': avdHome.path},
+        isWindows: false,
+      ).getSimulators();
+      expect(devices.map((d) => d.platform), ['Android 14', 'Android']);
+    });
+
+    test('booted hardware reports ro.build.version.release', () async {
+      final exec = FakeCommandExec((command, args) {
+        if (args.join(' ') == 'devices -l') {
+          return FakeCommandExec.ok(
+            'List of devices attached\n'
+            'ABC123 device product:foo model:Pixel_8 device:husky\n'
+            'DEF456 unauthorized\n',
+          );
+        }
+        if (args.contains('ro.build.version.release')) {
+          return FakeCommandExec.ok('15\n');
+        }
+        return null;
+      });
+      final devices = await service(exec).getPhysicalDevices();
+      expect(devices.map((d) => d.platform), ['Android 15', 'Android']);
+      // Only the booted device is asked.
+      expect(
+        exec.calls.where((c) => c.arguments.contains('getprop')),
+        hasLength(1),
+      );
+    });
+  });
 }

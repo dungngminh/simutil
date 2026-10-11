@@ -26,6 +26,7 @@
   frame, opaque `handle`), `DeviceAutomation.tapElement` for native taps,
   and `findElement` (exact match first, then contains; `index`
   picks among several).
+- `Device.android` takes an optional `platform` (e.g. `Android 15`).
 
 ## 1.0.0
 

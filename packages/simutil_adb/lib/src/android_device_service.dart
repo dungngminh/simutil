@@ -119,7 +119,7 @@ class AndroidDeviceService implements DeviceService {
           name: name,
           os: DeviceOs.android,
           type: DeviceType.simulator,
-          platform: 'Android',
+          platform: _avdPlatform(name),
           state: runningMap.containsKey(name)
               ? DeviceState.booted
               : DeviceState.shutdown,
@@ -351,6 +351,54 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
+  /// `Android 15` from the AVD's `<name>.ini` (`target=android-35`); plain
+  /// `Android` when it cannot be read.
+  String _avdPlatform(String name) {
+    try {
+      final target = File('$avdHome/$name.ini')
+          .readAsLinesSync()
+          .map((l) => l.trim())
+          .where((l) => l.startsWith('target='))
+          .firstOrNull;
+      return androidPlatformName(target?.substring('target='.length));
+    } on FileSystemException {
+      return 'Android';
+    }
+  }
+
+  /// Booted hardware with its Android version (`ro.build.version.release`).
+  Future<List<Device>> _withVersions(List<Device> devices) => Future.wait([
+    for (final d in devices)
+      if (d.state != DeviceState.booted)
+        Future.value(d)
+      else
+        _exec
+            .run(
+              adbPath,
+              arguments: [
+                '-s',
+                d.id,
+                'shell',
+                'getprop',
+                'ro.build.version.release',
+              ],
+              priority: CommandPriority.background,
+              timeout: _deviceListTimeout,
+            )
+            .then(
+              (r) => r.success && r.stdout.trim().isNotEmpty
+                  ? Device.android(
+                      id: d.id,
+                      name: d.name,
+                      platform: 'Android ${r.stdout.trim()}',
+                      state: d.state,
+                      type: d.type,
+                    )
+                  : d,
+              onError: (Object _) => d,
+            ),
+  ]);
+
   @override
   Future<List<Device>> getPhysicalDevices() async {
     try {
@@ -382,7 +430,7 @@ class AndroidDeviceService implements DeviceService {
                 _physicalDeviceIdPattern.hasMatch(parts.first);
           });
 
-      return rawDevices
+      final devices = rawDevices
           .map((line) {
             final parts = line.split(RegExp(r'\s+'));
             final id = parts.isNotEmpty ? parts.first : '';
@@ -412,6 +460,7 @@ class AndroidDeviceService implements DeviceService {
           })
           .where((d) => d.id.isNotEmpty)
           .toList();
+      return await _withVersions(devices);
     } catch (e) {
       return [];
     }
@@ -467,4 +516,35 @@ class AndroidDeviceService implements DeviceService {
       return false;
     }
   }
+}
+
+/// `Android 15` for an SDK [target] such as `android-35` (or `35`); the API
+/// level when the version is not known yet; plain `Android` without one.
+String androidPlatformName(String? target) {
+  const versions = {
+    21: '5.0',
+    22: '5.1',
+    23: '6',
+    24: '7.0',
+    25: '7.1',
+    26: '8.0',
+    27: '8.1',
+    28: '9',
+    29: '10',
+    30: '11',
+    31: '12',
+    32: '12L',
+    33: '13',
+    34: '14',
+    35: '15',
+    36: '16',
+  };
+  final api = int.tryParse(
+    RegExp(r'(\d+)').firstMatch(target ?? '')?.group(1) ?? '',
+  );
+  if (api == null) return 'Android';
+  return switch (versions[api]) {
+    final v? => 'Android $v',
+    _ => 'Android API $api',
+  };
 }

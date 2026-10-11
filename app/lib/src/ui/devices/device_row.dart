@@ -32,7 +32,9 @@ class DeviceRow extends StatelessWidget {
       (c) => c.stateValue.isOpen(device.id),
     );
     final subtitle = [
-      device.state.label.toLowerCase(),
+      // "iOS 26.5" / "Android 15": the bare family name adds nothing.
+      if (device.platform.contains(RegExp(r'\d'))) device.platform,
+      // The state shows as the glyph's dot.
       if (slim) 'slim',
       if (open) 'streaming',
     ].join(' · ');
@@ -68,8 +70,10 @@ class DeviceRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: t.label,
                   ),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: t.mono.copyWith(fontSize: 11)),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: t.mono.copyWith(fontSize: 11)),
+                  ],
                 ],
               ),
             ),

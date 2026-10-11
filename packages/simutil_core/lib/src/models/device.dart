@@ -14,17 +14,19 @@ class Device {
     required this.type,
   });
 
-  /// Android emulator or hardware device (`os` is [DeviceOs.android]).
+  /// Android emulator or hardware device (`os` is [DeviceOs.android]);
+  /// [platform] carries the version when known, e.g. `Android 15`.
   factory Device.android({
     required String id,
     required String name,
+    String? platform,
     required DeviceState state,
     required DeviceType type,
   }) {
     return Device(
       id: id,
       name: name,
-      platform: 'Android',
+      platform: platform ?? 'Android',
       os: DeviceOs.android,
       state: state,
       type: type,
