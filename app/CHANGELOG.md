@@ -42,6 +42,7 @@ First version of the desktop app (macOS, Windows, Linux).
 - Scenario studio beside the streams: write a scenario in YAML (or open a
   .yaml file), run it, and watch each step's status next to its line; a
   failed step shows its error. Scenarios agents run show there too.
+- A scenario run shows how many iOS and Android devices it covers.
 - Scenario steps can run only when an element is (or is not) on screen
   (`if_visible`, `if_not_visible`; skipped steps show as skipped), and
   `assert_visible` / `assert_not_visible` check the screen.

@@ -309,7 +309,7 @@ Future<Map<String, Object?>> runScenario(
   final slim = args['slim'];
   final yaml = source ?? scenarioToYaml(args);
   final runId = c.runs?.start(
-    {for (final d in targets) d.id: d.name},
+    targets,
     [for (final s in steps) _describe(s)],
     source: yaml,
     lines: stepLines(yaml),
