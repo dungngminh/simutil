@@ -28,17 +28,22 @@ List<McpTool> inputTools(ToolContext c) => [
     name: 'launch_app',
     description:
         'Launch an app by Android package name or iOS bundle id '
-        '(e.g. com.example.app).',
+        '(e.g. com.example.app), stopping it first if it runs; clear_state '
+        'also wipes its data (simulators and Android).',
     properties: {
       ...deviceArg,
       'app': {'type': 'string'},
+      'clear_state': {'type': 'boolean', 'default': false},
     },
     required: ['device', 'app'],
     handler: (args) async {
       final app = args['app'];
       if (app is! String || app.isEmpty) throw ArgumentError('app required');
-      await c.automation.launch(c.find(args), app);
-      return c.text('Launched $app');
+      final clear = args['clear_state'] == true;
+      await c.automation.launch(c.find(args), app, clearState: clear);
+      return c.text(
+        clear ? 'Launched $app with a clean state' : 'Launched $app',
+      );
     },
   ),
   McpTool(
@@ -144,7 +149,8 @@ List<McpTool> inputTools(ToolContext c) => [
         '{action: swipe, x1, y1, x2, y2 (or label, dx, dy), until?, max?, '
         'duration_ms?} | '
         '{action: press, button} | {action: wait, ms} | '
-        '{action: launch, app} (or android / ios ids per platform) | '
+        '{action: launch, app, clear_state?} (or android / ios ids per '
+        'platform; always relaunches fresh) | '
         '{action: type, text}. Any step takes repeat (default 1). '
         'Coordinates are normalized 0..1; prefer label taps (labels from '
         'find_elements) since layouts differ between devices. Returns each '
@@ -180,6 +186,10 @@ List<McpTool> inputTools(ToolContext c) => [
             'android': {'type': 'string'},
             'ios': {'type': 'string'},
             'text': {'type': 'string'},
+            'clear_state': {
+              'type': 'boolean',
+              'description': 'launch: wipe the app data first',
+            },
             'repeat': {'type': 'integer', 'minimum': 1},
           },
           'required': ['action'],
@@ -425,7 +435,9 @@ String _describe(Map<String, Object?> step) {
           '${step['until'] != null ? ' until ${q(step['until'])}' : ''}',
     'press' => 'press ${step['button']}',
     'wait' => 'wait ${step['ms']} ms',
-    'launch' => 'launch ${step['app'] ?? step['android'] ?? step['ios']}',
+    'launch' =>
+      'launch ${step['app'] ?? step['android'] ?? step['ios']}'
+          '${step['clear_state'] == true ? ' (clear state)' : ''}',
     'type' => 'type ${q(step['text'])}',
     final other => '$other',
   };
@@ -606,6 +618,9 @@ void _validateStep(Map<String, Object?> step) {
       ].any((v) => v is String && v.isNotEmpty)) {
         throw ArgumentError('launch needs app (or android / ios)');
       }
+      if (step['clear_state'] is! bool?) {
+        throw ArgumentError('clear_state must be true or false');
+      }
     case 'type':
       if (step['text'] is! String) throw ArgumentError('type needs text');
     case 'swipe':
@@ -653,7 +668,11 @@ Future<void> _runStep(
   'tap' => _tap(c, device, session, step),
   'swipe' => _swipe(c, device, session, step),
   'press' => Future.sync(() => session.press(_button(step))),
-  'launch' => c.automation.launch(device, _appId(device, step)),
+  'launch' => c.automation.launch(
+    device,
+    _appId(device, step),
+    clearState: step['clear_state'] == true,
+  ),
   'type' => c.automation.typeText(device, step['text']! as String),
   _ => Future<void>.delayed(Duration(milliseconds: step['ms']! as int)),
 };

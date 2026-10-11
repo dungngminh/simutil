@@ -66,4 +66,32 @@ void main() {
       throwsStateError,
     );
   });
+
+  test('launch stops the app first, or clears it with clearState', () async {
+    final exec = FakeCommandExec(
+      (_, args) => FakeCommandExec.ok(args.contains('clear') ? 'Success' : ''),
+    );
+    final adb = AndroidAutomation(exec, adbPath: () => 'adb');
+    await adb.launch(_pixel, 'x.y');
+    await adb.launch(_pixel, 'x.y', clearState: true);
+    final shells = [
+      for (final c in exec.calls) c.arguments.skip(3).take(2).join(' '),
+    ];
+    expect(shells, ['am force-stop', 'monkey -p', 'pm clear', 'monkey -p']);
+  });
+
+  test('clearState fails loudly when pm clear does not succeed', () async {
+    final exec = FakeCommandExec(
+      (_, args) => args.contains('clear')
+          ? FakeCommandExec.ok('Failed')
+          : FakeCommandExec.ok(),
+    );
+    await expectLater(
+      AndroidAutomation(
+        exec,
+        adbPath: () => 'adb',
+      ).launch(_pixel, 'x.y', clearState: true),
+      throwsStateError,
+    );
+  });
 }

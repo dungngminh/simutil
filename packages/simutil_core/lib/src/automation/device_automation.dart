@@ -84,8 +84,10 @@ UiElement? findElement(
 /// Drives apps on a device beyond touch and buttons: launching, typing and
 /// reading the accessibility tree.
 abstract interface class DeviceAutomation {
-  /// Launches app [appId] (Android package / iOS bundle id) on [device].
-  Future<void> launch(Device device, String appId);
+  /// Launches app [appId] (Android package / iOS bundle id) on [device],
+  /// stopping it first when it runs so it starts fresh; [clearState] also
+  /// wipes its data first.
+  Future<void> launch(Device device, String appId, {bool clearState = false});
 
   /// Types [text] into the focused field of [device].
   Future<void> typeText(Device device, String text);

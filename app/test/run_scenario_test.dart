@@ -72,8 +72,11 @@ class _FakeAutomation implements DeviceAutomation {
   final typed = <String>[];
 
   @override
-  Future<void> launch(Device device, String appId) async =>
-      launched.add('${device.id}:$appId');
+  Future<void> launch(
+    Device device,
+    String appId, {
+    bool clearState = false,
+  }) async => launched.add('${device.id}:$appId${clearState ? ' clear' : ''}');
 
   @override
   Future<void> typeText(Device device, String text) async =>
@@ -246,7 +249,12 @@ void main() {
       'devices': ['a', 'pixel'],
       'slim': false,
       'steps': [
-        {'action': 'launch', 'app': 'com.loggoo', 'android': 'com.loggoo.dev'},
+        {
+          'action': 'launch',
+          'app': 'com.loggoo',
+          'android': 'com.loggoo.dev',
+          'clear_state': true,
+        },
         {'action': 'tap', 'label': 'Month'},
         {'action': 'tap', 'x': 0.1, 'y': 0.2, 'repeat': 4},
         {'action': 'type', 'text': 'hi'},
@@ -254,7 +262,10 @@ void main() {
     });
     final rows = (result['devices']! as List).cast<Map<String, Object?>>();
     expect(rows.map((r) => r['ok']), everyElement(isTrue));
-    expect(automation.launched, ['a:com.loggoo', 'pixel:com.loggoo.dev']);
+    expect(automation.launched, [
+      'a:com.loggoo clear',
+      'pixel:com.loggoo.dev clear',
+    ]);
     expect(sessions['a']!.downs.first.$1, closeTo(0.85, 1e-9));
     expect(sessions['pixel']!.downs.first.$1, closeTo(0.86, 1e-9));
     expect(sessions['a']!.downs, hasLength(5)); // label tap + 4 repeats

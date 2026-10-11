@@ -18,7 +18,24 @@ class _AndroidAutomation implements AndroidAutomation {
   final String Function() adbPath;
 
   @override
-  Future<void> launch(Device device, String appId) async {
+  Future<void> launch(
+    Device device,
+    String appId, {
+    bool clearState = false,
+  }) async {
+    // `pm clear` stops the app too.
+    final reset = await _adb(device, [
+      'shell',
+      if (clearState) ...['pm', 'clear'] else ...['am', 'force-stop'],
+      appId,
+    ]);
+    if (clearState && !reset.stdout.contains('Success')) {
+      throw StateError(
+        'Could not clear $appId on ${device.name}: '
+                '${reset.stdout}${reset.stderr}'
+            .trim(),
+      );
+    }
     final result = await _adb(device, [
       'shell',
       'monkey',

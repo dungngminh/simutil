@@ -22,8 +22,8 @@ class AppAutomation implements DeviceAutomation {
       device.os == DeviceOs.android ? android : ios;
 
   @override
-  Future<void> launch(Device device, String appId) =>
-      _of(device).launch(device, appId);
+  Future<void> launch(Device device, String appId, {bool clearState = false}) =>
+      _of(device).launch(device, appId, clearState: clearState);
 
   @override
   Future<void> typeText(Device device, String text) =>

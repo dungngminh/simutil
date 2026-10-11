@@ -27,6 +27,8 @@ First version of the desktop app (macOS, Windows, Linux).
 - MCP scenarios run on many devices at once, starting together. iOS
   simulators switch to Slim mode first, with a notice.
 - MCP device list shows each stream's frames per second.
+- Scenario launches restart the app fresh; `clear_state: true` also wipes
+  its data first.
 - MCP can launch apps, type text and tap elements by their accessibility
   label, so one scenario works across screen sizes; scenario steps can
   repeat. A dot on the stream shows where an agent taps or swipes.

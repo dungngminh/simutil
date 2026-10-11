@@ -8,6 +8,7 @@ const scenarioTemplate = '''
 # devices: [iPhone 17 Pro, Pixel 8 Pro]
 steps:
   - launch: com.example.app      # Android package / iOS bundle id
+    clear_state: true            # optional: wipe app data first
   - tap: Sign in                 # accessibility label, id or text
   - tap: [0.5, 0.8]              # or x, y in 0..1
   - type: hello@example.com

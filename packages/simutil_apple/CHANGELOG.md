@@ -15,8 +15,10 @@
   (`slimCategories`, ported from simslim) to cut memory per simulator.
 - `SimulatorRecorder`: records a simulator screen with
   `simctl io recordVideo`.
-- `IosAutomation`: launches apps with `simctl launch` (simulators) or
-  `devicectl device process launch` (devices); typing and accessibility
+- `IosAutomation`: relaunches apps with `simctl launch
+  --terminate-running-process` (simulators; `clearState` empties the data
+  container first) or `devicectl device process launch --terminate-existing`
+  (devices); typing and accessibility
   need a native bridge and throw `UnsupportedError`.
 
 ## 1.0.0
