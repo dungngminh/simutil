@@ -391,7 +391,7 @@ class _GutterRow extends StatelessWidget {
   }
 }
 
-/// A spinner, check, cross or hollow circle for [status].
+/// A spinner, check, cross, minus (skipped) or hollow circle for [status].
 class ScenarioStatusIcon extends StatelessWidget {
   const ScenarioStatusIcon({super.key, required this.status, this.size = 16});
 
@@ -408,6 +408,11 @@ class ScenarioStatusIcon extends StatelessWidget {
         color: t.textFaint,
       ),
       ScenarioStatus.running => SimuSpinner(size: size - 2),
+      ScenarioStatus.skipped => Icon(
+        LucideIcons.circleMinus,
+        size: size,
+        color: t.textMuted,
+      ),
       ScenarioStatus.ok => Icon(
         LucideIcons.circleCheck,
         size: size,

@@ -1,5 +1,14 @@
 /// Scenario step actions, as YAML keys.
-const scenarioActions = ['launch', 'tap', 'swipe', 'type', 'press', 'wait'];
+const scenarioActions = [
+  'launch',
+  'tap',
+  'swipe',
+  'type',
+  'press',
+  'wait',
+  'assert_visible',
+  'assert_not_visible',
+];
 
 /// Options a step can carry besides its action.
 const scenarioOptions = [
@@ -12,6 +21,8 @@ const scenarioOptions = [
   'max',
   'duration_ms',
   'clear_state',
+  'if_visible',
+  'if_not_visible',
   'android',
   'ios',
 ];

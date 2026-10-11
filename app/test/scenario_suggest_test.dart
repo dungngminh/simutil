@@ -10,7 +10,7 @@ void main() {
       )?.items.map((i) => i.label).toList();
 
   test('actions after a dash, filtered by what is typed', () {
-    expect(labels('steps:\n  - '), hasLength(6));
+    expect(labels('steps:\n  - '), hasLength(8));
     expect(labels('steps:\n  - ta'), ['tap']);
     final s = scenarioSuggestions('steps:\n  - sw', 13)!;
     expect(s.start, 11);

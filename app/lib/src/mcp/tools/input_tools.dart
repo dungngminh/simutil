@@ -151,7 +151,11 @@ List<McpTool> inputTools(ToolContext c) => [
         '{action: press, button} | {action: wait, ms} | '
         '{action: launch, app, clear_state?} (or android / ios ids per '
         'platform; always relaunches fresh) | '
-        '{action: type, text}. Any step takes repeat (default 1). '
+        '{action: type, text} | {action: assert_visible, label, '
+        'timeout_ms?} | {action: assert_not_visible, label, timeout_ms?}. '
+        'Any step takes repeat (default 1) and if_visible / if_not_visible '
+        '(a label checked once before the step; the step is skipped when '
+        'it does not hold). '
         'Coordinates are normalized 0..1; prefer label taps (labels from '
         'find_elements) since layouts differ between devices. Returns each '
         "device's outcome with start/end ms from the common start and "
@@ -174,7 +178,16 @@ List<McpTool> inputTools(ToolContext c) => [
           'properties': {
             'action': {
               'type': 'string',
-              'enum': ['tap', 'swipe', 'press', 'wait', 'launch', 'type'],
+              'enum': [
+                'tap',
+                'swipe',
+                'press',
+                'wait',
+                'launch',
+                'type',
+                'assert_visible',
+                'assert_not_visible',
+              ],
             },
             'x': point,
             'y': point,
@@ -191,6 +204,14 @@ List<McpTool> inputTools(ToolContext c) => [
               'description': 'launch: wipe the app data first',
             },
             'repeat': {'type': 'integer', 'minimum': 1},
+            'if_visible': {
+              'type': 'string',
+              'description': 'Run the step only when this label is on screen',
+            },
+            'if_not_visible': {
+              'type': 'string',
+              'description': 'Run the step only when this label is not',
+            },
           },
           'required': ['action'],
         },
@@ -397,6 +418,11 @@ Future<Map<String, Object?>> _runScenario(
   try {
     for (final step in steps) {
       final at = clock.elapsedMilliseconds;
+      if (!await _conditionHolds(c, device, step)) {
+        stepsMs.add(clock.elapsedMilliseconds - at);
+        if (runId != null) c.runs?.skip(runId, device.id, stepsMs.length - 1);
+        continue;
+      }
       for (var i = 0; i < (step['repeat'] as int? ?? 1); i++) {
         await _runStep(c, device, session, step);
       }
@@ -439,10 +465,17 @@ String _describe(Map<String, Object?> step) {
       'launch ${step['app'] ?? step['android'] ?? step['ios']}'
           '${step['clear_state'] == true ? ' (clear state)' : ''}',
     'type' => 'type ${q(step['text'])}',
+    'assert_visible' => 'assert visible ${q(step['label'])}',
+    'assert_not_visible' => 'assert not visible ${q(step['label'])}',
     final other => '$other',
   };
   final repeat = step['repeat'] as int? ?? 1;
-  return repeat > 1 ? '$text ×$repeat' : text;
+  final when = switch (step) {
+    {'if_visible': final String l} => ' if ${q(l)} visible',
+    {'if_not_visible': final String l} => ' if ${q(l)} not visible',
+    _ => '',
+  };
+  return '${repeat > 1 ? '$text ×$repeat' : text}$when';
 }
 
 /// A normalized coordinate from [args]; throws outside 0..1.
@@ -589,6 +622,12 @@ Future<void> _drag(
 
 /// Checks a scenario step up front so a typo fails before any device moves.
 void _validateStep(Map<String, Object?> step) {
+  for (final key in ['if_visible', 'if_not_visible']) {
+    final v = step[key];
+    if (v != null && (v is! String || v.trim().isEmpty)) {
+      throw ArgumentError('$key must be a label');
+    }
+  }
   final repeat = step['repeat'];
   if (repeat != null && (repeat is! int || repeat < 1)) {
     throw ArgumentError('repeat must be an integer >= 1, got $repeat');
@@ -623,6 +662,11 @@ void _validateStep(Map<String, Object?> step) {
       }
     case 'type':
       if (step['text'] is! String) throw ArgumentError('type needs text');
+    case 'assert_visible' || 'assert_not_visible':
+      final label = step['label'];
+      if (label is! String || label.trim().isEmpty) {
+        throw ArgumentError('${step['action']} needs a label');
+      }
     case 'swipe':
       final label = step['label'];
       if (label != null) {
@@ -654,8 +698,42 @@ void _validateStep(Map<String, Object?> step) {
     default:
       throw ArgumentError(
         'Unknown action ${step['action']}; use tap, swipe, press, wait, '
-        'launch or type',
+        'launch, type, assert_visible or assert_not_visible',
       );
+  }
+}
+
+/// Whether [step]'s if_visible / if_not_visible holds (checked once, no
+/// waiting); true without a condition.
+Future<bool> _conditionHolds(
+  ToolContext c,
+  Device device,
+  Map<String, Object?> step,
+) async {
+  final shown = step['if_visible'] as String?;
+  final hidden = step['if_not_visible'] as String?;
+  if (shown == null && hidden == null) return true;
+  final elements = await c.automation.elements(device);
+  if (shown != null && findElement(elements, shown) == null) return false;
+  if (hidden != null && findElement(elements, hidden) != null) return false;
+  return true;
+}
+
+/// Waits until no element matches [label]; throws after [timeoutMs].
+Future<void> _waitGone(
+  ToolContext c,
+  Device device,
+  String label,
+  int timeoutMs,
+) async {
+  final clock = Stopwatch()..start();
+  while (findElement(await c.automation.elements(device), label) != null) {
+    if (clock.elapsedMilliseconds >= timeoutMs) {
+      throw StateError(
+        '"$label" still visible on ${device.name} after $timeoutMs ms',
+      );
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 300));
   }
 }
 
@@ -674,6 +752,19 @@ Future<void> _runStep(
     clearState: step['clear_state'] == true,
   ),
   'type' => c.automation.typeText(device, step['text']! as String),
+  'assert_visible' => _locate(
+    c,
+    device,
+    step['label']! as String,
+    step['timeout_ms'] as int? ?? 5000,
+    0,
+  ),
+  'assert_not_visible' => _waitGone(
+    c,
+    device,
+    step['label']! as String,
+    step['timeout_ms'] as int? ?? 5000,
+  ),
   _ => Future<void>.delayed(Duration(milliseconds: step['ms']! as int)),
 };
 

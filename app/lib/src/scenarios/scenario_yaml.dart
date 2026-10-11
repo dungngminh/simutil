@@ -20,9 +20,21 @@ steps:
   - wait: 500                    # ms
   - tap: Next
     repeat: 3
+  - tap: Not now                 # only when it shows up
+    if_visible: Not now
+  - assert_visible: Welcome      # fails unless it appears in time
 ''';
 
-const _actions = {'tap', 'swipe', 'press', 'wait', 'launch', 'type'};
+const _actions = {
+  'tap',
+  'swipe',
+  'press',
+  'wait',
+  'launch',
+  'type',
+  'assert_visible',
+  'assert_not_visible',
+};
 
 /// `run_scenario` arguments from scenario YAML (see [scenarioTemplate]).
 /// Each step names its action as a key (`tap: month`) or with
@@ -77,7 +89,11 @@ Map<String, Object?> _step(Map<String, Object?> step, int i) {
         'x2': x2,
         'y2': y2,
       },
-      ('tap' || 'swipe', final label?) => {'label': '$label'},
+      (
+        'tap' || 'swipe' || 'assert_visible' || 'assert_not_visible',
+        final label?,
+      ) =>
+        {'label': '$label'},
       ('press', final button) => {'button': button},
       ('wait', final ms) => {'ms': ms},
       ('type', final text) => {'text': '${text ?? ''}'},
@@ -123,7 +139,9 @@ String scenarioToYaml(Map<String, Object?> args) {
     final step = {...(raw as Map).cast<String, Object?>()};
     final action = step.remove('action');
     final head = switch (action) {
-      'tap' || 'swipe' when step.containsKey('label') => step.remove('label'),
+      'tap' || 'swipe' || 'assert_visible' || 'assert_not_visible'
+          when step.containsKey('label') =>
+        step.remove('label'),
       'tap' => [step.remove('x'), step.remove('y')],
       'swipe' => [
         for (final k in ['x1', 'y1', 'x2', 'y2']) step.remove(k),

@@ -42,7 +42,7 @@ steps:
   });
 
   test('the template parses', () {
-    expect(scenarioFromYaml(scenarioTemplate)['steps'], hasLength(9));
+    expect(scenarioFromYaml(scenarioTemplate)['steps'], hasLength(11));
   });
 
   test('mistakes are reported with the step number', () {

@@ -1,8 +1,9 @@
 import 'package:bloc_signals/bloc_signals.dart';
 import 'package:equatable/equatable.dart';
 
-/// Where a device, a step or a whole run stands.
-enum ScenarioStatus { pending, running, ok, failed }
+/// Where a device, a step or a whole run stands; [skipped] is a step whose
+/// condition (if_visible / if_not_visible) did not hold.
+enum ScenarioStatus { pending, running, ok, failed, skipped }
 
 /// One device's progress through a scenario.
 final class ScenarioDeviceRun extends Equatable {
@@ -13,6 +14,7 @@ final class ScenarioDeviceRun extends Equatable {
     this.step = 0,
     this.ms,
     this.error,
+    this.skipped = const [],
   });
 
   final String deviceId;
@@ -26,11 +28,15 @@ final class ScenarioDeviceRun extends Equatable {
   final int? ms;
   final String? error;
 
+  /// Steps skipped because their condition did not hold.
+  final List<int> skipped;
+
   ScenarioDeviceRun copyWith({
     ScenarioStatus? status,
     int? step,
     int? ms,
     String? error,
+    List<int>? skipped,
   }) => ScenarioDeviceRun(
     deviceId: deviceId,
     name: name,
@@ -38,10 +44,11 @@ final class ScenarioDeviceRun extends Equatable {
     step: step ?? this.step,
     ms: ms ?? this.ms,
     error: error ?? this.error,
+    skipped: skipped ?? this.skipped,
   );
 
   @override
-  List<Object?> get props => [deviceId, name, status, step, ms, error];
+  List<Object?> get props => [deviceId, name, status, step, ms, error, skipped];
 }
 
 /// One `run_scenario` call across its devices.
@@ -81,7 +88,9 @@ final class ScenarioRun extends Equatable {
   ScenarioStatus stepStatus(int i) {
     final each = [
       for (final d in devices)
-        if (i < d.step)
+        if (d.skipped.contains(i))
+          ScenarioStatus.skipped
+        else if (i < d.step)
           ScenarioStatus.ok
         else if (i == d.step && d.status != ScenarioStatus.ok)
           d.status
@@ -91,9 +100,9 @@ final class ScenarioRun extends Equatable {
     ];
     if (each.contains(ScenarioStatus.failed)) return ScenarioStatus.failed;
     if (each.contains(ScenarioStatus.running)) return ScenarioStatus.running;
-    if (each.contains(ScenarioStatus.ok) &&
-        !each.contains(ScenarioStatus.pending)) {
-      return ScenarioStatus.ok;
+    if (!each.contains(ScenarioStatus.pending)) {
+      if (each.contains(ScenarioStatus.ok)) return ScenarioStatus.ok;
+      if (each.contains(ScenarioStatus.skipped)) return ScenarioStatus.skipped;
     }
     return ScenarioStatus.pending;
   }
@@ -146,6 +155,13 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
   /// [deviceId] finished [step] steps of run [id].
   void progress(int id, String deviceId, int step) =>
       _update(id, deviceId, (d) => d.copyWith(step: step));
+
+  /// [deviceId] skipped [step] of run [id] (its condition did not hold).
+  void skip(int id, String deviceId, int step) => _update(
+    id,
+    deviceId,
+    (d) => d.copyWith(skipped: [...d.skipped, step], step: step + 1),
+  );
 
   /// [deviceId] finished run [id]; [error] marks it failed.
   void finish(int id, String deviceId, {required int ms, String? error}) =>

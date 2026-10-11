@@ -379,4 +379,40 @@ void main() {
     expect(r.source, contains('- tap: [0.5, 0.5]'));
     expect(r.lines, [2, 3]); // after devices: and steps:
   });
+
+  test(
+    'if_visible / if_not_visible skip a step; asserts wait or fail',
+    () async {
+      automation.screens['pixel'] = [_button('nice', 0.5, 0.7)];
+      final result = await run({
+        'devices': ['pixel'],
+        'steps': [
+          {'action': 'tap', 'label': 'nice', 'if_visible': 'nice'},
+          {'action': 'tap', 'x': 0.1, 'y': 0.1, 'if_visible': 'gone'},
+          {'action': 'tap', 'x': 0.2, 'y': 0.2, 'if_not_visible': 'gone'},
+          {'action': 'assert_visible', 'label': 'nice'},
+          {'action': 'assert_not_visible', 'label': 'gone'},
+        ],
+      });
+      final row = (result['devices']! as List).single as Map<String, Object?>;
+      expect(row, containsPair('ok', true));
+      // Ran the first and third taps; skipped the second.
+      expect(sessions['pixel']!.downs, [(0.5, 0.7), (0.2, 0.2)]);
+      final r = runs.stateValue.single;
+      expect(r.stepStatus(0), ScenarioStatus.ok);
+      expect(r.stepStatus(1), ScenarioStatus.skipped);
+      expect(r.stepStatus(2), ScenarioStatus.ok);
+      expect(r.steps[1], 'tap (0.1, 0.1) if "gone" visible');
+
+      final failed = await run({
+        'devices': ['pixel'],
+        'steps': [
+          {'action': 'assert_not_visible', 'label': 'nice', 'timeout_ms': 50},
+        ],
+      });
+      final failedRow =
+          (failed['devices']! as List).single as Map<String, Object?>;
+      expect(failedRow['error'], contains('"nice" still visible'));
+    },
+  );
 }
