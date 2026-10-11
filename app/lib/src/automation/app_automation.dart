@@ -31,9 +31,42 @@ class AppAutomation implements DeviceAutomation {
       _of(device).typeText(device, text);
 
   @override
-  Future<bool> tapElement(Device device, UiElement element) =>
-      iosSession(device.id)?.pressElement(element) ??
-      _of(device).tapElement(device, element);
+  Future<bool> tapElement(Device device, UiElement element) async {
+    final session = iosSession(device.id);
+    if (session == null) return _of(device).tapElement(device, element);
+    final settled = await _settled(session, element);
+    return session.pressElement(settled ?? element);
+  }
+
+  /// [element] once its frame holds still across two snapshots (an alert or
+  /// sheet still animating in ignores presses), with a fresh handle; null
+  /// when it is gone. Snapshots are cheap on iOS (~0.1 s), so this waits
+  /// at most [settleTimeout].
+  /// ponytail: Android skips this; each dump there costs ~2.5 s.
+  static const settleTimeout = Duration(seconds: 2);
+
+  Future<UiElement?> _settled(IosSimSession session, UiElement element) async {
+    bool same(UiElement a, UiElement b) =>
+        a.label == b.label &&
+        a.id == b.id &&
+        (a.left - b.left).abs() < 0.002 &&
+        (a.top - b.top).abs() < 0.002 &&
+        (a.right - b.right).abs() < 0.002 &&
+        (a.bottom - b.bottom).abs() < 0.002;
+    UiElement? match(List<UiElement> all, UiElement like) =>
+        all.where((e) => e.label == like.label && e.id == like.id).firstOrNull;
+
+    final clock = Stopwatch()..start();
+    var last = element;
+    while (clock.elapsed < settleTimeout) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      final now = match(await session.accessibilityElements(), last);
+      if (now == null) return null;
+      if (same(now, last)) return now;
+      last = now;
+    }
+    return last;
+  }
 
   @override
   Future<List<UiElement>> elements(Device device) =>
