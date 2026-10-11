@@ -20,8 +20,10 @@ List<McpTool> inputTools(ToolContext c) => [
     handler: (args) async {
       _validateStep({...args, 'action': 'tap'});
       final device = c.find(args);
-      final (x, y) = await _tap(c, device, await c.input(device), args);
-      return c.text('Tapped ($x, $y)');
+      final (x, y, native) = await _tap(c, device, await c.input(device), args);
+      return c.text(
+        native ? 'Pressed natively at ($x, $y)' : 'Tapped ($x, $y)',
+      );
     },
   ),
   McpTool(
@@ -498,32 +500,57 @@ DeviceButton _button(Map<String, Object?> args) {
   return match;
 }
 
-/// Taps at the step's x,y or on its label's element; returns where.
-Future<(double, double)> _tap(
+/// Taps at the step's x,y or on its label's element; returns where, and
+/// whether the platform tapped the element natively.
+Future<(double, double, bool)> _tap(
   ToolContext c,
   Device device,
   DeviceSession session,
   Map<String, Object?> step,
 ) async {
-  final (x, y) = switch (step['label']) {
-    final String label => await _locate(
+  if (step['label'] case final String label) {
+    final element = await _locate(
       c,
       device,
       label,
       step['timeout_ms'] as int? ?? 5000,
       step['index'] as int? ?? 0,
-    ),
-    _ => (_coord(step, 'x'), _coord(step, 'y')),
-  };
+    );
+    final (x, y) = (element.centerX, element.centerY);
+    // Native first (Android input tap at the node's pixels, iOS AXPress);
+    // the dot still shows where it landed.
+    if (await c.automation.tapElement(device, element)) {
+      c.marks?.add(session.deviceId, TouchPhase.down, x, y);
+      c.marks?.add(session.deviceId, TouchPhase.up, x, y);
+      return (x, y, true);
+    }
+    final (tx, ty) = await _touchAt(c, session, x, y);
+    return (tx, ty, false);
+  }
+  final (tx, ty) = await _touchAt(
+    c,
+    session,
+    _coord(step, 'x'),
+    _coord(step, 'y'),
+  );
+  return (tx, ty, false);
+}
+
+Future<(double, double)> _touchAt(
+  ToolContext c,
+  DeviceSession session,
+  double x,
+  double y,
+) async {
   c.touch(session, TouchPhase.down, x, y);
   await Future<void>.delayed(const Duration(milliseconds: 60));
   c.touch(session, TouchPhase.up, x, y);
   return (x, y);
 }
 
-/// Center of the element [label] names, polling the accessibility tree
-/// until it shows up (an app still launching, a screen animating in).
-Future<(double, double)> _locate(
+/// The element [label] names, polling the accessibility tree until it
+/// shows up (an app still launching, a screen animating in).
+Future<UiElement> _locate(
   ToolContext c,
   Device device,
   String label,
@@ -539,7 +566,7 @@ Future<(double, double)> _locate(
         label,
         index: index,
       );
-      if (match != null) return (match.centerX, match.centerY);
+      if (match != null) return match;
     } on UnsupportedError {
       rethrow;
     } catch (e) {
@@ -564,13 +591,14 @@ Future<int> _swipe(
 ) async {
   final double x1, y1, x2, y2;
   if (args['label'] case final String label) {
-    (x1, y1) = await _locate(
+    final from = await _locate(
       c,
       device,
       label,
       args['timeout_ms'] as int? ?? 5000,
       args['index'] as int? ?? 0,
     );
+    (x1, y1) = (from.centerX, from.centerY);
     x2 = (x1 + ((args['dx'] as num?) ?? 0)).clamp(0.0, 1.0);
     y2 = (y1 + ((args['dy'] as num?) ?? 0)).clamp(0.0, 1.0);
   } else {

@@ -434,6 +434,10 @@ private final class SimAccessibility: NSObject {
   private let lock = NSLock()
   private var devices: [String: NSObject] = [:]
 
+  /// Each simulator's last listed elements (index = handle) and the token
+  /// their translations carry, for press(udid:handle:).
+  private var listed: [String: (token: String, elements: [NSObject])] = [:]
+
   private lazy var translator: NSObject? = {
     _ = dlopen(
       "/System/Library/PrivateFrameworks/AccessibilityPlatformTranslation.framework/AccessibilityPlatformTranslation",
@@ -487,7 +491,28 @@ private final class SimAccessibility: NSObject {
 
   /// Labelled elements with frames normalized to the app's frame (the
   /// screen). Blocks while the simulator answers; call off the main thread.
-  func elements(device: NSObject) throws -> [[String: Any]] {
+  /// AXPress on element [handle] of [udid]'s last listing.
+  func press(device: NSObject, udid: String, handle: Int) -> Bool {
+    lock.lock()
+    let entry = listed[udid]
+    lock.unlock()
+    guard let entry, handle >= 0, handle < entry.elements.count else { return false }
+    lock.lock()
+    devices[entry.token] = device
+    lock.unlock()
+    defer {
+      lock.lock()
+      devices.removeValue(forKey: entry.token)
+      lock.unlock()
+    }
+    let element = entry.elements[handle]
+    typealias PressFunc = @convention(c) (AnyObject, Selector) -> Bool
+    let sel = NSSelectorFromString("accessibilityPerformPress")
+    guard element.responds(to: sel) else { return false }
+    return unsafeBitCast(element.method(for: sel), to: PressFunc.self)(element, sel)
+  }
+
+  func elements(device: NSObject, udid: String) throws -> [[String: Any]] {
     guard let translator else {
       throw SimStreamError("Accessibility translation is unavailable")
     }
@@ -517,6 +542,12 @@ private final class SimAccessibility: NSObject {
     let screen = frame(root, token: token)
     guard screen.width > 0, screen.height > 0 else { throw SimStreamError("App has no frame") }
     var out: [[String: Any]] = []
+    var kept: [NSObject] = []
+    defer {
+      lock.lock()
+      listed[udid] = (token, kept)
+      lock.unlock()
+    }
     var stack: [(NSObject, Int)] = [(root, 0)]
     while let (element, depth) = stack.popLast(), out.count < 2000 {
       let f = frame(element, token: token)
@@ -526,7 +557,9 @@ private final class SimAccessibility: NSObject {
       if element !== root, !(label.isEmpty && id.isEmpty && value.isEmpty),
         f.width > 0, f.height > 0
       {
+        kept.append(element)
         out.append([
+          "handle": kept.count - 1,
           "label": label, "id": id, "value": value,
           "role": string(element, "accessibilityRole"),
           "left": (f.minX - screen.minX) / screen.width,
@@ -793,11 +826,19 @@ final class SimStreamPlugin: NSObject, FlutterPlugin {
         hid.type(text)
         DispatchQueue.main.async { result(nil) }
       }
+    case "press_element":
+      let handle = args["handle"] as? Int ?? -1
+      DispatchQueue.global(qos: .userInitiated).async {
+        let pressed = SimFrameworks.device(udid: udid).map {
+          SimAccessibility.shared.press(device: $0, udid: udid, handle: handle)
+        } ?? false
+        DispatchQueue.main.async { result(pressed) }
+      }
     case "accessibility":
       DispatchQueue.global(qos: .userInitiated).async {
         let reply: Any
         if let device = SimFrameworks.device(udid: udid) {
-          do { reply = try SimAccessibility.shared.elements(device: device) } catch {
+          do { reply = try SimAccessibility.shared.elements(device: device, udid: udid) } catch {
             reply = FlutterError(code: "accessibility", message: "\(error)", details: nil)
           }
         } else {

@@ -123,4 +123,25 @@ void main() {
     expect(exec.calls.where((c) => c.arguments.contains('wm')), hasLength(1));
     expect(first.first.centerX, closeTo(850 / 1008, 1e-9));
   });
+
+  test('tapElement taps the node center in pixels with input tap', () async {
+    final exec = FakeCommandExec((_, args) => FakeCommandExec.ok());
+    final element = parseUiautomatorDump(_dump, screen: (1000, 2000)).first;
+    expect(
+      await AndroidAutomation(
+        exec,
+        adbPath: () => 'adb',
+      ).tapElement(_pixel, element),
+      isTrue,
+    );
+    expect(exec.calls.single.arguments, [
+      '-s',
+      'serial',
+      'shell',
+      'input',
+      'tap',
+      '850',
+      '250',
+    ]);
+  });
 }

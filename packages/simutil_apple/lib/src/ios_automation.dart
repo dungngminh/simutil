@@ -91,6 +91,9 @@ class _IosAutomation implements IosAutomation {
       throw UnsupportedError('Typing on iOS needs a native input bridge');
 
   @override
+  Future<bool> tapElement(Device device, UiElement element) async => false;
+
+  @override
   Future<List<UiElement>> elements(Device device) => throw UnsupportedError(
     'iOS accessibility needs a native accessibility bridge',
   );

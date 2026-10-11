@@ -31,6 +31,11 @@ class AppAutomation implements DeviceAutomation {
       _of(device).typeText(device, text);
 
   @override
+  Future<bool> tapElement(Device device, UiElement element) =>
+      iosSession(device.id)?.pressElement(element) ??
+      _of(device).tapElement(device, element);
+
+  @override
   Future<List<UiElement>> elements(Device device) =>
       iosSession(device.id)?.accessibilityElements() ??
       _of(device).elements(device);

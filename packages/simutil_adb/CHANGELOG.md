@@ -39,6 +39,8 @@
 - Windows: resolves `adb.exe` / `emulator.exe` and defaults the SDK root to
   `%LOCALAPPDATA%\Android\Sdk`. New `isWindows` test seam on
   `AndroidDeviceService`.
+- `AndroidAutomation.tapElement` taps a node at its own pixel center with
+  `input tap` (works on permission prompts too).
 - `AndroidAutomation`: relaunches apps (`am force-stop`, or `pm clear`
   with `clearState`, then `monkey`), types with `input text`
   (ASCII) and reads elements from `uiautomator dump`

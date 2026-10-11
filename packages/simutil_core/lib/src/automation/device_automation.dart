@@ -13,7 +13,12 @@ class UiElement {
     this.id = '',
     this.value = '',
     this.role = '',
+    this.handle,
   });
+
+  /// Platform data for [DeviceAutomation.tapElement] (Android: its center in
+  /// screen pixels; iOS simulator: its index in the native tree). Opaque.
+  final Object? handle;
 
   /// Accessibility label (Android: content-desc, else text).
   final String label;
@@ -94,4 +99,8 @@ abstract interface class DeviceAutomation {
 
   /// Visible elements of [device] that carry a label, id or value.
   Future<List<UiElement>> elements(Device device);
+
+  /// Taps [element] natively (no normalized coordinates); false when this
+  /// platform cannot, so the caller taps its center instead.
+  Future<bool> tapElement(Device device, UiElement element);
 }

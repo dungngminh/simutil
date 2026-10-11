@@ -91,6 +91,17 @@ class _AndroidAutomation implements AndroidAutomation {
     );
   }
 
+  /// `input tap` at the node's own pixel center: exact for any window,
+  /// permission prompts included.
+  @override
+  Future<bool> tapElement(Device device, UiElement element) async {
+    if (element.handle case (final int x, final int y)) {
+      final result = await _adb(device, ['shell', 'input', 'tap', '$x', '$y']);
+      return result.success;
+    }
+    return false;
+  }
+
   /// The display size from `wm size` (an override wins over the physical
   /// size); null when adb does not say.
   Future<(int, int)?> _screenSize(Device device) async {
@@ -157,6 +168,7 @@ List<UiElement> parseUiautomatorDump(String xml, {(int, int)? screen}) {
         top: t / height,
         right: r / width,
         bottom: bt / height,
+        handle: ((l + r) ~/ 2, (t + bt) ~/ 2),
       ),
     );
   }

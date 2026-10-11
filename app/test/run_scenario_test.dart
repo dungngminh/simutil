@@ -71,6 +71,16 @@ class _FakeAutomation implements DeviceAutomation {
   final launched = <String>[];
   final typed = <String>[];
 
+  /// Whether taps by label go native; records them when they do.
+  var native = false;
+  final pressed = <String>[];
+
+  @override
+  Future<bool> tapElement(Device device, UiElement element) async {
+    if (native) pressed.add('${device.id}:${element.label}');
+    return native;
+  }
+
   @override
   Future<void> launch(
     Device device,
@@ -413,6 +423,29 @@ void main() {
       final failedRow =
           (failed['devices']! as List).single as Map<String, Object?>;
       expect(failedRow['error'], contains('"nice" still visible'));
+    },
+  );
+
+  test(
+    'label taps go native when the platform can, still marking the dot',
+    () async {
+      automation
+        ..native = true
+        ..screens['pixel'] = [_button('Allow', 0.5, 0.55)];
+      final seen = <TouchMark>[];
+      marks.of('pixel').listen(seen.add);
+      await run({
+        'devices': ['pixel'],
+        'steps': [
+          {'action': 'tap', 'label': 'Allow'},
+        ],
+      });
+      expect(automation.pressed, ['pixel:Allow']);
+      expect(sessions['pixel']!.downs, isEmpty); // no coordinate touch
+      expect(seen.map((m) => (m.phase, m.y)), [
+        (TouchPhase.down, 0.55),
+        (TouchPhase.up, 0.55),
+      ]);
     },
   );
 }

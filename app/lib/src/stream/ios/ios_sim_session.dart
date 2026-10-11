@@ -200,8 +200,21 @@ class IosSimSession implements DeviceSession {
           top: (e['top']! as num).toDouble(),
           right: (e['right']! as num).toDouble(),
           bottom: (e['bottom']! as num).toDouble(),
+          handle: e['handle'] as int?,
         ),
     ];
+  }
+
+  /// Presses [element] through accessibility (AXPress), the way VoiceOver
+  /// activates it; false when it came from an older tree or will not press.
+  Future<bool> pressElement(UiElement element) async {
+    final handle = element.handle;
+    if (handle is! int) return false;
+    return await _channel.invokeMethod<bool>('press_element', {
+          'udid': udid,
+          'handle': handle,
+        }) ??
+        false;
   }
 
   @override
