@@ -52,7 +52,7 @@ void main() {
     expect(find.byIcon(LucideIcons.circleCheck), findsOneWidget); // step 1
     expect(find.byType(SimuSpinner), findsWidgets); // step 2 and the run
     expect(find.byIcon(LucideIcons.circle), findsOneWidget); // step 3
-    expect(find.text('Running…'), findsOneWidget);
+    expect(find.text('Stop'), findsOneWidget); // Run turns into Stop
   });
 
   testWidgets('a failed step shows its line and each device error', (

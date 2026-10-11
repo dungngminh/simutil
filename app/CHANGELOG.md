@@ -28,6 +28,8 @@ First version of the desktop app (macOS, Windows, Linux).
 - MCP scenarios run on many devices at once, starting together. iOS
   simulators switch to Slim mode first, with a notice.
 - MCP device list shows each stream's frames per second.
+- Stop a running scenario from the studio's Stop button or the MCP
+  `stop_scenario` tool.
 - Scenario launches restart the app fresh; `clear_state: true` also wipes
   its data first.
 - Taps by label press the element natively (Android `input tap` at its

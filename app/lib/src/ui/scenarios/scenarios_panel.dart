@@ -130,6 +130,11 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
             running: running,
             onOpen: _open,
             onRun: _run,
+            onStop: () {
+              if (latest != null) {
+                context.read<ScenarioRunsCubit>().stop(latest.id);
+              }
+            },
             onClose: widget.onClose,
           ),
           if (latest != null)
@@ -193,6 +198,7 @@ class _StudioHeader extends StatelessWidget {
     required this.running,
     required this.onOpen,
     required this.onRun,
+    required this.onStop,
     required this.onClose,
   });
 
@@ -200,6 +206,7 @@ class _StudioHeader extends StatelessWidget {
   final bool running;
   final VoidCallback onOpen;
   final VoidCallback onRun;
+  final VoidCallback onStop;
   final VoidCallback onClose;
 
   @override
@@ -227,10 +234,10 @@ class _StudioHeader extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             SimuButton(
-              label: running ? 'Running…' : 'Run',
-              icon: LucideIcons.play,
+              label: running ? 'Stop' : 'Run',
+              icon: running ? LucideIcons.square : LucideIcons.play,
               primary: true,
-              onPressed: running ? null : onRun,
+              onPressed: running ? onStop : onRun,
             ),
             const SizedBox(width: 4),
             SimuIconButton(

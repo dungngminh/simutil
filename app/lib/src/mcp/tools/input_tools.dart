@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:simutil_app/src/mcp/mcp_server.dart';
 import 'package:simutil_app/src/mcp/tools/tool_context.dart';
+import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/scenarios/scenario_yaml.dart';
 import 'package:simutil_core/simutil_core.dart';
 
@@ -138,6 +139,32 @@ List<McpTool> inputTools(ToolContext c) => [
       await (await c.live(device)).repairInput();
       await c.input(device);
       return c.text('Input restored on ${device.name}');
+    },
+  ),
+  McpTool(
+    name: 'stop_scenario',
+    description:
+        'Stop a running scenario by run_id (from run_scenario), or every '
+        'running one. Devices stop at their next step or wait; their steps '
+        'so far stay done.',
+    properties: {
+      'run_id': {'type': 'integer'},
+    },
+    handler: (args) async {
+      final runs = c.runs;
+      if (runs == null) return c.text('No scenario runs');
+      final id = args['run_id'];
+      if (id != null && id is! int) throw ArgumentError('run_id: integer');
+      final List<int> stopped;
+      if (id is int) {
+        runs.stop(id);
+        stopped = [id];
+      } else {
+        stopped = runs.stopAll();
+      }
+      return c.text(
+        stopped.isEmpty ? 'Nothing running' : 'Stopping run $stopped',
+      );
     },
   ),
   McpTool(
@@ -295,7 +322,10 @@ Future<Map<String, Object?>> runScenario(
   clock.reset();
   final results = await Future.wait([
     for (final (i, device) in targets.indexed)
-      _runScenario(c, device, sessions[i], steps, clock, runId),
+      runZoned(
+        () => _runScenario(c, device, sessions[i], steps, clock, runId),
+        zoneValues: {_runKey: (c.runs, runId)},
+      ),
   ]);
   final slimmed = c.devices.stateValue.slimmed;
   for (final (i, device) in targets.indexed) {
@@ -309,7 +339,7 @@ Future<Map<String, Object?>> runScenario(
     'Scenario done: $ok/${results.length}',
     error: ok < results.length,
   );
-  return {'prep_ms': prepMs, 'devices': results};
+  return {'run_id': ?runId, 'prep_ms': prepMs, 'devices': results};
 }
 
 const _swipeArgs = {
@@ -420,12 +450,14 @@ Future<Map<String, Object?>> _runScenario(
   try {
     for (final step in steps) {
       final at = clock.elapsedMilliseconds;
+      _checkStop();
       if (!await _conditionHolds(c, device, step)) {
         stepsMs.add(clock.elapsedMilliseconds - at);
         if (runId != null) c.runs?.skip(runId, device.id, stepsMs.length - 1);
         continue;
       }
       for (var i = 0; i < (step['repeat'] as int? ?? 1); i++) {
+        _checkStop();
         await _runStep(c, device, session, step);
       }
       stepsMs.add(clock.elapsedMilliseconds - at);
@@ -440,12 +472,13 @@ Future<Map<String, Object?>> _runScenario(
       'steps_ms': stepsMs,
     };
   } catch (e) {
-    finish(error: '$e');
+    final error = e is StateError ? e.message : '$e';
+    finish(error: error);
     return {
       'device': device.name,
       'ok': false,
       'failed_step': stepsMs.length,
-      'error': '$e',
+      'error': error,
     };
   }
 }
@@ -578,7 +611,7 @@ Future<UiElement> _locate(
         '${lastError == null ? '' : ': $lastError'}',
       );
     }
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await _pause(const Duration(milliseconds: 300));
   }
 }
 
@@ -615,7 +648,7 @@ Future<int> _swipe(
     }
     await _drag(c, session, x1, y1, x2, y2, args['duration_ms'] as int?);
     // Let scrolling settle (a wheel snaps to an item) before looking again.
-    if (until != null) await Future<void>.delayed(_settle);
+    if (until != null) await _pause(_settle);
   }
   if (until != null &&
       findElement(await c.automation.elements(device), until) == null) {
@@ -731,6 +764,34 @@ void _validateStep(Map<String, Object?> step) {
   }
 }
 
+/// The running scenario's (runs, id), set per device run.
+const _runKey = #scenarioRun;
+
+/// Throws when the scenario this code runs for was asked to stop.
+void _checkStop() {
+  if (Zone.current[_runKey] case (
+    final ScenarioRunsCubit runs,
+    final int id,
+  ) when runs.isStopped(id)) {
+    throw StateError('Stopped');
+  }
+}
+
+/// Waits [duration], checking for a stop request every 100 ms.
+Future<void> _pause(Duration duration) async {
+  final clock = Stopwatch()..start();
+  while (clock.elapsed < duration) {
+    _checkStop();
+    final left = duration - clock.elapsed;
+    await Future<void>.delayed(
+      left < const Duration(milliseconds: 100)
+          ? left
+          : const Duration(milliseconds: 100),
+    );
+  }
+  _checkStop();
+}
+
 /// Whether [step]'s if_visible / if_not_visible holds (checked once, no
 /// waiting); true without a condition.
 Future<bool> _conditionHolds(
@@ -761,7 +822,7 @@ Future<void> _waitGone(
         '"$label" still visible on ${device.name} after $timeoutMs ms',
       );
     }
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await _pause(const Duration(milliseconds: 300));
   }
 }
 
@@ -793,7 +854,7 @@ Future<void> _runStep(
     step['label']! as String,
     step['timeout_ms'] as int? ?? 5000,
   ),
-  _ => Future<void>.delayed(Duration(milliseconds: step['ms']! as int)),
+  _ => _pause(Duration(milliseconds: step['ms']! as int)),
 };
 
 /// The launch step's app id for [device]'s platform.

@@ -129,6 +129,23 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
   /// history across launches.
   static const _keep = 20;
   var _nextId = 0;
+  final _stopped = <int>{};
+
+  /// Asks run [id] to stop; its devices stop at their next check.
+  void stop(int id) => _stopped.add(id);
+
+  /// Asks every running run to stop; returns their ids.
+  List<int> stopAll() {
+    final ids = [
+      for (final r in stateValue)
+        if (r.status == ScenarioStatus.running) r.id,
+    ];
+    _stopped.addAll(ids);
+    return ids;
+  }
+
+  /// Whether run [id] was asked to stop.
+  bool isStopped(int id) => _stopped.contains(id);
 
   /// Records a run starting on [devices] (id → name); returns its id.
   int start(

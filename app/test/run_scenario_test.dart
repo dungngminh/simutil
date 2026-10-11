@@ -448,4 +448,42 @@ void main() {
       ]);
     },
   );
+
+  test(
+    'stop_scenario stops a run mid-wait; its devices report Stopped',
+    () async {
+      final clock = Stopwatch()..start();
+      final running = run({
+        'devices': ['pixel'],
+        'steps': [
+          {'action': 'tap', 'x': 0.1, 'y': 0.1},
+          {'action': 'wait', 'ms': 5000},
+          {'action': 'tap', 'x': 0.2, 'y': 0.2},
+        ],
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      final stop = inputTools(
+        ToolContext(
+          devices: devices,
+          streams: streams,
+          grid: GridRecorderCubit(),
+          view: ViewSettingsCubit(),
+          slim: mode,
+          adbPath: () => 'adb',
+          automation: automation,
+          runs: runs,
+        ),
+      ).firstWhere((t) => t.name == 'stop_scenario');
+      final reply = await stop.handler(const {});
+      expect(reply.single['text'], contains('Stopping run'));
+
+      final result = await running;
+      expect(clock.elapsedMilliseconds, lessThan(2000));
+      final row = (result['devices']! as List).single as Map<String, Object?>;
+      expect(row, containsPair('error', 'Stopped'));
+      expect(row, containsPair('failed_step', 1));
+      expect(sessions['pixel']!.downs, hasLength(1));
+      expect(runs.stateValue.single.status, ScenarioStatus.failed);
+    },
+  );
 }
