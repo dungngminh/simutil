@@ -259,15 +259,12 @@ Future<ScrcpyInstall> _locateScrcpy(CommandExec exec) async {
   final installed = await ScrcpyInstall.locate(exec);
   if (installed != null) return installed;
 
-  // adb pushes from a file path, so copy the asset out once per version.
-  final file = File(
-    '${Directory.systemTemp.path}/simutil-scrcpy-server-$_bundledScrcpyVersion',
-  );
-  if (!file.existsSync()) {
-    final data = await rootBundle.load('assets/scrcpy-server');
-    final partial = File('${file.path}.$pid.part');
-    await partial.writeAsBytes(data.buffer.asUint8List(), flush: true);
-    await partial.rename(file.path);
-  }
+  // adb pushes from a file path. Each process copies the asset into its own
+  // fresh temp dir (owner-only on macOS / Linux), so it never trusts or
+  // races a file left by another process or user.
+  final dir = await Directory.systemTemp.createTemp('simutil-scrcpy-');
+  final file = File('${dir.path}/scrcpy-server');
+  final data = await rootBundle.load('assets/scrcpy-server');
+  await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
   return ScrcpyInstall(serverPath: file.path, version: _bundledScrcpyVersion);
 }
