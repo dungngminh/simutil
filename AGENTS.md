@@ -86,7 +86,7 @@ See [docs/ai/architecture.md](docs/ai/architecture.md).
 | `packages/simutil_core` | models, `DeviceService`, `CommandExec`, `IsolateRunner` |
 | `packages/simutil_adb` / `simutil_apple` | device services (adb, simctl/devicectl), `LogcatHelper` |
 | `packages/simutil_plugins` | `PluginCatalog`, `PluginRunner` |
-| `packages/simutil_h264` | Flutter plugin (not published): native H.264 → texture decoder for the desktop app (VideoToolbox / Media Foundation / libavcodec) |
+| `packages/simutil_h264` | Flutter plugin: native H.264 → texture decoder for the desktop app (VideoToolbox / Media Foundation / libavcodec) |
 | `packages/simutil_shared` | UI-agnostic app layer: settings, app state, changelog entries |
 | `packages/simutil` | the app (published as `simutil`): `bin/simutil.dart`, `lib/src/cli/` (`runSimutilCli`, `SimutilCommandRunner`), `lib/src/tui/` (nocterm: `app`, `components`, `dialogs`, `terminal`, `ServiceLocator`), `tool/` codegen, app `CHANGELOG.md` |
 

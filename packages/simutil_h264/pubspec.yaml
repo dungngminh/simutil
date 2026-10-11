@@ -1,7 +1,8 @@
 name: simutil_h264
 description: Native H.264 decoding into Flutter textures for the SimUtil desktop app.
 version: 0.1.0
-publish_to: none
+homepage: https://github.com/dungngminh/simutil
+repository: https://github.com/dungngminh/simutil/tree/main/packages/simutil_h264
 resolution: workspace
 
 environment:
