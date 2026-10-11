@@ -36,7 +36,13 @@ Future<void> main(List<String> argv) async {
   // A sleeping display stops the app drawing frames, which would read as
   // low FPS: keep it on for as long as this process runs.
   if (Platform.isMacOS) {
-    await Process.start('caffeinate', ['-d', '-w', '$pid']);
+    // Detached: an attached child's stdio would keep this process alive
+    // while caffeinate waits for it to exit.
+    await Process.start('caffeinate', [
+      '-d',
+      '-w',
+      '$pid',
+    ], mode: ProcessStartMode.detached);
   }
   final mcp = _Mcp(
     Uri.parse('http://127.0.0.1:${args.get('port', '8765')}/mcp'),
