@@ -7,13 +7,18 @@ import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 /// shape that shows the largest screens.
 const _tileAspect = 0.56;
 
+/// Narrowest grid tile: below this the grid stops shrinking tiles to fit
+/// and scrolls instead.
+const minGridTileWidth = 180.0;
+
 /// The stream shown large in the spotlight: [focusId] while open, else the
 /// first one.
 String spotlightFocus(List<String> ids, String? focusId) =>
     ids.contains(focusId) ? focusId! : ids.first;
 
 /// Where each stream sits in [size]: equal cells for [StreamLayout.grid]
-/// (last row centered), or [focusId] large with the others in a strip on
+/// (last row centered; taller than [size] when fitting would make tiles
+/// narrower than [minGridTileWidth], so the grid scrolls), or [focusId] large with the others in a strip on
 /// the right ([StreamLayout.spotlightVertical]) or along the bottom
 /// ([StreamLayout.spotlightHorizontal]).
 Map<String, Rect> streamRects(
@@ -80,9 +85,19 @@ Map<String, Rect> _grid(List<String> ids, Size size, double gap) {
       columns = c;
     }
   }
-  final rows = (n / columns).ceil();
-  final cellWidth = (size.width - gap * (columns - 1)) / columns;
-  final cellHeight = (size.height - gap * (rows - 1)) / rows;
+  final fitRows = (n / columns).ceil();
+  var cellWidth = (size.width - gap * (columns - 1)) / columns;
+  var cellHeight = (size.height - gap * (fitRows - 1)) / fitRows;
+  if (best < minGridTileWidth) {
+    // Too many to fit at a usable size: as many columns of the minimum
+    // width as fit, phone-shaped cells, and the grid scrolls.
+    columns = max(
+      1,
+      min(n, ((size.width + gap) / (minGridTileWidth + gap)).floor()),
+    );
+    cellWidth = (size.width - gap * (columns - 1)) / columns;
+    cellHeight = cellWidth / _tileAspect;
+  }
   return {
     for (var i = 0; i < n; i++)
       ids[i]: () {

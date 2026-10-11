@@ -30,6 +30,8 @@ First version of the desktop app (macOS, Windows, Linux).
 - MCP can launch apps, type text and tap elements by their accessibility
   label, so one scenario works across screen sizes; scenario steps can
   repeat. A dot on the stream shows where an agent taps or swipes.
+- With many streams the grid keeps tiles at a usable size and scrolls,
+  instead of shrinking every stream to a sliver.
 - Scenario studio beside the streams: write a scenario in YAML (or open a
   .yaml file), run it, and watch each step's status next to its line; a
   failed step shows its error. Scenarios agents run show there too.

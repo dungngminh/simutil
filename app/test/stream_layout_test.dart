@@ -78,4 +78,35 @@ void main() {
     expect(cubit.stateValue.layout, StreamLayout.spotlightHorizontal);
     expect(cubit.stateValue.spotlightId, 'b');
   });
+
+  test('a crowded grid keeps tiles usable and grows taller to scroll', () {
+    final ids = List.generate(13, (i) => '$i');
+    // Narrow window: one column of phone-shaped tiles, not 13 slivers.
+    final narrow = streamRects(
+      ids,
+      const Size(260, 900),
+      layout: StreamLayout.grid,
+    );
+    expect(narrow['0']!.width, 260);
+    expect(narrow['0']!.height, closeTo(260 / 0.56, 0.01));
+    expect(narrow['12']!.bottom, greaterThan(900));
+
+    // Wide window: as many minimum-width columns as fit.
+    final wide = streamRects(
+      ids,
+      const Size(1000, 500),
+      layout: StreamLayout.grid,
+    );
+    expect(wide.values.map((r) => r.top).where((t) => t == 0), hasLength(5));
+    expect(wide['0']!.width, greaterThanOrEqualTo(minGridTileWidth));
+  });
+
+  test('a grid that fits does not scroll', () {
+    final rects = streamRects(
+      List.generate(4, (i) => '$i'),
+      size,
+      layout: StreamLayout.grid,
+    );
+    expect(rects.values.every((r) => r.bottom <= size.height + 0.01), isTrue);
+  });
 }

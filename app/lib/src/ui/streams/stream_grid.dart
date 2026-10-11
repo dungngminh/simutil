@@ -10,7 +10,8 @@ import 'package:simutil_app/src/ui/streams/stream_layout.dart';
 import 'package:simutil_app/src/ui/streams/stream_tile.dart';
 
 /// Every open stream laid out by [StreamLayout]; tiles glide to their new
-/// place whenever streams open, close or the layout changes.
+/// place whenever streams open, close or the layout changes, and the grid
+/// scrolls once tiles would get too small to use.
 class StreamGrid extends StatelessWidget {
   const StreamGrid({super.key});
 
@@ -38,7 +39,12 @@ class StreamGrid extends StatelessWidget {
                     settings.layout != StreamLayout.grid && ids.length > 1
                     ? spotlightFocus(ids, settings.spotlightId)
                     : null;
-                return Stack(
+                // Taller than the view when the grid outgrew it: scroll.
+                final height = rects.values.fold(
+                  constraints.maxHeight,
+                  (h, r) => r.bottom > h ? r.bottom : h,
+                );
+                final grid = Stack(
                   children: [
                     for (final entry in state.entries)
                       AnimatedPositioned.fromRect(
@@ -58,6 +64,10 @@ class StreamGrid extends StatelessWidget {
                         ),
                       ),
                   ],
+                );
+                if (height <= constraints.maxHeight) return grid;
+                return SingleChildScrollView(
+                  child: SizedBox(height: height, child: grid),
                 );
               },
             ),
