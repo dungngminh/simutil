@@ -33,13 +33,15 @@ class DeviceCommands {
 
   bool get headless => settings.headless ?? _globalHeadless;
 
-  Future<void> start() async {
+  /// Boots the device; Android emulators can boot cold (no snapshot) or
+  /// muted for this launch only.
+  Future<void> start({bool coldBoot = false, bool noAudio = false}) async {
     if (headless) _streams.openWhenBooted(device);
     await _devices.launch(
       device,
       headless: headless,
-      coldBoot: settings.coldBoot,
-      noAudio: settings.noAudio,
+      coldBoot: coldBoot,
+      noAudio: noAudio,
     );
   }
 
@@ -53,12 +55,7 @@ class DeviceCommands {
   Future<void> restart() async {
     final reopen = headless || _streams.stateValue.isOpen(device.id);
     await _streams.closeStream(device.id);
-    await _devices.restart(
-      device,
-      headless: headless,
-      coldBoot: settings.coldBoot,
-      noAudio: settings.noAudio,
-    );
+    await _devices.restart(device, headless: headless);
     // After the restart so the old, still-booted device is not reopened.
     if (reopen) _streams.openWhenBooted(device);
   }

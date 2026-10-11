@@ -106,8 +106,6 @@ String _settings(DeviceSettings s) {
   final parts = [
     if (s.headless case final h?) 'headless=${_onOff(h)}',
     if (s.showFrame != d.showFrame) 'frame=${_onOff(s.showFrame)}',
-    if (s.coldBoot != d.coldBoot) 'coldBoot=${_onOff(s.coldBoot)}',
-    if (s.noAudio != d.noAudio) 'noAudio=${_onOff(s.noAudio)}',
     if (s.maxSize != d.maxSize) 'maxSize=${s.maxSize}',
     if (s.maxFps != d.maxFps) 'maxFps=${s.maxFps}',
     if (s.bitRateMbps != d.bitRateMbps) 'bitRate=${s.bitRateMbps}M',

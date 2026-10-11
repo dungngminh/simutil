@@ -72,8 +72,8 @@ List<McpTool> deviceTools(ToolContext c) => [
     name: 'start_device',
     description:
         'Boot an emulator/simulator. headless (default true) skips its own '
-        'window and streams it into SimUtil. Android: coldBoot and noAudio '
-        "default to the device's launch options in SimUtil.",
+        'window and streams it into SimUtil. Android emulators: coldBoot '
+        'skips the snapshot, noAudio boots muted (both default false).',
     properties: {
       ...deviceArg,
       'headless': {'type': 'boolean'},
@@ -89,8 +89,8 @@ List<McpTool> deviceTools(ToolContext c) => [
       await c.devices.launch(
         device,
         headless: headless,
-        coldBoot: args['coldBoot'] as bool? ?? options.coldBoot,
-        noAudio: args['noAudio'] as bool? ?? options.noAudio,
+        coldBoot: args['coldBoot'] as bool? ?? false,
+        noAudio: args['noAudio'] as bool? ?? false,
       );
       return c.text('Starting ${device.name}');
     },

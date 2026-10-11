@@ -91,30 +91,28 @@ List<native.MenuItem> _deviceItems(BuildContext context, Device device) {
   ];
 }
 
-/// Boot options for the next start.
+/// Headless for every start, and one-off launch modes for a shut-down
+/// Android emulator.
 List<native.MenuItem> _launchItems(
   BuildContext context,
   Device device,
   void Function(DeviceSettings Function(DeviceSettings)) set,
 ) {
   final commands = DeviceCommands(context, device);
-  final settings = commands.settings;
   return [
     menuCheck(
       'Start headless',
       commands.headless,
       () => set((s) => s.copyWith(headless: () => !commands.headless)),
     ),
-    if (device.os == DeviceOs.android) ...[
-      menuCheck(
-        'Cold boot',
-        settings.coldBoot,
-        () => set((s) => s.copyWith(coldBoot: !s.coldBoot)),
-      ),
-      menuCheck(
-        'No audio',
-        settings.noAudio,
-        () => set((s) => s.copyWith(noAudio: !s.noAudio)),
+    if (device.os == DeviceOs.android &&
+        device.state == DeviceState.shutdown &&
+        !context.read<DevicesCubit>().stateValue.busy.contains(device.id)) ...[
+      menuItem('Launch with Cold Boot', () => commands.start(coldBoot: true)),
+      menuItem('Launch with No Audio', () => commands.start(noAudio: true)),
+      menuItem(
+        'Launch with Cold Boot and No Audio',
+        () => commands.start(coldBoot: true, noAudio: true),
       ),
     ],
   ];

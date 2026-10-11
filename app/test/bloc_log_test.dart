@@ -58,12 +58,12 @@ void main() {
   test('device settings lists only changed devices, non-defaults', () {
     const before = {'Pixel 7': DeviceSettings(), 'iPhone 16': DeviceSettings()};
     const after = {
-      'Pixel 7': DeviceSettings(showFrame: false, coldBoot: true),
+      'Pixel 7': DeviceSettings(showFrame: false, maxFps: 30),
       'iPhone 16': DeviceSettings(),
     };
     expect(
       describeState(after, previous: before),
-      'Pixel 7: frame=off coldBoot=on',
+      'Pixel 7: frame=off maxFps=30',
     );
     expect(describeState(before, previous: before), '2 devices');
   });

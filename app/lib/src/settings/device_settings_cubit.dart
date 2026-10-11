@@ -6,19 +6,14 @@ import 'package:simutil_core/simutil_core.dart';
 final class DeviceSettings extends Equatable {
   const DeviceSettings({
     this.headless,
-    this.coldBoot = false,
     this.maxSize = 1280,
     this.maxFps = 60,
     this.bitRateMbps = 8,
     this.showFrame = true,
-    this.noAudio = false,
   });
 
   /// Overrides the global headless toggle when set.
   final bool? headless;
-
-  /// Android: boot without loading the snapshot.
-  final bool coldBoot;
 
   /// Android stream: longest side in pixels (0 = native).
   final int maxSize;
@@ -32,36 +27,27 @@ final class DeviceSettings extends Equatable {
   /// Draw the device bezel around this device's stream.
   final bool showFrame;
 
-  /// Android: boot the emulator with `-no-audio`.
-  final bool noAudio;
-
   DeviceSettings copyWith({
     bool? Function()? headless,
-    bool? coldBoot,
     int? maxSize,
     int? maxFps,
     int? bitRateMbps,
     bool? showFrame,
-    bool? noAudio,
   }) => DeviceSettings(
     headless: headless != null ? headless() : this.headless,
-    coldBoot: coldBoot ?? this.coldBoot,
     maxSize: maxSize ?? this.maxSize,
     maxFps: maxFps ?? this.maxFps,
     bitRateMbps: bitRateMbps ?? this.bitRateMbps,
     showFrame: showFrame ?? this.showFrame,
-    noAudio: noAudio ?? this.noAudio,
   );
 
   @override
   List<Object?> get props => [
     headless,
-    coldBoot,
     maxSize,
     maxFps,
     bitRateMbps,
     showFrame,
-    noAudio,
   ];
 }
 

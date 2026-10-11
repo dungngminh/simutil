@@ -14,7 +14,8 @@ First version of the desktop app (macOS, Windows, Linux).
 - Stream and control many Android emulators / devices and iOS simulators side
   by side, in a grid or spotlight layout, with touch, swipe and navigation
   buttons on every stream.
-- Start devices headless.
+- Start devices headless; launch an Android emulator with Cold Boot, No
+  Audio or both from its context menu.
 - Slim mode for iOS simulators: background services off, about 1 GB of memory
   each instead of 4 GB.
 - Connect Android devices over Wi-Fi with a QR code, a pairing code or an IP.
