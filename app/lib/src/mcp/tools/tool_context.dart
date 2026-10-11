@@ -4,9 +4,11 @@ import 'dart:convert';
 import 'package:simutil_app/src/devices/slim_mode_cubit.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
+import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 import 'package:simutil_app/src/stream/ios/ios_sim_session.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
+import 'package:simutil_app/src/stream/touch_marks.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// `device` argument shared by tools that act on one device.
@@ -29,6 +31,9 @@ class ToolContext {
     required this.view,
     required this.slim,
     required this.adbPath,
+    required this.automation,
+    this.marks,
+    this.runs,
   });
 
   final DevicesCubit devices;
@@ -37,6 +42,13 @@ class ToolContext {
   final ViewSettingsCubit view;
   final SlimModeCubit slim;
   final String Function() adbPath;
+  final DeviceAutomation automation;
+
+  /// Where agent touches are shown on stream tiles; null in tests.
+  final TouchMarks? marks;
+
+  /// Scenario runs shown in the scenarios panel; null in tests.
+  final ScenarioRunsCubit? runs;
 
   /// MCP text content: [value] as is when a String, else pretty JSON.
   List<Map<String, Object?>> text(Object value) => [
@@ -101,6 +113,12 @@ class ToolContext {
       );
     }
     return session;
+  }
+
+  /// Sends a touch to [session] and shows it on the device's stream tile.
+  void touch(DeviceSession session, TouchPhase phase, double x, double y) {
+    session.touch(phase, x, y);
+    marks?.add(session.deviceId, phase, x, y);
   }
 
   /// Seconds the device has been recording; null when not recording.

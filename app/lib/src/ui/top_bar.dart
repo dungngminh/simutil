@@ -26,10 +26,14 @@ class TopBar extends StatelessWidget {
     super.key,
     required this.sidebarOpen,
     required this.onToggleSidebar,
+    required this.scenariosOpen,
+    required this.onToggleScenarios,
   });
 
   final bool sidebarOpen;
   final VoidCallback onToggleSidebar;
+  final bool scenariosOpen;
+  final VoidCallback onToggleScenarios;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +64,12 @@ class TopBar extends StatelessWidget {
                 ),
                 const SimuToolbarDivider(),
                 const _CornerActions(),
+                SimuIconButton(
+                  icon: LucideIcons.listChecks,
+                  tooltip: scenariosOpen ? 'Hide scenarios' : 'Show scenarios',
+                  active: scenariosOpen,
+                  onPressed: onToggleScenarios,
+                ),
               ],
             ),
           ],

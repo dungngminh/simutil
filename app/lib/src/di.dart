@@ -5,9 +5,11 @@ import 'package:simutil_app/src/recording/recording_lock.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
 import 'package:simutil_app/src/recording/saved_recordings.dart';
+import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
+import 'package:simutil_app/src/stream/touch_marks.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
 
@@ -56,11 +58,16 @@ Future<void> configureDependencies() async {
       dispose: (saved) => saved.dispose(),
     )
     ..registerSingleton(RecordingLock())
+    ..registerSingleton(TouchMarks(), dispose: (marks) => marks.dispose())
     ..registerLazySingleton<GridRecorderCubit>(
       () => GridRecorderCubit(
         onSaved: getIt<SavedRecordings>().add,
         recordingLock: getIt<RecordingLock>(),
       ),
+      dispose: (cubit) => cubit.close(),
+    )
+    ..registerLazySingleton<ScenarioRunsCubit>(
+      ScenarioRunsCubit.new,
       dispose: (cubit) => cubit.close(),
     )
     ..registerLazySingleton<ViewSettingsCubit>(

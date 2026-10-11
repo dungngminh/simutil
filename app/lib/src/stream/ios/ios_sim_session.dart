@@ -177,6 +177,33 @@ class IosSimSession implements DeviceSession {
     _channel.invokeMethod<void>('press', {'udid': udid, 'button': button.name});
   }
 
+  /// Types [text] as hardware-keyboard key presses (US layout, ASCII).
+  Future<void> typeText(String text) =>
+      _channel.invokeMethod<void>('type', {'udid': udid, 'text': text});
+
+  /// The frontmost app's accessibility elements, frames normalized 0..1.
+  Future<List<UiElement>> accessibilityElements() async {
+    final raw =
+        await _channel.invokeListMethod<Map<Object?, Object?>>(
+          'accessibility',
+          {'udid': udid},
+        ) ??
+        const [];
+    return [
+      for (final e in raw)
+        UiElement(
+          label: e['label'] as String? ?? '',
+          id: e['id'] as String? ?? '',
+          value: e['value'] as String? ?? '',
+          role: e['role'] as String? ?? '',
+          left: (e['left']! as num).toDouble(),
+          top: (e['top']! as num).toDouble(),
+          right: (e['right']! as num).toDouble(),
+          bottom: (e['bottom']! as num).toDouble(),
+        ),
+    ];
+  }
+
   @override
   bool get isRecording => _recorder.isRecording;
 

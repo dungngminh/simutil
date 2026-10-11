@@ -289,6 +289,9 @@ private final class SimHID {
   private let mouse: MouseFunc
   private let button: ButtonFunc?
   private let hidArbitrary: HIDArbitraryFunc?
+  /// (HID keyboard usage, direction 1 down / 2 up).
+  private typealias KeyFunc = @convention(c) (UInt32, UInt32) -> UnsafeMutableRawPointer?
+  private let key: KeyFunc?
   private let udid: String
 
   init(device: NSObject, udid: String) throws {
@@ -300,6 +303,9 @@ private final class SimHID {
     button = dlsym(any, "IndigoHIDMessageForButton").map { unsafeBitCast($0, to: ButtonFunc.self) }
     hidArbitrary = dlsym(any, "IndigoHIDMessageForHIDArbitrary").map {
       unsafeBitCast($0, to: HIDArbitraryFunc.self)
+    }
+    key = dlsym(any, "IndigoHIDMessageForKeyboardArbitrary").map {
+      unsafeBitCast($0, to: KeyFunc.self)
     }
 
     guard let cls = NSClassFromString("_TtC12SimulatorKit24SimDeviceLegacyHIDClient"),
@@ -359,6 +365,46 @@ private final class SimHID {
     }
   }
 
+  /// Types [text] as US-layout key presses; returns once all are sent.
+  /// ponytail: ASCII only; other characters are skipped (a paste path would
+  /// cover Unicode).
+  func type(_ text: String) {
+    queue.sync { [self] in
+      guard let key else { return }
+      for ch in text {
+        guard let (usage, shift) = Self.usage(for: ch) else { continue }
+        let keys: [UInt32] = shift ? [225, usage] : [usage]
+        for k in keys { if let msg = key(k, 1) { send(msg) } }
+        for k in keys.reversed() { if let msg = key(k, 2) { send(msg) } }
+        Thread.sleep(forTimeInterval: 0.02)
+      }
+    }
+  }
+
+  /// HID keyboard usage (page 7) of [ch] and whether it needs shift.
+  private static func usage(for ch: Character) -> (UInt32, Bool)? {
+    guard let a = ch.asciiValue else { return nil }
+    switch a {
+    case 97...122: return (UInt32(a - 97) + 4, false)  // a-z
+    case 65...90: return (UInt32(a - 65) + 4, true)  // A-Z
+    case 49...57: return (UInt32(a - 49) + 30, false)  // 1-9
+    case 48: return (39, false)  // 0
+    default: break
+    }
+    let plain: [Character: UInt32] = [
+      "\n": 40, "\t": 43, " ": 44, "-": 45, "=": 46, "[": 47, "]": 48, "\\": 49,
+      ";": 51, "'": 52, "`": 53, ",": 54, ".": 55, "/": 56,
+    ]
+    let shifted: [Character: UInt32] = [
+      "!": 30, "@": 31, "#": 32, "$": 33, "%": 34, "^": 35, "&": 36, "*": 37,
+      "(": 38, ")": 39, "_": 45, "+": 46, "{": 47, "}": 48, "|": 49, ":": 51,
+      "\"": 52, "~": 53, "<": 54, ">": 55, "?": 56,
+    ]
+    if let u = plain[ch] { return (u, false) }
+    if let u = shifted[ch] { return (u, true) }
+    return nil
+  }
+
   private func pressButton(source: Int32) {
     guard let button else { return }
     for direction: Int32 in [1, 2] {
@@ -373,6 +419,152 @@ private final class SimHID {
       if let msg = hidArbitrary(0x32, page, usage, direction) { send(msg) }
       Thread.sleep(forTimeInterval: 0.05)
     }
+  }
+}
+
+// MARK: - Accessibility
+
+/// The frontmost app's accessibility tree through the private
+/// AccessibilityPlatformTranslation framework, the way idb reads it: the
+/// translator asks this delegate to carry each request to the simulator.
+private final class SimAccessibility: NSObject {
+  static let shared = SimAccessibility()
+
+  private let replies = DispatchQueue(label: "simutil.sim-ax.reply")
+  private let lock = NSLock()
+  private var devices: [String: NSObject] = [:]
+
+  private lazy var translator: NSObject? = {
+    _ = dlopen(
+      "/System/Library/PrivateFrameworks/AccessibilityPlatformTranslation.framework/AccessibilityPlatformTranslation",
+      RTLD_NOW)
+    guard let cls = NSClassFromString("AXPTranslator") as? NSObject.Type,
+      let t = cls.perform(NSSelectorFromString("sharedInstance"))?.takeUnretainedValue()
+        as? NSObject
+    else { return nil }
+    Self.set(t, "bridgeTokenDelegate", self)
+    Self.set(t, "supportsDelegateTokens", true)
+    Self.set(t, "accessibilityEnabled", true)
+    return t
+  }()
+
+  /// KVC set that skips keys this OS version lacks instead of raising.
+  private static func set(_ obj: NSObject, _ key: String, _ value: Any?) {
+    let setter = "set\(key.prefix(1).uppercased())\(key.dropFirst()):"
+    if obj.responds(to: NSSelectorFromString(setter)) { obj.setValue(value, forKey: key) }
+  }
+
+  @objc(accessibilityTranslationDelegateBridgeCallbackWithToken:)
+  func bridgeCallback(token: NSString) -> @convention(block) (AnyObject) -> AnyObject? {
+    lock.lock()
+    let device = devices[token as String]
+    lock.unlock()
+    return { [replies] request in
+      guard let device else { return nil }
+      typealias SendFunc = @convention(c) (
+        AnyObject, Selector, AnyObject, DispatchQueue,
+        @escaping @convention(block) (AnyObject?) -> Void
+      ) -> Void
+      let sel = NSSelectorFromString(
+        "sendAccessibilityRequestAsync:completionQueue:completionHandler:")
+      guard device.responds(to: sel) else { return nil }
+      let done = DispatchSemaphore(value: 0)
+      var response: AnyObject?
+      unsafeBitCast(device.method(for: sel), to: SendFunc.self)(device, sel, request, replies) {
+        response = $0
+        done.signal()
+      }
+      _ = done.wait(timeout: .now() + 10)
+      return response
+    }
+  }
+
+  @objc(accessibilityTranslationConvertPlatformFrameToSystem:withToken:)
+  func convertFrame(_ rect: CGRect, token: NSString) -> CGRect { rect }
+
+  @objc(accessibilityTranslationRootParentWithToken:)
+  func rootParent(token: NSString) -> AnyObject? { nil }
+
+  /// Labelled elements with frames normalized to the app's frame (the
+  /// screen). Blocks while the simulator answers; call off the main thread.
+  func elements(device: NSObject) throws -> [[String: Any]] {
+    guard let translator else {
+      throw SimStreamError("Accessibility translation is unavailable")
+    }
+    let token = UUID().uuidString
+    lock.lock()
+    devices[token] = device
+    lock.unlock()
+    defer {
+      lock.lock()
+      devices.removeValue(forKey: token)
+      lock.unlock()
+    }
+    typealias FrontmostFunc = @convention(c) (AnyObject, Selector, UInt32, NSString) -> AnyObject?
+    let frontSel = NSSelectorFromString("frontmostApplicationWithDisplayId:bridgeDelegateToken:")
+    guard translator.responds(to: frontSel),
+      let translation = unsafeBitCast(
+        translator.method(for: frontSel), to: FrontmostFunc.self)(
+          translator, frontSel, 0, token as NSString) as? NSObject
+    else { throw SimStreamError("No app in front") }
+    Self.set(translation, "bridgeDelegateToken", token)
+    guard
+      let root = translator.perform(
+        NSSelectorFromString("macPlatformElementFromTranslation:"), with: translation)?
+        .takeUnretainedValue() as? NSObject
+    else { throw SimStreamError("No accessibility element for the app") }
+
+    let screen = frame(root, token: token)
+    guard screen.width > 0, screen.height > 0 else { throw SimStreamError("App has no frame") }
+    var out: [[String: Any]] = []
+    var stack: [(NSObject, Int)] = [(root, 0)]
+    while let (element, depth) = stack.popLast(), out.count < 2000 {
+      let f = frame(element, token: token)
+      let label = string(element, "accessibilityLabel")
+      let id = string(element, "accessibilityIdentifier")
+      let value = string(element, "accessibilityValue")
+      if element !== root, !(label.isEmpty && id.isEmpty && value.isEmpty),
+        f.width > 0, f.height > 0
+      {
+        out.append([
+          "label": label, "id": id, "value": value,
+          "role": string(element, "accessibilityRole"),
+          "left": (f.minX - screen.minX) / screen.width,
+          "top": (f.minY - screen.minY) / screen.height,
+          "right": (f.maxX - screen.minX) / screen.width,
+          "bottom": (f.maxY - screen.minY) / screen.height,
+        ])
+      }
+      guard depth < 64,
+        let children = element.perform(NSSelectorFromString("accessibilityChildren"))?
+          .takeUnretainedValue() as? [NSObject]
+      else { continue }
+      // Reversed so the stack visits children in screen order.
+      for child in children.reversed() { stack.append((child, depth + 1)) }
+    }
+    return out
+  }
+
+  /// [element]'s frame; tags its translation with [token] first so the
+  /// query reaches the right simulator.
+  private func frame(_ element: NSObject, token: String) -> CGRect {
+    if element.responds(to: NSSelectorFromString("translation")),
+      let translation = element.value(forKey: "translation") as? NSObject
+    {
+      Self.set(translation, "bridgeDelegateToken", token)
+    }
+    typealias FrameFunc = @convention(c) (AnyObject, Selector) -> CGRect
+    let sel = NSSelectorFromString("accessibilityFrame")
+    guard element.responds(to: sel) else { return .zero }
+    return unsafeBitCast(element.method(for: sel), to: FrameFunc.self)(element, sel)
+  }
+
+  private func string(_ element: NSObject, _ name: String) -> String {
+    let sel = NSSelectorFromString(name)
+    guard element.responds(to: sel), let v = element.perform(sel)?.takeUnretainedValue() else {
+      return ""
+    }
+    return (v as? String) ?? (v as? NSAttributedString)?.string ?? "\(v)"
   }
 }
 
@@ -580,6 +772,28 @@ final class SimStreamPlugin: NSObject, FlutterPlugin {
       result(nil)
     case "frames":
       result(sessions[udid]?.capture.framesShown ?? 0)
+    case "type":
+      guard let hid = sessions[udid]?.hid else {
+        return result(FlutterError(code: "type", message: "No input for \(udid)", details: nil))
+      }
+      let text = args["text"] as? String ?? ""
+      DispatchQueue.global(qos: .userInitiated).async {
+        hid.type(text)
+        DispatchQueue.main.async { result(nil) }
+      }
+    case "accessibility":
+      DispatchQueue.global(qos: .userInitiated).async {
+        let reply: Any
+        if let device = SimFrameworks.device(udid: udid) {
+          do { reply = try SimAccessibility.shared.elements(device: device) } catch {
+            reply = FlutterError(code: "accessibility", message: "\(error)", details: nil)
+          }
+        } else {
+          reply = FlutterError(
+            code: "accessibility", message: "Simulator \(udid) not found", details: nil)
+        }
+        DispatchQueue.main.async { result(reply) }
+      }
     default:
       result(FlutterMethodNotImplemented)
     }

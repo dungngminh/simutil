@@ -1,5 +1,5 @@
 name: simutil_app
-description: SimUtil desktop app — tray device list and multi-device streaming.
+description: SimUtil desktop app — multi-device streaming.
 publish_to: none
 version: 0.1.0
 resolution: workspace
@@ -26,6 +26,8 @@ dependencies:
   lucide_icons_flutter: ^3.1.0
   zentoast: ^0.2.2
   qr: ^3.0.2
+  yaml: ^3.1.3
+  file_selector: ^1.1.0
 dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_test:

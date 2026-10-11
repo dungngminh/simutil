@@ -4,6 +4,7 @@ import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/devices/slim_mode_cubit.dart';
 import 'package:simutil_app/src/di.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
+import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
@@ -27,6 +28,9 @@ class SimutilApp extends StatelessWidget {
         ),
         BlocSignalProvider<ViewSettingsCubit>(
           create: (_) => getIt<ViewSettingsCubit>(),
+        ),
+        BlocSignalProvider<ScenarioRunsCubit>(
+          create: (_) => getIt<ScenarioRunsCubit>(),
         ),
         BlocSignalProvider<SlimModeCubit>(
           create: (_) => getIt<SlimModeCubit>(),

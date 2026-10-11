@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:simutil_app/src/ui/shared/session_view.dart';
+import 'package:simutil_app/src/ui/shared/touch_dot.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// The session's video with pointer input normalized to the video bounds.
@@ -22,7 +23,12 @@ class TouchSurface extends StatelessWidget {
           onPointerDown: (e) => send(TouchPhase.down, e.localPosition),
           onPointerMove: (e) => send(TouchPhase.move, e.localPosition),
           onPointerUp: (e) => send(TouchPhase.up, e.localPosition),
-          child: RepaintBoundary(child: SessionView(session: session)),
+          child: Stack(
+            children: [
+              RepaintBoundary(child: SessionView(session: session)),
+              Positioned.fill(child: TouchDot(deviceId: session.deviceId)),
+            ],
+          ),
         );
       },
     );

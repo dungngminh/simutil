@@ -186,7 +186,7 @@ Monorepo (pub workspace); every package is versioned and published separately:
 | [`simutil_apple`](packages/simutil_apple) | `IOSDeviceService`, `XcodeCacheService` |
 | [`simutil_plugins`](packages/simutil_plugins) | YAML plugin catalog and runner |
 | [`simutil_h264`](packages/simutil_h264) | Native H.264 decoding into Flutter textures (desktop app, not published) |
-| [`app`](app) | SimUtil desktop (preview): tray menu, multi-device streaming, MCP server for agents |
+| [`app`](app) | SimUtil desktop (preview): multi-device streaming, MCP server for agents |
 
 The repository root only holds the workspace `pubspec.yaml` (Melos scripts), docs, and CI.
 The workspace includes the Flutter desktop app, so resolving it needs the

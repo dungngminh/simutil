@@ -14,7 +14,7 @@ First version of the desktop app (macOS, Windows, Linux).
 - Stream and control many Android emulators / devices and iOS simulators side
   by side, in a grid or spotlight layout, with touch, swipe and navigation
   buttons on every stream.
-- Tray menu that lists and starts devices; start devices headless.
+- Start devices headless.
 - Slim mode for iOS simulators: background services off, about 1 GB of memory
   each instead of 4 GB.
 - Connect Android devices over Wi-Fi with a QR code, a pairing code or an IP.
@@ -27,6 +27,15 @@ First version of the desktop app (macOS, Windows, Linux).
 - MCP scenarios run on many devices at once, starting together. iOS
   simulators switch to Slim mode first, with a notice.
 - MCP device list shows each stream's frames per second.
+- MCP can launch apps, type text and tap elements by their accessibility
+  label, so one scenario works across screen sizes; scenario steps can
+  repeat. A dot on the stream shows where an agent taps or swipes.
+- Scenarios panel lists each scenario step by step: a spinner on the step
+  running, a check on steps done, the error on the step that failed.
+- MCP swipes can start on an element and repeat until another shows up, to
+  scroll lists and pickers to a value.
+- Write a scenario in YAML (or open a .yaml file) and run it on your
+  devices from the scenarios panel, without an agent.
 
 ### Changed
 
