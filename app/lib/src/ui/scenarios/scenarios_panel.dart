@@ -29,6 +29,9 @@ class ScenariosPanel extends StatefulWidget {
 class _ScenariosPanelState extends State<ScenariosPanel> {
   final _text = TextEditingController(text: scenarioTemplate);
   int? _shownRun;
+
+  /// A finished run whose results the user cleared.
+  int? _clearedRun;
   String? _error;
   String? _file;
 
@@ -104,10 +107,11 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
   @override
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
-    final latest = context
+    final newest = context
         .value<ScenarioRunsCubit, List<ScenarioRun>>()
         .firstOrNull;
-    _follow(latest);
+    _follow(newest);
+    final latest = newest?.id == _clearedRun ? null : newest;
     // Statuses map to lines only while the text is what ran.
     final run = latest != null && latest.source == _text.text ? latest : null;
     final running = latest?.status == ScenarioStatus.running;
@@ -126,7 +130,11 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
             onRun: _run,
             onClose: widget.onClose,
           ),
-          if (latest != null) _RunSummary(run: latest),
+          if (latest != null)
+            _RunSummary(
+              run: latest,
+              onClear: running ? null : () => _clear(latest),
+            ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -137,11 +145,22 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
               ),
             ),
           ),
-          _Problems(error: _error, run: run, onTap: _goToLine),
+          _Problems(
+            error: _error,
+            run: run,
+            onTap: _goToLine,
+            onClear: running ? null : () => _clear(latest),
+          ),
         ],
       ),
     );
   }
+
+  /// Hides [run]'s results (statuses, errors) and any YAML error.
+  void _clear(ScenarioRun? run) => setState(() {
+    _clearedRun = run?.id ?? _clearedRun;
+    _error = null;
+  });
 
   /// Each step's status and errors, keyed by its first line.
   Map<int, LineMark> _marks(ScenarioRun run) => {
@@ -215,32 +234,111 @@ class _StudioHeader extends StatelessWidget {
   }
 }
 
-/// The latest run: overall status, when, and each device's own status.
-class _RunSummary extends StatelessWidget {
-  const _RunSummary({required this.run});
+/// The latest run on one line: status, when, how many devices passed,
+/// failed or still run; expands to each device.
+class _RunSummary extends StatefulWidget {
+  const _RunSummary({required this.run, this.onClear});
 
   final ScenarioRun run;
+
+  /// Clears the run's results; null while it runs.
+  final VoidCallback? onClear;
+
+  @override
+  State<_RunSummary> createState() => _RunSummaryState();
+}
+
+class _RunSummaryState extends State<_RunSummary> {
+  var _expanded = false;
 
   @override
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
+    final run = widget.run;
     final time = TimeOfDay.fromDateTime(run.startedAt).format(context);
+    int count(ScenarioStatus s) =>
+        run.devices.where((d) => d.status == s).length;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 4,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      padding: const EdgeInsets.fromLTRB(14, 0, 8, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
               ScenarioStatusIcon(status: run.status, size: 13),
               const SizedBox(width: 6),
               Text('Run #${run.id + 1} · $time', style: t.caption),
+              const SizedBox(width: 10),
+              for (final s in [
+                ScenarioStatus.ok,
+                ScenarioStatus.failed,
+                ScenarioStatus.running,
+              ])
+                if (count(s) > 0) _CountChip(status: s, count: count(s)),
+              const Spacer(),
+              SimuIconButton(
+                icon: _expanded
+                    ? LucideIcons.chevronUp
+                    : LucideIcons.chevronDown,
+                tooltip: _expanded ? 'Hide devices' : 'Show devices',
+                size: 14,
+                onPressed: () => setState(() => _expanded = !_expanded),
+              ),
+              if (widget.onClear case final clear?)
+                SimuIconButton(
+                  icon: LucideIcons.eraser,
+                  tooltip: 'Clear results',
+                  size: 14,
+                  onPressed: clear,
+                ),
             ],
           ),
-          for (final d in run.devices)
+          if (_expanded) _DeviceList(devices: run.devices),
+        ],
+      ),
+    );
+  }
+}
+
+/// How many devices are in [status], beside its icon.
+class _CountChip extends StatelessWidget {
+  const _CountChip({required this.status, required this.count});
+
+  final ScenarioStatus status;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SimuTokens.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ScenarioStatusIcon(status: status, size: 11),
+          const SizedBox(width: 3),
+          Text('$count', style: t.caption),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeviceList extends StatelessWidget {
+  const _DeviceList({required this.devices});
+
+  final List<ScenarioDeviceRun> devices;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SimuTokens.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 4,
+        children: [
+          for (final d in devices)
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -266,11 +364,13 @@ class _Problems extends StatelessWidget {
     required this.error,
     required this.run,
     required this.onTap,
+    this.onClear,
   });
 
   final String? error;
   final ScenarioRun? run;
   final void Function(int line) onTap;
+  final VoidCallback? onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -302,6 +402,21 @@ class _Problems extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Text('Problems', style: t.label.copyWith(color: t.danger)),
+                const Spacer(),
+                if (onClear case final clear?)
+                  GestureDetector(
+                    onTap: clear,
+                    child: Text(
+                      'Clear',
+                      style: t.caption.copyWith(color: t.textMuted),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
             if (error case final error?) _ProblemLine(text: error),
             for (final f in failures)
               _ProblemLine(text: f.text, onTap: () => onTap(f.line)),

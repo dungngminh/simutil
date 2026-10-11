@@ -81,4 +81,29 @@ void main() {
     await tester.pump();
     expect(find.textContaining('Step 1 needs exactly one of'), findsOneWidget);
   });
+
+  testWidgets('devices fold into counts; Clear hides the results', (
+    tester,
+  ) async {
+    await pump(tester);
+    final id = start();
+    runs
+      ..progress(id, 'a', 1)
+      ..finish(id, 'a', ms: 900, error: 'No element "Previous"')
+      ..progress(id, 'b', 3)
+      ..finish(id, 'b', ms: 1200);
+    await tester.pump();
+    await tester.pump();
+    // Folded: counts only, no device names.
+    expect(find.textContaining('Pixel · 1.2 s'), findsNothing);
+    await tester.tap(find.byIcon(LucideIcons.chevronDown));
+    await tester.pump();
+    expect(find.textContaining('Pixel · 1.2 s'), findsOneWidget);
+
+    await tester.tap(find.text('Clear'));
+    await tester.pump();
+    expect(find.textContaining('Run #1'), findsNothing);
+    expect(find.textContaining('No element'), findsNothing);
+    expect(find.byIcon(LucideIcons.circleX), findsNothing);
+  });
 }
