@@ -1,0 +1,239 @@
+name: Release Desktop App
+
+# Tag app-vX.Y.Z (matching app/pubspec.yaml) builds the installers and drafts
+# a GitHub Release. Manual runs only build and upload the installers as
+# workflow artifacts, for testing.
+on:
+  push:
+    tags:
+      - "app-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - id: v
+        run: |
+          VERSION=$(sed -n 's/^version: *//p' app/pubspec.yaml)
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "${GITHUB_REF_NAME#app-v}" != "$VERSION" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match app/pubspec.yaml version $VERSION"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  macos:
+    name: macOS (DMG)
+    needs: version
+    runs-on: macos-15
+    env:
+      APP: app/build/macos/Build/Products/Release/SimUtil.app
+      DMG: SimUtil-macos.dmg
+      # Signing + notarization run only when these secrets exist; otherwise
+      # the app keeps Flutter's ad-hoc signature.
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-dart
+        with:
+          run-codegen: 'false'
+
+      - name: Build app (universal)
+        working-directory: app
+        run: flutter build macos --release
+
+      - name: Sign app
+        if: env.MACOS_CERTIFICATE != ''
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p ci "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p ci "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k ci "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+          codesign --force --deep --timestamp --options runtime \
+            --entitlements app/macos/Runner/Release.entitlements \
+            --sign "$MACOS_SIGNING_IDENTITY" "$APP"
+          codesign --verify --strict --verbose=2 "$APP"
+
+      - name: Build DMG
+        run: |
+          pipx run dmgbuild -s app/packaging/macos/dmg-settings.py \
+            -D app="$APP" -D background=app/packaging/macos/dmg-background.tiff \
+            SimUtil "$DMG"
+
+      - name: Notarize DMG
+        if: env.MACOS_CERTIFICATE != '' && env.APPLE_ID != ''
+        run: |
+          codesign --timestamp --sign "$MACOS_SIGNING_IDENTITY" "$DMG"
+          xcrun notarytool submit "$DMG" --wait \
+            --apple-id "$APPLE_ID" --password "$APPLE_APP_PASSWORD" --team-id "$APPLE_TEAM_ID"
+          xcrun stapler staple "$DMG"
+
+      - name: Verify DMG
+        run: |
+          hdiutil attach "$DMG" -nobrowse -mountpoint /tmp/simutil-dmg
+          lipo /tmp/simutil-dmg/SimUtil.app/Contents/MacOS/SimUtil -verify_arch arm64 x86_64
+          test -L /tmp/simutil-dmg/Applications
+          hdiutil detach /tmp/simutil-dmg
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-macos
+          path: ${{ env.DMG }}
+
+  windows:
+    name: Windows (installer)
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-dart
+        with:
+          run-codegen: 'false'
+
+      - name: Build app
+        working-directory: app
+        run: flutter build windows --release
+
+      # Flutter apps need the MSVC runtime; ship it next to the exe so the
+      # app starts on machines without the VC++ redistributable.
+      - name: Bundle MSVC runtime
+        shell: pwsh
+        run: |
+          foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+            Copy-Item "C:\Windows\System32\$dll" app\build\windows\x64\runner\Release\
+          }
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=${{ needs.version.outputs.version }} app\packaging\windows\simutil.iss
+
+      - name: Verify silent install
+        shell: pwsh
+        run: |
+          Start-Process app\build\installer\SimUtil-windows-x64-setup.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\SimUtil\simutil_app.exe'
+          if (-not (Test-Path $exe)) { throw "not installed: $exe" }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-windows
+          path: app/build/installer/SimUtil-windows-x64-setup.exe
+
+  linux:
+    name: Linux (AppImage)
+    needs: version
+    # Oldest supported runner: the AppImage runs on distros with this glibc
+    # or newer.
+    runs-on: ubuntu-22.04
+    env:
+      APPIMAGE: SimUtil-linux-x86_64.AppImage
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev libx11-dev libxi-dev libayatana-appindicator3-dev \
+            libavcodec-dev libavutil-dev libswscale-dev xvfb
+
+      - uses: ./.github/actions/setup-dart
+        with:
+          run-codegen: 'false'
+
+      - name: Build app
+        working-directory: app
+        run: flutter build linux --release
+
+      - name: Build AppImage
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/lib
+          cp -r app/build/linux/x64/release/bundle/. AppDir/usr/bin/
+          # The exe finds Flutter's libs via $ORIGIN/lib; linuxdeploy may
+          # rewrite that to $ORIGIN/../lib, so expose them there too.
+          for so in AppDir/usr/bin/lib/*.so; do
+            [ "$(basename "$so")" = libapp.so ] || ln -s "../bin/lib/$(basename "$so")" AppDir/usr/lib/
+          done
+          cp app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png simutil.png
+
+          curl -fsSLo linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -fsSLo linuxdeploy-plugin-gtk.sh https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
+          chmod +x linuxdeploy linuxdeploy-plugin-gtk.sh
+
+          # linuxdeploy finds the gtk plugin on PATH.
+          export PATH="$PWD:$PATH" DEPLOY_GTK_VERSION=3 LDAI_OUTPUT="$APPIMAGE"
+          ./linuxdeploy --appimage-extract-and-run \
+            --appdir AppDir \
+            --executable AppDir/usr/bin/simutil_app \
+            --deploy-deps-only AppDir/usr/bin/lib \
+            --desktop-file app/packaging/linux/me.dungngminh.simutil.desktop \
+            --icon-file simutil.png \
+            --plugin gtk \
+            --output appimage
+
+      - name: Verify AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1  # runner has no FUSE
+        run: |
+          chmod +x "$APPIMAGE"
+          "./$APPIMAGE" --appimage-extract >/dev/null
+          if ldd squashfs-root/usr/bin/simutil_app | grep 'not found'; then exit 1; fi
+          # A GUI app has no --version: it must stay up until the timeout (124).
+          set +e
+          xvfb-run -a timeout 15 "./$APPIMAGE"
+          code=$?
+          [ "$code" = 124 ] || { echo "AppImage exited early with $code"; exit 1; }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-linux
+          path: ${{ env.APPIMAGE }}
+
+  release:
+    name: Draft GitHub Release
+    if: github.ref_type == 'tag'
+    needs: [version, macos, windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums and notes
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          (cd dist && sha256sum -- * > checksums.txt && cat checksums.txt)
+          awk -v v="## [$VERSION]" 'index($0, v) == 1 {on=1; next} /^## \[/ {on=0} on' app/CHANGELOG.md > notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: SimUtil Desktop ${{ needs.version.outputs.version }}
+          body_path: notes.md
+          draft: true
+          token: ${{ secrets.GH_PAT }}
+          files: dist/*

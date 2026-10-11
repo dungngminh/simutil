@@ -119,6 +119,8 @@ installs Flutter for that.
 - MCP for agents: `http://127.0.0.1:8765/mcp` (`SIMUTIL_MCP_PORT`). Tools
   are grouped in `app/lib/src/mcp/tools/` (`device_tools`, `input_tools`,
   `capture_tools`, shared `ToolContext`); `simutil_tools.dart` joins them.
+- Installers: `app/packaging/` (DMG, Inno Setup, AppImage), released
+  from `app-v*` tags; see [docs/ai/deployment.md](docs/ai/deployment.md).
 - Toasts: zentoast, hosted above the Navigator by `RecordingToastHost`
   (`MaterialApp.builder`); show one with `showNotice` / `showSimuToast`, not
   SnackBars.

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=SimUtil
+Comment=Stream and control Android emulators and iOS simulators side by side
+Exec=simutil_app
+Icon=simutil
+Categories=Development;
+Terminal=false
+StartupWMClass=simutil_app

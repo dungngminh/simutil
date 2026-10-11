@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+  <!-- Finder window background for the DMG. The window is 660x400 and
+       Finder pins the image top-left; the canvas bleeds past that because
+       newer Finder versions open the window a little wider than asked.
+       Icons sit at (170,236) and (490,236); keep in sync with
+       dmg-settings.py. -->
+  <rect width="800" height="500" fill="#FBFBFA"/>
+
+  <!-- Oversized app mark peeking in from the bottom-right corner. -->
+  <g fill="none" stroke-width="22" transform="translate(560 250) rotate(-8)">
+    <rect x="0" y="0" width="150" height="250" rx="38" stroke="#9CC3FF" stroke-opacity="0.16"/>
+    <rect x="80" y="70" width="150" height="250" rx="38" stroke="#3DDC84" stroke-opacity="0.16"/>
+  </g>
+
+  <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" text-anchor="middle">
+    <text x="330" y="58" font-size="11" font-weight="700" fill="#0D9488" letter-spacing="3">SIMUTIL</text>
+    <text x="330" y="90" font-size="26" font-weight="300" fill="#121316" letter-spacing="-0.5">Drag to install</text>
+  </g>
+
+  <g fill="none" stroke="#121316" stroke-opacity="0.55" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Head lines sit at +/-30deg off the curve's end tangent (48,46). -->
+    <path d="M252 238C300 192 354 192 402 238"/>
+    <path d="M397.8 223.6L402 238L387.4 234.4"/>
+  </g>
+</svg>

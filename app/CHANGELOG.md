@@ -51,6 +51,11 @@ First version of the desktop app (macOS, Windows, Linux).
   buttons and device names as you type.
 - MCP swipes can start on an element and repeat until another shows up, to
   scroll lists and pickers to a value.
+- Installers: a DMG for macOS (also `brew install --cask`), a setup `.exe`
+  for Windows (also `winget`), and an AppImage for Linux (also a one-line
+  install script). Each also installs adb and FFmpeg.
+- Android streaming works without installing scrcpy: the app brings its own
+  scrcpy server.
 
 ### Changed
 

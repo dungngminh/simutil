@@ -163,13 +163,82 @@ publishing for packages that already exist, so publish each library once by
 hand (`dart pub publish --directory packages/simutil_<pkg>`, in dependency
 order), configure its tag pattern on pub.dev, then use tags from then on.
 
+## Desktop app (`app/`)
+
+The desktop app versions independently (`app/pubspec.yaml`) and ships from
+its own tag, `app-vX.Y.Z`. That prefix matches neither `v*` nor
+`simutil_*-v*`, so the CLI release, pub.dev and the CLI Homebrew formula
+ignore it.
+
+- [release-app.yaml](../../.github/workflows/release-app.yaml): on an
+  `app-v*` tag, fails if the tag differs from `app/pubspec.yaml`, builds the
+  three installers, smoke-tests each, and drafts a GitHub Release named
+  `SimUtil Desktop X.Y.Z` whose body is that version's section of
+  [app/CHANGELOG.md](../../app/CHANGELOG.md). `workflow_dispatch` builds the
+  installers as workflow artifacts without releasing.
+- [deploy-app.yaml](../../.github/workflows/deploy-app.yaml): on publishing an
+  `app-v*` release, renders
+  [simutil-desktop.rb.template](../../.github/homebrew/simutil-desktop.rb.template)
+  into `Casks/simutil-desktop.rb` in the tap, and submits the installer to
+  WinGet as `me.dungngminh.simutil`.
+
+| Runner         | Artifact                         | Packaging |
+| -------------- | -------------------------------- | --------- |
+| `macos-15`     | `SimUtil-macos.dmg` (universal)  | `dmgbuild` with [dmg-settings.py](../../app/packaging/macos/dmg-settings.py); background from `dmg-background.svg` |
+| `windows-latest` | `SimUtil-windows-x64-setup.exe` | Inno Setup, [simutil.iss](../../app/packaging/windows/simutil.iss); bundles the MSVC runtime DLLs |
+| `ubuntu-22.04` | `SimUtil-linux-x86_64.AppImage`  | linuxdeploy + gtk plugin; built on 22.04 for glibc reach, bundles ffmpeg libs |
+
+Prerequisites come with each channel: the cask `depends_on`
+`android-platform-tools` and `ffmpeg`; the Windows installer runs winget for
+`Google.PlatformTools` / `Gyan.FFmpeg` (interactive installs) and the winget
+manifest lists them as dependencies; [install.sh](../../app/packaging/linux/install.sh)
+installs `adb`, `ffmpeg` and FUSE with the distro's package manager before
+fetching the newest `app-v*` AppImage. The scrcpy server is an app asset
+(`app/assets/scrcpy-server`, bump `_bundledScrcpyVersion` with it), so scrcpy
+is not a prerequisite.
+
+Linux ships as an AppImage, not Flatpak / Snap: both sandboxes cut off the
+host `adb`, `scrcpy` and USB devices, and a `.deb` would pin one distro's
+`libavcodec` soname.
+
+macOS signing is optional. With the `MACOS_*` secrets set the workflow signs
+with hardened runtime and [Release.entitlements](../../app/macos/Runner/Release.entitlements);
+with the `APPLE_*` secrets too it notarizes and staples the DMG. Without
+them the app keeps Flutter's ad-hoc signature and the cask strips the
+quarantine flag on install.
+
+### Desktop app release
+
+1. Date the version heading in [app/CHANGELOG.md](../../app/CHANGELOG.md)
+   (`## [X.Y.Z] - YYYY-MM-DD`) and bump `version:` in `app/pubspec.yaml`.
+2. Merge, then `git tag app-vX.Y.Z && git push origin app-vX.Y.Z`.
+3. Check the draft release, then **Publish** it; that fires `deploy-app.yaml`.
+4. First release only: WinGet updates need the package to exist already.
+   Submit it once by hand (`wingetcreate new <installer url>`, identifier
+   `me.dungngminh.simutil`) and add the tools to the installer manifest so
+   `winget install` pulls them in (the installer's own winget step is
+   skipped on silent installs):
+
+   ```yaml
+   Dependencies:
+     PackageDependencies:
+       - PackageIdentifier: Google.PlatformTools
+       - PackageIdentifier: Gyan.FFmpeg
+   ```
+
+   Then set the repo variable `WINGET_APP_PUBLISHED=true` so later releases
+   go out automatically; check the first automated PR keeps `Dependencies`.
+
 ## Required repo secrets
 
 | Secret               | Used by                | Purpose                                         |
 | -------------------- | ---------------------- | ----------------------------------------------- |
 | `GH_PAT`             | `release.yaml`         | Create the draft release with custom notes      |
-| `HOMEBREW_TAP_TOKEN` | `deploy-homebrew.yaml` | Push to `dungngminh/homebrew-simutil`           |
+| `HOMEBREW_TAP_TOKEN` | `deploy-homebrew.yaml`, `deploy-app.yaml` | Push to `dungngminh/homebrew-simutil`           |
 | `GITHUB_TOKEN`       | `deploy-winget.yaml`   | Default token for the winget-releaser PR        |
+| `WINGET_TOKEN`       | `deploy-app.yaml`      | Classic PAT (`public_repo`) for winget-releaser |
+| `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `MACOS_SIGNING_IDENTITY` | `release-app.yaml` | Optional: base64 Developer ID Application `.p12`, its password, identity name |
+| `APPLE_ID`, `APPLE_APP_PASSWORD`, `APPLE_TEAM_ID` | `release-app.yaml` | Optional: notarization (app-specific password) |
 
 `pub.dev` uses OIDC, no secret required — but the publisher on pub.dev must
 authorize this repo + the tag-push event.

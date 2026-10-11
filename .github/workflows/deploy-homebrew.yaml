@@ -8,6 +8,8 @@ on:
 jobs:
   update-formula:
     name: Update Homebrew Formula
+    # Desktop app releases (app-v*) are handled by deploy-app.yaml.
+    if: startsWith(github.ref_name, 'v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout simutil

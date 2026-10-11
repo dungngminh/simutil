@@ -65,17 +65,52 @@ skip that. Every device is readied before any starts, so they begin together;
 the result has `prep_ms` (slimming and readying) and, per device, `start_ms` / `end_ms` from that
 common start and `steps_ms`.
 
+## Install
+
+One command installs the app and the tools it drives: `adb` (Android
+platform-tools) and `ffmpeg` (recordings). The scrcpy server ships inside the
+app, so scrcpy itself is optional.
+
+```bash
+brew install --cask dungngminh/simutil/simutil-desktop   # macOS
+```
+
+```bash
+winget install me.dungngminh.simutil                     # Windows
+```
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dungngminh/simutil/main/app/packaging/linux/install.sh | bash   # Linux
+```
+
+Installers are also attached to the `app-v*` releases on
+[GitHub Releases](https://github.com/dungngminh/simutil/releases):
+
+- macOS: `SimUtil-macos.dmg` (Apple Silicon + Intel), drag SimUtil onto
+  Applications. Unsigned builds: run `xattr -dr com.apple.quarantine
+  /Applications/SimUtil.app` once if macOS says the app is damaged.
+- Windows: `SimUtil-windows-x64-setup.exe`, a per-user install (no admin);
+  it offers to install adb and FFmpeg with winget.
+- Linux: `SimUtil-linux-x86_64.AppImage`; `chmod +x` and run it. Needs
+  `libfuse2` (or pass `--appimage-extract-and-run`). Packaged as an AppImage
+  rather than Flatpak / Snap because their sandboxes block the host `adb`
+  and USB access the app relies on.
+
+Not installed for you: Android Studio / the SDK emulator (only needed to run
+Android emulators) and Xcode (iOS simulators, macOS only).
+
 ## Requirements
 
-- Android streaming: [scrcpy](https://github.com/Genymobile/scrcpy) 3+ installed
-  (`brew install scrcpy`, `scoop install scrcpy`, `apt install scrcpy`) or
-  `SCRCPY_SERVER_PATH` pointing at its `scrcpy-server`.
+- Android streaming: `adb`. The app ships the
+  [scrcpy](https://github.com/Genymobile/scrcpy) 4.0 server (Apache-2.0); an
+  installed scrcpy 3+ or `SCRCPY_SERVER_PATH` takes precedence.
 - iOS streaming: macOS with Xcode. On Xcode 27, Device Hub may take over input;
   the tile offers a repair (restarts the simulator's apps).
 - Recording: `ffmpeg` (`.mp4` output for Android, and grid recording on
   Windows / Linux). On macOS grid recording is native (macOS 12.3+) and asks
   for the Screen Recording permission on first use.
-- Linux build: `libgtk-3-dev libx11-dev libxi-dev libavcodec-dev libswscale-dev`.
+- Linux build: `libgtk-3-dev libx11-dev libxi-dev libayatana-appindicator3-dev
+  libavcodec-dev libswscale-dev`.
 
 ## Run
 
