@@ -94,4 +94,33 @@ void main() {
       throwsStateError,
     );
   });
+
+  test('a dialog dump is normalized to the screen, not its own window', () {
+    const dialog = '''
+<hierarchy rotation="0"><node index="0" text="" resource-id="" class="android.widget.FrameLayout" content-desc="" bounds="[25,797][982,1506]"><node index="0" text="Allow" resource-id="permission_allow_button" class="android.widget.Button" content-desc="" bounds="[118,1197][915,1286]" /></node></hierarchy>''';
+    final allow = parseUiautomatorDump(dialog, screen: (1008, 2244)).single;
+    expect(allow.centerX, closeTo(516.5 / 1008, 1e-9));
+    expect(allow.centerY, closeTo(1241.5 / 2244, 1e-9));
+    // Landscape: the portrait size is swapped.
+    final turned = parseUiautomatorDump(
+      dialog.replaceFirst('rotation="0"', 'rotation="1"'),
+      screen: (1008, 2244),
+    ).single;
+    expect(turned.centerX, closeTo(516.5 / 2244, 1e-9));
+  });
+
+  test('elements read the screen size once per device', () async {
+    final exec = FakeCommandExec(
+      (_, args) => args.contains('wm')
+          ? FakeCommandExec.ok(
+              'Physical size: 1080x2400\nOverride size: 1008x2244\n',
+            )
+          : FakeCommandExec.ok(_dump),
+    );
+    final adb = AndroidAutomation(exec, adbPath: () => 'adb');
+    final first = await adb.elements(_pixel);
+    await adb.elements(_pixel);
+    expect(exec.calls.where((c) => c.arguments.contains('wm')), hasLength(1));
+    expect(first.first.centerX, closeTo(850 / 1008, 1e-9));
+  });
 }

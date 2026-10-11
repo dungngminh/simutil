@@ -17,6 +17,9 @@ class _AndroidAutomation implements AndroidAutomation {
   final CommandExec _exec;
   final String Function() adbPath;
 
+  /// Portrait screen size in pixels, by device id (`wm size`).
+  final _screens = <String, (int, int)>{};
+
   @override
   Future<void> launch(
     Device device,
@@ -82,7 +85,23 @@ class _AndroidAutomation implements AndroidAutomation {
             .trim(),
       );
     }
-    return parseUiautomatorDump(result.stdout);
+    return parseUiautomatorDump(
+      result.stdout,
+      screen: await _screenSize(device),
+    );
+  }
+
+  /// The display size from `wm size` (an override wins over the physical
+  /// size); null when adb does not say.
+  Future<(int, int)?> _screenSize(Device device) async {
+    if (_screens[device.id] case final size?) return size;
+    final out = (await _adb(device, ['shell', 'wm', 'size'])).stdout;
+    final sizes = [
+      for (final m in RegExp(r'(\d+)x(\d+)').allMatches(out))
+        (int.parse(m[1]!), int.parse(m[2]!)),
+    ];
+    if (sizes.isEmpty) return null;
+    return _screens[device.id] = sizes.last;
   }
 
   Future<CommandResult> _adb(Device device, List<String> args) => _exec.run(
@@ -99,11 +118,20 @@ final _node = RegExp(r'<node\b([^>]*)>');
 final _attr = RegExp(r'([\w-]+)="([^"]*)"');
 final _bounds = RegExp(r'\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]');
 
-/// Elements from `uiautomator dump` XML, normalized by the root node's
-/// bounds (the whole screen). Nodes without label, text or id are dropped.
-List<UiElement> parseUiautomatorDump(String xml) {
+/// Elements from `uiautomator dump` XML, normalized to the [screen] size
+/// in portrait pixels (swapped when the dump is rotated). Without it the
+/// root node's bounds stand in, which is only right when the top window
+/// fills the screen (a dialog or permission prompt does not). Nodes without
+/// label, text or id are dropped.
+List<UiElement> parseUiautomatorDump(String xml, {(int, int)? screen}) {
   double? width;
   double? height;
+  if (screen case (final w, final h)) {
+    final rotation = RegExp(r'<hierarchy[^>]*rotation="(\d)"').firstMatch(xml);
+    final landscape = rotation != null && rotation[1]!.contains(RegExp('[13]'));
+    width = (landscape ? h : w).toDouble();
+    height = (landscape ? w : h).toDouble();
+  }
   final elements = <UiElement>[];
   for (final node in _node.allMatches(xml)) {
     final attrs = {

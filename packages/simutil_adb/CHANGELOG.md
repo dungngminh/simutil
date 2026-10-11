@@ -42,7 +42,8 @@
 - `AndroidAutomation`: relaunches apps (`am force-stop`, or `pm clear`
   with `clearState`, then `monkey`), types with `input text`
   (ASCII) and reads elements from `uiautomator dump`
-  (`parseUiautomatorDump`).
+  (`parseUiautomatorDump`, normalized to the `wm size` screen so dialogs
+  and permission prompts map right).
 
 ## 1.0.0
 
