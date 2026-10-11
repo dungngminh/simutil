@@ -51,6 +51,8 @@ final class ScenarioRun extends Equatable {
     required this.startedAt,
     required this.steps,
     required this.devices,
+    this.source = '',
+    this.lines = const [],
   });
 
   final int id;
@@ -59,6 +61,13 @@ final class ScenarioRun extends Equatable {
   /// Each step, described for people (`tap "month"`), in order.
   final List<String> steps;
   final List<ScenarioDeviceRun> devices;
+
+  /// The scenario's YAML, as written in the editor or generated from an
+  /// agent's steps.
+  final String source;
+
+  /// First line (0-based) of each step in [source]; empty when unknown.
+  final List<int> lines;
 
   ScenarioStatus get status =>
       devices.any((d) => d.status == ScenarioStatus.running)
@@ -100,7 +109,7 @@ final class ScenarioRun extends Equatable {
   int passed(int i) => devices.where((d) => d.step > i).length;
 
   @override
-  List<Object?> get props => [id, startedAt, steps, devices];
+  List<Object?> get props => [id, startedAt, steps, devices, source, lines];
 }
 
 /// Scenario runs, newest first, for the scenarios panel.
@@ -113,11 +122,18 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
   var _nextId = 0;
 
   /// Records a run starting on [devices] (id → name); returns its id.
-  int start(Map<String, String> devices, List<String> steps) {
+  int start(
+    Map<String, String> devices,
+    List<String> steps, {
+    String source = '',
+    List<int> lines = const [],
+  }) {
     final run = ScenarioRun(
       id: _nextId++,
       startedAt: DateTime.now(),
       steps: List.unmodifiable(steps),
+      source: source,
+      lines: List.unmodifiable(lines),
       devices: [
         for (final MapEntry(:key, :value) in devices.entries)
           ScenarioDeviceRun(deviceId: key, name: value),
@@ -143,12 +159,6 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
         ),
       );
 
-  /// Drops finished runs.
-  void clearFinished() => emit([
-    for (final r in stateValue)
-      if (r.status == ScenarioStatus.running) r,
-  ]);
-
   void _update(
     int id,
     String deviceId,
@@ -162,6 +172,8 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
           id: r.id,
           startedAt: r.startedAt,
           steps: r.steps,
+          source: r.source,
+          lines: r.lines,
           devices: [
             for (final d in r.devices)
               if (d.deviceId == deviceId) change(d) else d,

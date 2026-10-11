@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:yaml/yaml.dart';
 
 /// A scenario to start from in the editor.
@@ -94,3 +96,70 @@ Object? _plain(Object? node) => switch (node) {
   final YamlList l => [for (final v in l) _plain(v)],
   _ => node,
 };
+
+/// First line (0-based) of each step in scenario YAML; empty when it does
+/// not parse.
+List<int> stepLines(String source) {
+  try {
+    final doc = loadYaml(source);
+    final steps = doc is YamlMap ? doc.nodes['steps'] : doc;
+    if (steps is! YamlList) return const [];
+    return [for (final n in steps.nodes) n.span.start.line];
+  } on YamlException {
+    return const [];
+  }
+}
+
+/// [args] (`run_scenario` arguments, e.g. from an agent) as scenario YAML in
+/// the editor's shorthand.
+String scenarioToYaml(Map<String, Object?> args) {
+  final out = StringBuffer();
+  if (args['devices'] case final List<Object?> devices) {
+    out.writeln('devices: ${_yaml(devices)}');
+  }
+  out.writeln('steps:');
+  for (final raw in args['steps']! as List) {
+    final step = {...(raw as Map).cast<String, Object?>()};
+    final action = step.remove('action');
+    final head = switch (action) {
+      'tap' || 'swipe' when step.containsKey('label') => step.remove('label'),
+      'tap' => [step.remove('x'), step.remove('y')],
+      'swipe' => [
+        for (final k in ['x1', 'y1', 'x2', 'y2']) step.remove(k),
+      ],
+      'press' => step.remove('button'),
+      'wait' => step.remove('ms'),
+      'type' => step.remove('text'),
+      'launch' when step.containsKey('app') => step.remove('app'),
+      'launch' => {
+        for (final k in ['android', 'ios'])
+          if (step.containsKey(k)) k: step.remove(k),
+      },
+      _ => null,
+    };
+    out.writeln('  - $action: ${_yaml(head)}');
+    for (final MapEntry(:key, :value) in step.entries) {
+      out.writeln('    $key: ${_yaml(value)}');
+    }
+  }
+  return out.toString();
+}
+
+/// A flow-style YAML scalar, list or map; strings are quoted only when YAML
+/// would read them as something else.
+String _yaml(Object? v) => switch (v) {
+  null => 'null',
+  final List<Object?> l => '[${l.map(_yaml).join(', ')}]',
+  final Map<Object?, Object?> m =>
+    '{${m.entries.map((e) => '${e.key}: ${_yaml(e.value)}').join(', ')}}',
+  final String s when _plainString(s) => s,
+  final String s => jsonEncode(s),
+  _ => '$v',
+};
+
+bool _plainString(String s) {
+  if (s.isEmpty || s.trim() != s) return false;
+  if (RegExp(r'''[:#\[\]{},&*!|>'"%@`]''').hasMatch(s)) return false;
+  // Would load as a number, bool or null instead of a string.
+  return loadYaml(s) is String;
+}

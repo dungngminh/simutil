@@ -365,7 +365,7 @@ void main() {
     expect(r.stepErrors(0).single.$2, contains('no stream'));
     expect(r.stepStatus(1), ScenarioStatus.ok);
     expect(r.stepErrors(1), isEmpty);
-    runs.clearFinished();
-    expect(runs.stateValue, isEmpty);
+    expect(r.source, contains('- tap: [0.5, 0.5]'));
+    expect(r.lines, [2, 3]); // after devices: and steps:
   });
 }

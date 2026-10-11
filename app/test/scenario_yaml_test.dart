@@ -59,4 +59,23 @@ steps:
     expect(() => scenarioFromYaml('steps: ['), throwsFormatException);
     expect(() => scenarioFromYaml('steps: []'), throwsFormatException);
   });
+
+  test('agent steps round-trip through YAML, with each step line', () {
+    final args = {
+      'devices': ['Pixel 8 Pro'],
+      'steps': [
+        {'action': 'launch', 'android': 'a.b', 'ios': 'c.d'},
+        {'action': 'tap', 'label': 'month', 'index': -1},
+        {'action': 'tap', 'label': '15'},
+        {'action': 'tap', 'x': 0.5, 'y': 0.25},
+        {'action': 'swipe', 'label': 'a: b', 'dy': -0.1, 'until': 'true'},
+        {'action': 'type', 'text': 'Hello # world'},
+        {'action': 'wait', 'ms': 300, 'repeat': 2},
+      ],
+    };
+    final yaml = scenarioToYaml(args);
+    expect(scenarioFromYaml(yaml), args);
+    expect(stepLines(yaml), [2, 3, 5, 6, 7, 10, 11]);
+    expect(stepLines('steps: ['), isEmpty);
+  });
 }

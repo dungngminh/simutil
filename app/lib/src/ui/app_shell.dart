@@ -43,7 +43,7 @@ class _HomeState extends State<_Home> {
   bool? _scenariosOpen;
 
   static const _sidebarWidth = 288.0;
-  static const _scenariosWidth = 320.0;
+  static const _scenariosWidth = 440.0;
 
   @override
   Widget build(BuildContext context) {

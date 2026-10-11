@@ -30,12 +30,11 @@ First version of the desktop app (macOS, Windows, Linux).
 - MCP can launch apps, type text and tap elements by their accessibility
   label, so one scenario works across screen sizes; scenario steps can
   repeat. A dot on the stream shows where an agent taps or swipes.
-- Scenarios panel lists each scenario step by step: a spinner on the step
-  running, a check on steps done, the error on the step that failed.
+- Scenario studio beside the streams: write a scenario in YAML (or open a
+  .yaml file), run it, and watch each step's status next to its line; a
+  failed step shows its error. Scenarios agents run show there too.
 - MCP swipes can start on an element and repeat until another shows up, to
   scroll lists and pickers to a value.
-- Write a scenario in YAML (or open a .yaml file) and run it on your
-  devices from the scenarios panel, without an agent.
 
 ### Changed
 

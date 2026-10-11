@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:simutil_app/src/mcp/mcp_server.dart';
 import 'package:simutil_app/src/mcp/tools/tool_context.dart';
+import 'package:simutil_app/src/scenarios/scenario_yaml.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// Touch, button and text input, app launch and accessibility lookup, alone
@@ -234,16 +235,20 @@ List<McpTool> inputTools(ToolContext c) => [
 }
 
 /// Runs a scenario (see the run_scenario tool) for an agent or the
-/// scenario editor; returns the per-device report.
+/// scenario editor, whose YAML is [source]; returns the per-device report.
 Future<Map<String, Object?>> runScenario(
   ToolContext c,
-  Map<String, Object?> args,
-) async {
+  Map<String, Object?> args, {
+  String? source,
+}) async {
   final (:steps, devices: targets) = parseScenario(c, args);
   final slim = args['slim'];
+  final yaml = source ?? scenarioToYaml(args);
   final runId = c.runs?.start(
     {for (final d in targets) d.id: d.name},
     [for (final s in steps) _describe(s)],
+    source: yaml,
+    lines: stepLines(yaml),
   );
   final clock = Stopwatch()..start();
   final slimmedNow = slim == false
