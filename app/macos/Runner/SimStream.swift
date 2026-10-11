@@ -631,8 +631,29 @@ private enum SimChrome {
       ],
       "outerRadius": border?["cornerRadiusX"] as? Double ?? 0,
     ]
+    let scaleSel = NSSelectorFromString("mainScreenScale")
+    if let pixels = SimFrameworks.mainScreenSize(device), type.responds(to: scaleSel) {
+      typealias GetScale = @convention(c) (AnyObject, Selector) -> Float
+      let scale = CGFloat(unsafeBitCast(type.method(for: scaleSel), to: GetScale.self)(type, scaleSel))
+      if scale > 0 {
+        result["screenWidth"] = Double(pixels.width / scale)
+        result["screenHeight"] = Double(pixels.height / scale)
+      }
+    }
+
+    // A chrome can serve several screen sizes (phone12: Pro Max and Air);
+    // its composite body only fits one, so other sizes use the nine-slice.
+    func fits(_ body: NSSize) -> Bool {
+      guard let w = result["screenWidth"] as? Double,
+        let h = result["screenHeight"] as? Double
+      else { return true }
+      let sideX = (sizing["leftWidth"] as? Double ?? 0) + (sizing["rightWidth"] as? Double ?? 0)
+      let sideY = (sizing["topHeight"] as? Double ?? 0) + (sizing["bottomHeight"] as? Double ?? 0)
+      return abs(Double(body.width) - w - sideX) <= 6 && abs(Double(body.height) - h - sideY) <= 6
+    }
     if let compositeName = images["composite"] as? String,
       let composite = image(compositeName, in: dir),
+      fits(composite.size),
       let compositePng = png(size: composite.size, scale: 3, draw: {
         composite.draw(in: NSRect(origin: .zero, size: composite.size))
       })
@@ -658,15 +679,6 @@ private enum SimChrome {
       result["cornerHeight"] = Double(ch)
     }
 
-    let scaleSel = NSSelectorFromString("mainScreenScale")
-    if let pixels = SimFrameworks.mainScreenSize(device), type.responds(to: scaleSel) {
-      typealias GetScale = @convention(c) (AnyObject, Selector) -> Float
-      let scale = CGFloat(unsafeBitCast(type.method(for: scaleSel), to: GetScale.self)(type, scaleSel))
-      if scale > 0 {
-        result["screenWidth"] = Double(pixels.width / scale)
-        result["screenHeight"] = Double(pixels.height / scale)
-      }
-    }
 
     if let maskName = profile["framebufferMask"] as? String,
       let mask = image(maskName, in: resources),

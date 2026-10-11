@@ -44,3 +44,7 @@ First version of the desktop app (macOS, Windows, Linux).
   they also decode off the UI thread, so many streams stay smooth while the
   app is busy.
 - Shorter Slim mode texts in the toolbar, menus and toasts.
+
+### Fixed
+
+- iPhone Air shows its own device frame instead of a stretched Pro Max one.
