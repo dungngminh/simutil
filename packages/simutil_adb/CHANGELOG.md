@@ -39,6 +39,9 @@
 - Windows: resolves `adb.exe` / `emulator.exe` and defaults the SDK root to
   `%LOCALAPPDATA%\Android\Sdk`. New `isWindows` test seam on
   `AndroidDeviceService`.
+- `AndroidAutomation`: launches apps with `monkey`, types with `input text`
+  (ASCII) and reads elements from `uiautomator dump`
+  (`parseUiautomatorDump`).
 
 ## 1.0.0
 

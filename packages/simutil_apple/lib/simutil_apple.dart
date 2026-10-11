@@ -18,3 +18,4 @@ export 'src/simulator_recorder.dart';
 export 'src/slim/simulator_slimmer.dart';
 export 'src/slim/slim_categories.dart';
 export 'src/xcode_cache_service.dart';
+export 'src/ios_automation.dart';

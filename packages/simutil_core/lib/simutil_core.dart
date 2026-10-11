@@ -22,3 +22,4 @@ export 'src/models/device_type.dart';
 export 'src/models/isolate_message.dart';
 export 'src/session/device_session.dart';
 export 'src/utils/streams.dart';
+export 'src/automation/device_automation.dart';
