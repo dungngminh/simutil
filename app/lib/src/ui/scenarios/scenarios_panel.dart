@@ -14,7 +14,6 @@ import 'package:simutil_app/src/ui/design/design.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/ui/scenarios/scenario_code_editor.dart';
 import 'package:simutil_app/src/ui/scenarios/scenario_syntax.dart';
-import 'package:simutil_core/simutil_core.dart';
 
 /// Scenario studio: the scenario's YAML, editable in place, with each
 /// step's status in the gutter while it runs (a spinner, a check, a cross)
@@ -289,30 +288,17 @@ class _RunSummaryState extends State<_RunSummary> {
         children: [
           Row(
             children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 10,
-                  runSpacing: 2,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ScenarioStatusIcon(status: run.status, size: 13),
-                        const SizedBox(width: 6),
-                        Text('Run #${run.id + 1} · $time', style: t.caption),
-                      ],
-                    ),
-                    for (final s in [
-                      ScenarioStatus.ok,
-                      ScenarioStatus.failed,
-                      ScenarioStatus.running,
-                    ])
-                      if (count(s) > 0) _CountChip(status: s, count: count(s)),
-                    _PlatformCounts(devices: run.devices),
-                  ],
-                ),
-              ),
+              ScenarioStatusIcon(status: run.status, size: 13),
+              const SizedBox(width: 6),
+              Text('Run #${run.id + 1} · $time', style: t.caption),
+              const SizedBox(width: 10),
+              for (final s in [
+                ScenarioStatus.ok,
+                ScenarioStatus.failed,
+                ScenarioStatus.running,
+              ])
+                if (count(s) > 0) _CountChip(status: s, count: count(s)),
+              const Spacer(),
               SimuIconButton(
                 icon: _expanded
                     ? LucideIcons.chevronUp
@@ -333,27 +319,6 @@ class _RunSummaryState extends State<_RunSummary> {
           if (_expanded) _DeviceList(devices: run.devices),
         ],
       ),
-    );
-  }
-}
-
-/// "2 iOS · 1 Android": how many devices of each platform the run covers.
-class _PlatformCounts extends StatelessWidget {
-  const _PlatformCounts({required this.devices});
-
-  final List<ScenarioDeviceRun> devices;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = SimuTokens.of(context);
-    final ios = devices.where((d) => d.os == DeviceOs.ios).length;
-    final android = devices.length - ios;
-    return Text(
-      [
-        if (ios > 0) '$ios iOS',
-        if (android > 0) '$android Android',
-      ].join(' · '),
-      style: t.caption.copyWith(color: t.textFaint),
     );
   }
 }

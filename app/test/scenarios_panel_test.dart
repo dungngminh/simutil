@@ -7,7 +7,6 @@ import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/scenarios/scenario_yaml.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
 import 'package:simutil_app/src/ui/scenarios/scenarios_panel.dart';
-import 'package:simutil_core/simutil_core.dart';
 
 void main() {
   late ScenarioRunsCubit runs;
@@ -33,20 +32,7 @@ void main() {
   const source = 'steps:\n  - tap: month\n  - tap: Previous\n  - wait: 10\n';
 
   int start() => runs.start(
-    [
-      Device.ios(
-        id: 'a',
-        name: 'iPhone',
-        state: DeviceState.booted,
-        type: DeviceType.simulator,
-      ),
-      Device.android(
-        id: 'b',
-        name: 'Pixel',
-        state: DeviceState.booted,
-        type: DeviceType.physical,
-      ),
-    ],
+    {'a': 'iPhone', 'b': 'Pixel'},
     ['tap "month"', 'tap "Previous"', 'wait 10 ms'],
     source: source,
     lines: stepLines(source),
@@ -135,7 +121,6 @@ void main() {
     await tester.pump();
     // Folded: counts only, no device names.
     expect(find.textContaining('Pixel · 1.2 s'), findsNothing);
-    expect(find.text('1 iOS · 1 Android'), findsOneWidget);
     await tester.tap(find.byIcon(LucideIcons.chevronDown));
     await tester.pump();
     expect(find.textContaining('Pixel · 1.2 s'), findsOneWidget);

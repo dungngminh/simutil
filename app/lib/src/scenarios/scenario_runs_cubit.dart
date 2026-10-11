@@ -1,6 +1,5 @@
 import 'package:bloc_signals/bloc_signals.dart';
 import 'package:equatable/equatable.dart';
-import 'package:simutil_core/simutil_core.dart';
 
 /// Where a device, a step or a whole run stands; [skipped] is a step whose
 /// condition (if_visible / if_not_visible) did not hold.
@@ -11,7 +10,6 @@ final class ScenarioDeviceRun extends Equatable {
   const ScenarioDeviceRun({
     required this.deviceId,
     required this.name,
-    this.os = DeviceOs.android,
     this.status = ScenarioStatus.running,
     this.step = 0,
     this.ms,
@@ -21,7 +19,6 @@ final class ScenarioDeviceRun extends Equatable {
 
   final String deviceId;
   final String name;
-  final DeviceOs os;
   final ScenarioStatus status;
 
   /// Steps finished so far; when failed, the step that failed.
@@ -43,7 +40,6 @@ final class ScenarioDeviceRun extends Equatable {
   }) => ScenarioDeviceRun(
     deviceId: deviceId,
     name: name,
-    os: os,
     status: status ?? this.status,
     step: step ?? this.step,
     ms: ms ?? this.ms,
@@ -52,16 +48,7 @@ final class ScenarioDeviceRun extends Equatable {
   );
 
   @override
-  List<Object?> get props => [
-    deviceId,
-    name,
-    os,
-    status,
-    step,
-    ms,
-    error,
-    skipped,
-  ];
+  List<Object?> get props => [deviceId, name, status, step, ms, error, skipped];
 }
 
 /// One `run_scenario` call across its devices.
@@ -160,9 +147,9 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
   /// Whether run [id] was asked to stop.
   bool isStopped(int id) => _stopped.contains(id);
 
-  /// Records a run starting on [devices]; returns its id.
+  /// Records a run starting on [devices] (id → name); returns its id.
   int start(
-    List<Device> devices,
+    Map<String, String> devices,
     List<String> steps, {
     String source = '',
     List<int> lines = const [],
@@ -174,8 +161,8 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
       source: source,
       lines: List.unmodifiable(lines),
       devices: [
-        for (final d in devices)
-          ScenarioDeviceRun(deviceId: d.id, name: d.name, os: d.os),
+        for (final MapEntry(:key, :value) in devices.entries)
+          ScenarioDeviceRun(deviceId: key, name: value),
       ],
     );
     emit([run, ...stateValue.take(_keep - 1)]);
