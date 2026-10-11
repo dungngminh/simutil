@@ -2,6 +2,9 @@
 
 ## 1.1.0
 
+- `AndroidDeviceService.adbPath` falls back to Homebrew (`/opt/homebrew/bin`,
+  `/usr/local/bin`) and winget (`%LOCALAPPDATA%\Microsoft\WinGet\Links`)
+  installs before bare `adb` on `PATH`.
 - `ScrcpySession` reads video on a worker isolate; `attachDecoder(decode, id)`
   / `detachDecoder(id)` feed a native decoder (a C `decode` function address)
   straight from that isolate. Adds the `ffi` dependency.

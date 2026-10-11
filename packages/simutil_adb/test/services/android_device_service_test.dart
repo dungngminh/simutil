@@ -104,6 +104,29 @@ void main() {
       expect(svc.adbPath, 'adb');
     });
 
+    test('finds Homebrew adb when the SDK has none', () {
+      final svc = AndroidDeviceService(
+        FakeCommandExec((_, _) => null),
+        environment: {'HOME': '/Users/test'},
+        fileExists: (path) => path == '/opt/homebrew/bin/adb',
+        isWindows: false,
+      );
+
+      expect(svc.adbPath, '/opt/homebrew/bin/adb');
+    });
+
+    test('finds winget adb when the SDK has none', () {
+      const local = r'C:\Users\test\AppData\Local';
+      final svc = AndroidDeviceService(
+        FakeCommandExec((_, _) => null),
+        environment: {'LOCALAPPDATA': local},
+        fileExists: (path) => path == '$local/Microsoft/WinGet/Links/adb.exe',
+        isWindows: true,
+      );
+
+      expect(svc.adbPath, '$local/Microsoft/WinGet/Links/adb.exe');
+    });
+
     test('uses .exe binaries and LOCALAPPDATA SDK on Windows', () {
       const sdk = r'C:\Users\test\AppData\Local/Android/Sdk';
       final svc = AndroidDeviceService(
