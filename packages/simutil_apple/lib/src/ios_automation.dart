@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:simutil_core/simutil_core.dart';
 
 /// [DeviceAutomation] for iOS simulators (`simctl`) and devices
-/// (`devicectl`). Only [launch] works from Dart: typing and the
+/// (`devicectl`). Only [install] and [launch] work from Dart: typing and the
 /// accessibility tree need private simulator frameworks in native code
 /// (the SimUtil desktop app's stream plugin), so they throw here.
 abstract interface class IosAutomation implements DeviceAutomation {
@@ -15,6 +15,85 @@ class _IosAutomation implements IosAutomation {
   _IosAutomation(this._exec);
 
   final CommandExec _exec;
+
+  @override
+  Future<void> install(Device device, String path) async {
+    Directory? unpacked;
+    try {
+      var app = path;
+      if (path.toLowerCase().endsWith('.ipa')) {
+        unpacked = await Directory.systemTemp.createTemp('simutil_ipa');
+        app = await _unpackIpa(path, unpacked);
+      }
+      if (!device.type.isPhysical && await _deviceOnly(app)) {
+        throw StateError(
+          '${app.split('/').last} is built for iPhone and iPad devices, not '
+          'the simulator. Build it for the simulator or install it on a device.',
+        );
+      }
+      final result = await _exec.run(
+        'xcrun',
+        arguments: device.type.isPhysical
+            ? [
+                'devicectl',
+                'device',
+                'install',
+                'app',
+                '--device',
+                device.id,
+                app,
+              ]
+            : ['simctl', 'install', device.id, app],
+        timeout: const Duration(minutes: 5),
+      );
+      if (!result.success) {
+        throw StateError(
+          'Could not install on ${device.name}: ${result.stderr}'.trim(),
+        );
+      }
+    } finally {
+      await unpacked?.delete(recursive: true);
+    }
+  }
+
+  /// Whether the bundle at [app] only runs on devices: simctl stages it and
+  /// then fails with a long installd error.
+  Future<bool> _deviceOnly(String app) async {
+    final result = await _exec.run(
+      'plutil',
+      arguments: [
+        '-extract',
+        'CFBundleSupportedPlatforms',
+        'json',
+        '-o',
+        '-',
+        '$app/Info.plist',
+      ],
+      timeout: const Duration(seconds: 10),
+    );
+    final platforms = result.stdout;
+    return result.success &&
+        platforms.contains('iPhoneOS') &&
+        !platforms.contains('iPhoneSimulator');
+  }
+
+  /// Extracts [ipa] into [dir] and returns its `Payload/*.app`.
+  Future<String> _unpackIpa(String ipa, Directory dir) async {
+    final result = await _exec.run(
+      'unzip',
+      arguments: ['-q', ipa, '-d', dir.path],
+      timeout: const Duration(minutes: 2),
+    );
+    if (!result.success) {
+      throw StateError('Could not unpack $ipa: ${result.stderr}'.trim());
+    }
+    final payload = Directory('${dir.path}/Payload');
+    final app = payload.existsSync()
+        ? payload.listSync().where((e) => e.path.endsWith('.app')).firstOrNull
+        : null;
+    if (app == null) throw StateError('No app inside $ipa');
+    return app.path;
+  }
 
   @override
   Future<void> launch(

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+- `DeviceAutomation.install(device, path)` installs an app package on a
+  device.
+
 ## 1.2.0
 
 - `DeviceService.wipeData({deviceId})`: erase a shut-down simulator /

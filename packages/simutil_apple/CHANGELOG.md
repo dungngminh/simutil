@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0
+
+- `IosAutomation.install` installs an `.app` or `.ipa` (unpacked first)
+  with `simctl install` on simulators and `devicectl device install app` on
+  devices; a device-only build on a simulator fails early with a clear
+  message. Requires `simutil_core` 1.3.0.
+
 ## 1.2.0
 
 - `IOSDeviceService.wipeData` erases a simulator (`simctl erase`).
