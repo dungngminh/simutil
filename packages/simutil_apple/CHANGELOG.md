@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+- `IOSDeviceService.getPhysicalDevices` lists a device connected by cable
+  or Wi-Fi even while its CoreDevice tunnel is closed.
+
 ## 1.2.0
 
 - `IOSDeviceService.wipeData` erases a simulator (`simctl erase`).

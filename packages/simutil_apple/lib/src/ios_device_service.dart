@@ -310,11 +310,12 @@ class IOSDeviceService implements DeviceService {
       final name = deviceProps['name'] as String? ?? '';
       final osVersion = deviceProps['osVersionNumber'] as String? ?? '';
       if (_deviceReality(map) == 'simulated') continue;
+      // A device on USB or Wi-Fi has a transport; its tunnel stays
+      // disconnected until Xcode or devicectl uses it.
       final tunnelState = connectionProps['tunnelState'] as String?;
-      final isConnected = ![
-        'unavailable',
-        'disconnected',
-      ].contains(tunnelState);
+      final isConnected =
+          connectionProps['transportType'] != null ||
+          !['unavailable', 'disconnected'].contains(tunnelState);
       if (!isConnected) continue;
       devices.add(
         Device.ios(

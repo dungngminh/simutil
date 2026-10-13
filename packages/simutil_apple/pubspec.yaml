@@ -1,6 +1,6 @@
 name: simutil_apple
 description: Apple simulator and device APIs for SimUtil via simctl and devicectl.
-version: 1.2.0
+version: 1.2.1
 homepage: https://github.com/dungngminh/simutil
 repository: https://github.com/dungngminh/simutil/tree/main/packages/simutil_apple
 issue_tracker: https://github.com/dungngminh/simutil/issues
