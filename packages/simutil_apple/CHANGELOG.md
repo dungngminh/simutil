@@ -4,8 +4,8 @@
 
 - `IosAutomation.install` installs an `.app` or `.ipa` (unpacked first)
   with `simctl install` on simulators and `devicectl device install app` on
-  devices; a device-only build on a simulator fails early with a clear
-  message. Requires `simutil_core` 1.3.0.
+  devices; a device-only build on a simulator, or an App Store-signed build
+  on a device, fails early with a clear message. Requires `simutil_core` 1.3.0.
 - `IOSDeviceService.getPhysicalDevices` lists a device connected by cable
   or Wi-Fi even while its CoreDevice tunnel is closed.
 

@@ -31,6 +31,13 @@ class _IosAutomation implements IosAutomation {
           'the simulator. Build it for the simulator or install it on a device.',
         );
       }
+      if (device.type.isPhysical && await _storeSigned(app)) {
+        throw StateError(
+          '${app.split('/').last} is signed for the App Store, which iOS only '
+          'installs from the App Store or TestFlight. Use a development or '
+          'ad hoc build.',
+        );
+      }
       final result = await _exec.run(
         'xcrun',
         arguments: device.type.isPhysical
@@ -75,6 +82,21 @@ class _IosAutomation implements IosAutomation {
     return result.success &&
         platforms.contains('iPhoneOS') &&
         !platforms.contains('iPhoneSimulator');
+  }
+
+  /// Whether the bundle at [app] carries an App Store profile (no device
+  /// list, not enterprise): devicectl only fails with CoreDevice error 3002.
+  Future<bool> _storeSigned(String app) async {
+    final result = await _exec.run(
+      'security',
+      arguments: ['cms', '-D', '-i', '$app/embedded.mobileprovision'],
+      timeout: const Duration(seconds: 10),
+    );
+    final profile = result.stdout;
+    return result.success &&
+        profile.contains('<plist') &&
+        !profile.contains('ProvisionedDevices') &&
+        !profile.contains('ProvisionsAllDevices');
   }
 
   /// Extracts [ipa] into [dir] and returns its `Payload/*.app`.
