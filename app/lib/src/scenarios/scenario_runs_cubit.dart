@@ -1,62 +1,50 @@
 import 'package:bloc_signals/bloc_signals.dart';
 import 'package:equatable/equatable.dart';
 
-/// Where a device, a step or a whole run stands; [skipped] is a step whose
-/// condition (if_visible / if_not_visible) did not hold.
-enum ScenarioStatus { pending, running, ok, failed, skipped }
+/// Where a device (or a whole run) stands in a Maestro flow run.
+enum ScenarioStatus { running, ok, failed }
 
-/// One device's progress through a scenario.
+/// One device's outcome in a Maestro run (one shard per device).
 final class ScenarioDeviceRun extends Equatable {
   const ScenarioDeviceRun({
     required this.deviceId,
     required this.name,
     this.status = ScenarioStatus.running,
-    this.step = 0,
-    this.ms,
+    this.seconds,
     this.error,
-    this.skipped = const [],
   });
 
   final String deviceId;
   final String name;
   final ScenarioStatus status;
 
-  /// Steps finished so far; when failed, the step that failed.
-  final int step;
+  /// How long the flow took on this device, once finished.
+  final int? seconds;
 
-  /// Run time once finished.
-  final int? ms;
+  /// Failure message when [status] is failed.
   final String? error;
-
-  /// Steps skipped because their condition did not hold.
-  final List<int> skipped;
 
   ScenarioDeviceRun copyWith({
     ScenarioStatus? status,
-    int? step,
-    int? ms,
+    int? seconds,
     String? error,
-    List<int>? skipped,
   }) => ScenarioDeviceRun(
     deviceId: deviceId,
     name: name,
     status: status ?? this.status,
-    step: step ?? this.step,
-    ms: ms ?? this.ms,
+    seconds: seconds ?? this.seconds,
     error: error ?? this.error,
-    skipped: skipped ?? this.skipped,
   );
 
   @override
-  List<Object?> get props => [deviceId, name, status, step, ms, error, skipped];
+  List<Object?> get props => [deviceId, name, status, seconds, error];
 }
 
-/// One `run_scenario` call across its devices.
+/// One Maestro flow run across its devices (run in parallel via shards).
 final class ScenarioRun extends Equatable {
   const ScenarioRun({
     required this.id,
     required this.startedAt,
-    required this.steps,
     required this.devices,
     this.source = '',
     this.lines = const [],
@@ -64,17 +52,13 @@ final class ScenarioRun extends Equatable {
 
   final int id;
   final DateTime startedAt;
-
-  /// Each step, described for people (`tap "month"`), in order.
-  final List<String> steps;
   final List<ScenarioDeviceRun> devices;
 
-  /// The scenario's YAML, as written in the editor or generated from an
-  /// agent's steps.
+  /// The Maestro flow YAML that ran.
   final String source;
 
-  /// First line (0-based) of each step in [source]; empty when unknown.
-  final List<int> lines;
+  /// Maestro's output lines, for the live log.
+  final List<String> lines;
 
   ScenarioStatus get status =>
       devices.any((d) => d.status == ScenarioStatus.running)
@@ -83,55 +67,22 @@ final class ScenarioRun extends Equatable {
       ? ScenarioStatus.ok
       : ScenarioStatus.failed;
 
-  /// Step [i] across devices: failed when one failed on it, running while
-  /// one is on it, ok once every device still going got past it.
-  ScenarioStatus stepStatus(int i) {
-    final each = [
-      for (final d in devices)
-        if (d.skipped.contains(i))
-          ScenarioStatus.skipped
-        else if (i < d.step)
-          ScenarioStatus.ok
-        else if (i == d.step && d.status != ScenarioStatus.ok)
-          d.status
-        else
-          // Not reached yet, or skipped after the device failed earlier.
-          d.status == ScenarioStatus.failed ? null : ScenarioStatus.pending,
-    ];
-    if (each.contains(ScenarioStatus.failed)) return ScenarioStatus.failed;
-    if (each.contains(ScenarioStatus.running)) return ScenarioStatus.running;
-    if (!each.contains(ScenarioStatus.pending)) {
-      if (each.contains(ScenarioStatus.ok)) return ScenarioStatus.ok;
-      if (each.contains(ScenarioStatus.skipped)) return ScenarioStatus.skipped;
-    }
-    return ScenarioStatus.pending;
-  }
-
-  /// Devices that failed on step [i], with their errors.
-  List<(String, String)> stepErrors(int i) => [
-    for (final d in devices)
-      if (d.status == ScenarioStatus.failed && d.step == i)
-        (d.name, d.error ?? 'failed'),
-  ];
-
-  /// How many devices got past step [i].
-  int passed(int i) => devices.where((d) => d.step > i).length;
-
   @override
-  List<Object?> get props => [id, startedAt, steps, devices, source, lines];
+  List<Object?> get props => [id, startedAt, devices, source, lines];
 }
 
-/// Scenario runs, newest first, for the scenarios panel.
+/// Maestro flow runs, newest first, for the scenarios panel.
 class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
   ScenarioRunsCubit() : super(initialState: const []);
 
   /// ponytail: keeps the last [_keep] runs in memory; persist if users need
   /// history across launches.
   static const _keep = 20;
+  static const _maxLines = 400;
   var _nextId = 0;
   final _stopped = <int>{};
 
-  /// Asks run [id] to stop; its devices stop at their next check.
+  /// Asks run [id] to stop (the runner kills the maestro process).
   void stop(int id) => _stopped.add(id);
 
   /// Asks every running run to stop; returns their ids.
@@ -147,19 +98,13 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
   /// Whether run [id] was asked to stop.
   bool isStopped(int id) => _stopped.contains(id);
 
-  /// Records a run starting on [devices] (id → name); returns its id.
-  int start(
-    Map<String, String> devices,
-    List<String> steps, {
-    String source = '',
-    List<int> lines = const [],
-  }) {
+  /// Records a run starting on [devices] (id → name) with its [source] YAML;
+  /// returns its id. Every device starts out running.
+  int start(Map<String, String> devices, {String source = ''}) {
     final run = ScenarioRun(
       id: _nextId++,
       startedAt: DateTime.now(),
-      steps: List.unmodifiable(steps),
       source: source,
-      lines: List.unmodifiable(lines),
       devices: [
         for (final MapEntry(:key, :value) in devices.entries)
           ScenarioDeviceRun(deviceId: key, name: value),
@@ -169,34 +114,8 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
     return run.id;
   }
 
-  /// [deviceId] finished [step] steps of run [id].
-  void progress(int id, String deviceId, int step) =>
-      _update(id, deviceId, (d) => d.copyWith(step: step));
-
-  /// [deviceId] skipped [step] of run [id] (its condition did not hold).
-  void skip(int id, String deviceId, int step) => _update(
-    id,
-    deviceId,
-    (d) => d.copyWith(skipped: [...d.skipped, step], step: step + 1),
-  );
-
-  /// [deviceId] finished run [id]; [error] marks it failed.
-  void finish(int id, String deviceId, {required int ms, String? error}) =>
-      _update(
-        id,
-        deviceId,
-        (d) => d.copyWith(
-          status: error == null ? ScenarioStatus.ok : ScenarioStatus.failed,
-          ms: ms,
-          error: error,
-        ),
-      );
-
-  void _update(
-    int id,
-    String deviceId,
-    ScenarioDeviceRun Function(ScenarioDeviceRun) change,
-  ) => emit([
+  /// Appends a Maestro output [line] to run [id]'s live log.
+  void appendLine(int id, String line) => emit([
     for (final r in stateValue)
       if (r.id != id)
         r
@@ -204,13 +123,62 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
         ScenarioRun(
           id: r.id,
           startedAt: r.startedAt,
-          steps: r.steps,
+          source: r.source,
+          devices: r.devices,
+          lines: [...r.lines, line].takeLast(_maxLines),
+        ),
+  ]);
+
+  /// Sets [deviceId]'s outcome in run [id].
+  void setDevice(
+    int id,
+    String deviceId, {
+    required ScenarioStatus status,
+    int? seconds,
+    String? error,
+  }) => emit([
+    for (final r in stateValue)
+      if (r.id != id)
+        r
+      else
+        ScenarioRun(
+          id: r.id,
+          startedAt: r.startedAt,
           source: r.source,
           lines: r.lines,
           devices: [
             for (final d in r.devices)
-              if (d.deviceId == deviceId) change(d) else d,
+              if (d.deviceId == deviceId)
+                d.copyWith(status: status, seconds: seconds, error: error)
+              else
+                d,
           ],
         ),
   ]);
+
+  /// Marks every still-running device of run [id] as failed with [error]
+  /// (e.g. Maestro missing, or the process died before reporting).
+  void failAll(int id, String error) => emit([
+    for (final r in stateValue)
+      if (r.id != id)
+        r
+      else
+        ScenarioRun(
+          id: r.id,
+          startedAt: r.startedAt,
+          source: r.source,
+          lines: r.lines,
+          devices: [
+            for (final d in r.devices)
+              if (d.status == ScenarioStatus.running)
+                d.copyWith(status: ScenarioStatus.failed, error: error)
+              else
+                d,
+          ],
+        ),
+  ]);
+}
+
+extension<T> on List<T> {
+  List<T> takeLast(int n) => length <= n ? this : sublist(length - n);
 }
