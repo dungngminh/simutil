@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:simutil_app/src/di.dart';
 import 'package:simutil_app/src/mcp/mcp_server.dart';
 import 'package:simutil_app/src/mcp/tools/tool_context.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/scenarios/scenario_yaml.dart';
+import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// Touch, button and text input, app launch and accessibility lookup, alone
@@ -31,16 +33,34 @@ List<McpTool> inputTools(ToolContext c) => [
     name: 'install_app',
     description:
         'Install an app from a file on this computer, replacing an installed '
-        'copy: an .apk on Android, a simulator .app bundle or .ipa on iOS.',
+        'copy: an .apk on Android, a simulator .app bundle or .ipa on iOS. '
+        'convert_for_simulator installs an iPhone (device) build on an iOS '
+        'simulator by converting a copy (Apple Silicon, unencrypted apps; '
+        'keychain, app groups and push may not work).',
     properties: {
       ...deviceArg,
       'path': {'type': 'string'},
+      'convert_for_simulator': {'type': 'boolean', 'default': false},
     },
     required: ['device', 'path'],
     handler: (args) async {
       final path = args['path'];
       if (path is! String || path.isEmpty) throw ArgumentError('path required');
-      await c.automation.install(c.find(args), path);
+      final device = c.find(args);
+      if (args['convert_for_simulator'] == true) {
+        if (device.os != DeviceOs.ios || device.type.isPhysical) {
+          throw ArgumentError('convert_for_simulator needs an iOS simulator');
+        }
+        await getIt<IosAutomation>().installForSimulator(device, path);
+        return c.text('Converted and installed $path');
+      }
+      try {
+        await c.automation.install(device, path);
+      } on DeviceOnlyBuildException catch (e) {
+        throw StateError(
+          '${e.message} Retry with convert_for_simulator: true to convert it.',
+        );
+      }
       return c.text('Installed $path');
     },
   ),

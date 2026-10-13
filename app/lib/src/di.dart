@@ -41,6 +41,7 @@ Future<void> configureDependencies() async {
       ),
     )
     ..registerSingleton<IOSDeviceService>(IOSDeviceService(exec))
+    ..registerSingleton<IosAutomation>(IosAutomation(exec))
     ..registerSingleton<XcodeCacheService>(XcodeCacheService(exec))
     ..registerLazySingleton<DevicesCubit>(
       () => DevicesCubit(

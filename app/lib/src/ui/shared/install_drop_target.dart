@@ -1,9 +1,11 @@
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:simutil_app/src/di.dart';
 import 'package:simutil_app/src/mcp/tools/tool_context.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
 import 'package:simutil_app/src/ui/recording_toast.dart';
+import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// Installs app packages dropped from the desktop onto [child]: `.apk` on
@@ -92,11 +94,67 @@ class _InstallDropTargetState extends State<InstallDropTarget> {
       try {
         await automation.install(device, path);
         _notice('Installed $name', device.name, NoticeTone.success);
+      } on DeviceOnlyBuildException catch (e) {
+        _offerConversion(path, e);
       } on Object catch (e) {
         _notice('Install failed', _message(e), NoticeTone.error);
       } finally {
         loading?.call();
       }
+    }
+  }
+
+  /// Asks to convert a device-only build so it runs on the simulator.
+  void _offerConversion(String path, DeviceOnlyBuildException e) {
+    if (!mounted) return;
+    final t = SimuTokens.of(context);
+    showSimuToast(
+      context,
+      _offerHeight,
+      (close) => SimuToast(
+        height: _offerHeight,
+        icon: LucideIcons.wandSparkles,
+        tone: t.accent,
+        title: 'Convert for the simulator?',
+        subtitle:
+            '${e.bundleName} is built for devices. A converted copy runs '
+            'here; keychain, app groups and push may not work.',
+        subtitleLines: 3,
+        onClose: close,
+        actions: [
+          SimuButton(
+            label: 'Convert & install',
+            primary: true,
+            onPressed: () {
+              close();
+              _convert(path, e.bundleName);
+            },
+          ),
+          SimuButton(label: 'Not now', onPressed: close),
+        ],
+      ),
+    );
+  }
+
+  static const _offerHeight = 132.0;
+
+  Future<void> _convert(String path, String name) async {
+    final device = widget.device;
+    final loading = mounted
+        ? showNotice(
+            context,
+            'Converting $name…',
+            subtitle: device.name,
+            busy: true,
+          )
+        : null;
+    try {
+      await getIt<IosAutomation>().installForSimulator(device, path);
+      _notice('Installed $name', device.name, NoticeTone.success);
+    } on Object catch (e) {
+      _notice('Install failed', _message(e), NoticeTone.error);
+    } finally {
+      loading?.call();
     }
   }
 

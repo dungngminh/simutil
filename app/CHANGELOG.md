@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Install apps by dropping them on a device: drag an `.apk` onto an Android
   stream or device row, or an `.app` / `.ipa` onto an iOS one.
 - `install_app` MCP tool installs an app file on a device.
+- Dropping an iPhone build on a simulator offers to convert it so it runs
+  there (Apple Silicon Macs, apps not downloaded from the App Store); the
+  `install_app` MCP tool does the same with `convert_for_simulator`.
 
 ## [0.2.0] - 2026-10-13
 
