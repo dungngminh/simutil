@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+- `AndroidAutomation.install` runs `adb install -r -t` and reports the
+  `Failure [...]` code. Requires `simutil_core` 1.3.0.
+
 ## 1.2.0
 
 - `ScrcpySession.typeText(text)` / `pressKey(keycode, metaState:)` inject

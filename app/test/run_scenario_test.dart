@@ -82,6 +82,9 @@ class _FakeAutomation implements DeviceAutomation {
   }
 
   @override
+  Future<void> install(Device device, String path) async {}
+
+  @override
   Future<void> launch(
     Device device,
     String appId, {

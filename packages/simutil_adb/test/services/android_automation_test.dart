@@ -57,6 +57,39 @@ void main() {
     ]);
   });
 
+  test('install replaces the app and reports the failure code', () async {
+    final exec = FakeCommandExec(
+      (_, _) => FakeCommandExec.fail(
+        'adb: failed to install a.apk: Failure '
+        '[INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures differ]',
+      ),
+    );
+    final automation = AndroidAutomation(exec, adbPath: () => 'adb');
+    await expectLater(
+      automation.install(_pixel, '/tmp/a.apk'),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          'Could not install on Pixel: Failure '
+              '[INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures differ]',
+        ),
+      ),
+    );
+    expect(exec.calls.single.arguments, [
+      '-s',
+      'serial',
+      'install',
+      '-r',
+      '-t',
+      '/tmp/a.apk',
+    ]);
+
+    exec.handler = (_, _) =>
+        FakeCommandExec.ok('Performing Streamed Install\nSuccess\n');
+    await automation.install(_pixel, '/tmp/a.apk');
+  });
+
   test('launch fails when monkey finds no activity', () async {
     final exec = FakeCommandExec(
       (_, _) => FakeCommandExec.ok('** No activities found to run'),

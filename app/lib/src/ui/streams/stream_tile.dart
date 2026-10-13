@@ -20,6 +20,7 @@ import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/stream/streams_state.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
 import 'package:simutil_app/src/ui/shared/device_context_menu.dart';
+import 'package:simutil_app/src/ui/shared/install_drop_target.dart';
 import 'package:simutil_app/src/ui/shared/recording_clock.dart';
 import 'package:simutil_app/src/ui/shared/stream_tile_body.dart';
 import 'package:simutil_core/simutil_core.dart';
@@ -168,11 +169,14 @@ class _StreamTileState extends State<StreamTile> {
                           ),
                   ),
                   Expanded(
-                    child: _TileBody(
-                      entry: entry,
-                      session: session,
-                      showFrame: showFrame,
-                      compact: thumbnail,
+                    child: InstallDropTarget(
+                      device: entry.device,
+                      child: _TileBody(
+                        entry: entry,
+                        session: session,
+                        showFrame: showFrame,
+                        compact: thumbnail,
+                      ),
                     ),
                   ),
                 ],
@@ -331,16 +335,6 @@ List<TileAction> _tileActions(
       priority: 4,
       onPressed: live ? () => _screenshot(context, device) : null,
     ),
-    TileAction(
-      icon: showFrame ? LucideIcons.smartphone : LucideIcons.squareDashed,
-      label: showFrame ? 'Hide device frame' : 'Show device frame',
-      priority: 2,
-      active: showFrame,
-      onPressed: () => context.read<DeviceSettingsCubit>().update(
-        device,
-        (s) => s.copyWith(showFrame: !s.showFrame),
-      ),
-    ),
     if (entry.recording || canRecord)
       TileAction(
         icon: entry.recording ? LucideIcons.circleStop : LucideIcons.video,
@@ -351,6 +345,16 @@ List<TileAction> _tileActions(
             ? () => streams.toggleRecording(device.id, recordingsDirectory())
             : null,
       ),
+    TileAction(
+      icon: showFrame ? LucideIcons.smartphone : LucideIcons.squareDashed,
+      label: showFrame ? 'Hide device frame' : 'Show device frame',
+      priority: 2,
+      active: showFrame,
+      onPressed: () => context.read<DeviceSettingsCubit>().update(
+        device,
+        (s) => s.copyWith(showFrame: !s.showFrame),
+      ),
+    ),
     if (!device.type.isPhysical)
       TileAction(
         icon: LucideIcons.power,

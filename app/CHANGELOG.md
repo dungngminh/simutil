@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Install apps by dropping them on a device: drag an `.apk` onto an Android
+  stream or device row, or an `.app` / `.ipa` onto an iOS one.
+- `install_app` MCP tool installs an app file on a device.
 - Stream an iPhone or iPad connected by USB cable (view only, on macOS),
   with its device frame, screenshots and recording with sound.
 

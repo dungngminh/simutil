@@ -86,9 +86,13 @@ UiElement? findElement(
   return i >= 0 && i < matches.length ? matches[i] : null;
 }
 
-/// Drives apps on a device beyond touch and buttons: launching, typing and
-/// reading the accessibility tree.
+/// Drives apps on a device beyond touch and buttons: installing, launching,
+/// typing and reading the accessibility tree.
 abstract interface class DeviceAutomation {
+  /// Installs the app package at [path] on [device], replacing an installed
+  /// copy: an `.apk` on Android, an `.app` bundle or `.ipa` on iOS.
+  Future<void> install(Device device, String path);
+
   /// Launches app [appId] (Android package / iOS bundle id) on [device],
   /// stopping it first when it runs so it starts fresh; [clearState] also
   /// wipes its data first.

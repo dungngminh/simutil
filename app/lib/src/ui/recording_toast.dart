@@ -78,12 +78,15 @@ Toast showSimuToast(
 /// How a [showNotice] toast reads.
 enum NoticeTone { info, success, error }
 
-/// A one-line (plus optional mono [subtitle]) toast; errors stay longer.
-void showNotice(
+/// A toast with a title of up to two lines (plus an optional mono
+/// [subtitle] of up to four); errors stay longer. [busy] shows a spinner and keeps it up
+/// until the returned callback hides it.
+VoidCallback showNotice(
   BuildContext context,
   String title, {
   String? subtitle,
   NoticeTone tone = NoticeTone.info,
+  bool busy = false,
 }) {
   final t = SimuTokens.of(context);
   final (icon, color) = switch (tone) {
@@ -91,20 +94,48 @@ void showNotice(
     NoticeTone.success => (LucideIcons.circleCheck, t.success),
     NoticeTone.error => (LucideIcons.circleAlert, t.danger),
   };
-  final height = subtitle == null ? 52.0 : 60.0;
-  showSimuToast(
+  final titleLines = _lines(title, SimuToast.titleStyle(t), 2);
+  final subtitleLines = subtitle == null
+      ? 1
+      : _lines(subtitle, SimuToast.subtitleStyle(t), 4);
+  // Each extra line adds one 16 px line, so heights stay on the 4 px grid.
+  final height =
+      (subtitle == null ? 52.0 : 60.0) +
+      (titleLines + subtitleLines - 2) * SimuToast.lineHeight;
+  final toast = showSimuToast(
     context,
     height,
     (close) => SimuToast(
       height: height,
       icon: icon,
       tone: color,
+      busy: busy,
       title: title,
+      titleLines: titleLines,
       subtitle: subtitle,
+      subtitleLines: subtitleLines,
       onClose: close,
     ),
-    hideAfter: Duration(seconds: tone == NoticeTone.error ? 8 : 4),
+    hideAfter: busy
+        ? null
+        : Duration(seconds: tone == NoticeTone.error ? 8 : 4),
   );
+  final toasts = ToastProvider.of(context);
+  return () => toasts.hide(toast);
+}
+
+/// How many lines (1..[max]) [text] takes in a [showNotice] toast.
+/// The text width is the toast viewer's 380 minus the toast's border,
+/// padding, icon and close button.
+int _lines(String text, TextStyle style, int max) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: TextDirection.ltr,
+    maxLines: max,
+  )..layout(maxWidth: 286);
+  final lines = painter.computeLineMetrics().length;
+  painter.dispose();
+  return lines.clamp(1, max);
 }
 
 /// Entries whose status kind changed since [previous] (new entries

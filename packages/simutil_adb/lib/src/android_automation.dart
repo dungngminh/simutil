@@ -1,7 +1,7 @@
 import 'package:simutil_core/simutil_core.dart';
 
 /// [DeviceAutomation] for Android emulators and devices through adb:
-/// `monkey` launches, `input text` types and `uiautomator dump` reads the
+/// `install` installs, `monkey` launches, `input text` types and `uiautomator dump` reads the
 /// accessibility tree.
 abstract interface class AndroidAutomation implements DeviceAutomation {
   /// Runs adb (resolved by [adbPath] on each call) through [exec].
@@ -19,6 +19,22 @@ class _AndroidAutomation implements AndroidAutomation {
 
   /// Portrait screen size in pixels, by device id (`wm size`).
   final _screens = <String, (int, int)>{};
+
+  @override
+  Future<void> install(Device device, String path) async {
+    final result = await _exec.run(
+      adbPath(),
+      arguments: ['-s', device.id, 'install', '-r', '-t', path],
+      timeout: const Duration(minutes: 5),
+    );
+    final out = '${result.stdout}${result.stderr}';
+    if (!result.success || !out.contains('Success')) {
+      final reason = RegExp(r'Failure \[[^\]]*\]').firstMatch(out)?[0];
+      throw StateError(
+        'Could not install on ${device.name}: ${reason ?? out.trim()}',
+      );
+    }
+  }
 
   @override
   Future<void> launch(

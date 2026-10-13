@@ -28,6 +28,23 @@ List<McpTool> inputTools(ToolContext c) => [
     },
   ),
   McpTool(
+    name: 'install_app',
+    description:
+        'Install an app from a file on this computer, replacing an installed '
+        'copy: an .apk on Android, a simulator .app bundle or .ipa on iOS.',
+    properties: {
+      ...deviceArg,
+      'path': {'type': 'string'},
+    },
+    required: ['device', 'path'],
+    handler: (args) async {
+      final path = args['path'];
+      if (path is! String || path.isEmpty) throw ArgumentError('path required');
+      await c.automation.install(c.find(args), path);
+      return c.text('Installed $path');
+    },
+  ),
+  McpTool(
     name: 'launch_app',
     description:
         'Launch an app by Android package name or iOS bundle id '
