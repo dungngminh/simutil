@@ -6,6 +6,7 @@ import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
+import 'package:simutil_app/src/stream/ios/ios_device_session.dart';
 import 'package:simutil_app/src/stream/ios/ios_sim_session.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/stream/touch_marks.dart';
@@ -103,9 +104,15 @@ class ToolContext {
   }
 
   /// [live], failing when Xcode Device Hub has taken over an iOS simulator's
-  /// input (touches would be dropped silently).
+  /// input (touches would be dropped silently) or for a view-only USB iOS
+  /// device.
   Future<DeviceSession> input(Device device) async {
     final session = await live(device);
+    if (session is IosDeviceSession) {
+      throw StateError(
+        '${device.name} is view only: real iOS devices take no input',
+      );
+    }
     if (session is IosSimSession && await session.refreshInputBlocked()) {
       throw StateError(
         'Input to ${device.name} is blocked by Xcode Device Hub; call '

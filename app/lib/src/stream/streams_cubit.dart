@@ -8,6 +8,7 @@ import 'package:simutil_core/simutil_core.dart';
 
 import 'package:simutil_app/src/recording/recording_lock.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
+import 'package:simutil_app/src/stream/ios/ios_device_session.dart';
 import 'package:simutil_app/src/stream/ios/ios_sim_session.dart';
 import 'package:simutil_app/src/stream/streams_state.dart';
 
@@ -42,8 +43,7 @@ class StreamsCubit extends CubitSignal<StreamsState> {
   /// Whether [device] can be streamed on this host.
   static bool canStream(Device device) =>
       device.state == DeviceState.booted &&
-      (device.os == DeviceOs.android ||
-          (Platform.isMacOS && !device.type.isPhysical));
+      (device.os == DeviceOs.android || Platform.isMacOS);
 
   /// Session starts waiting to run; they run one at a time (adb
   /// push/forward, simulator capture) in FIFO order.
@@ -251,7 +251,7 @@ class StreamsCubit extends CubitSignal<StreamsState> {
 }
 
 /// Default factory: scrcpy for Android, the native capture for iOS
-/// simulators.
+/// simulators and USB devices.
 DeviceSessionFactory defaultSessionFactory({
   required CommandExec exec,
   required String Function() adbPath,
@@ -277,8 +277,11 @@ DeviceSessionFactory defaultSessionFactory({
           powerOffOnClose: options.powerOffOnClose,
         );
       case DeviceOs.ios:
-        if (!Platform.isMacOS || device.type.isPhysical) {
-          throw 'Only iOS simulators on macOS can be streamed';
+        if (!Platform.isMacOS) {
+          throw 'iOS devices can only be streamed on macOS';
+        }
+        if (device.type.isPhysical) {
+          return IosDeviceSession(device.id, name: device.name, exec: exec);
         }
         return IosSimSession(device.id, exec: exec);
     }

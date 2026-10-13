@@ -99,6 +99,31 @@ void main() {
       expect(devices.single.state, DeviceState.booted);
     });
 
+    test('keeps a device on a cable before its tunnel opens', () {
+      final json = {
+        'result': {
+          'devices': [
+            {
+              'identifier': 'id-wired',
+              'deviceProperties': {
+                'name': 'My iPhone',
+                'osVersionNumber': '26.0',
+              },
+              'hardwareProperties': {'reality': 'physical'},
+              'connectionProperties': {
+                'transportType': 'wired',
+                'tunnelState': 'disconnected',
+              },
+            },
+          ],
+        },
+      };
+
+      final devices = IOSDeviceService.parsePhysicalDevices(json);
+
+      expect(devices.single.id, 'id-wired');
+    });
+
     test('drops booted simulators that devicectl reports as connected', () {
       final json = {
         'result': {

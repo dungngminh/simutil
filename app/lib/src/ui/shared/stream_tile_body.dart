@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/widgets.dart';
 import 'package:simutil_app/src/devices/device_form_factor.dart';
+import 'package:simutil_app/src/stream/ios/ios_device_session.dart';
 import 'package:simutil_app/src/stream/ios/ios_sim_session.dart';
 import 'package:simutil_app/src/stream/streams_state.dart';
 import 'package:simutil_app/src/ui/shared/apple_device_frame.dart';
@@ -58,7 +59,8 @@ class StreamTileBody extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(8),
           child: switch (session) {
-            IosSimSession(:final chrome?) when showFrame => AppleDeviceFrame(
+            IosSimSession(:final chrome?) ||
+            IosDeviceSession(:final chrome?) when showFrame => AppleDeviceFrame(
               chrome: chrome,
               maxHeight: maxVideoHeight,
               onButton: session.press,

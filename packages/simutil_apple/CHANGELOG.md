@@ -11,6 +11,8 @@
   Mach-O as iOS Simulator and `codesign -s -` re-signs it.
   `IosAutomation.installForSimulator` converts a copy and installs it;
   `install` throws `DeviceOnlyBuildException` for a device-only build.
+- `IOSDeviceService.getPhysicalDevices` lists a device connected by cable
+  or Wi-Fi even while its CoreDevice tunnel is closed.
 
 ## 1.2.0
 

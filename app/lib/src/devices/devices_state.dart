@@ -27,12 +27,12 @@ final class DevicesState extends Equatable {
   /// Device ids with a start/stop/slim in progress.
   final Set<String> busy;
 
-  /// Every device, emulators/simulators first.
+  /// Every device, by OS, real devices before emulators / simulators.
   List<Device> get all => [
-    ...androidEmulators,
-    ...iosSimulators,
     ...androidDevices,
+    ...androidEmulators,
     ...iosDevices,
+    ...iosSimulators,
   ];
 
   DevicesState copyWith({
