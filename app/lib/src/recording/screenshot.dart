@@ -3,9 +3,11 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:simutil_app/src/stream/ios/ios_device_session.dart';
 import 'package:simutil_core/simutil_core.dart';
 
-/// PNG of [device]'s screen at full resolution.
+/// PNG of [device]'s screen at full resolution; a USB iOS device must be
+/// streaming.
 ///
 /// Screenshots need binary stdout, which CommandExec does not keep.
 Future<List<int>> deviceScreenshot(Device device, String adbPath) async {
@@ -20,6 +22,7 @@ Future<List<int>> deviceScreenshot(Device device, String adbPath) async {
     if (result.exitCode != 0) throw StateError('${result.stderr}');
     return result.stdout as List<int>;
   }
+  if (device.type.isPhysical) return IosDeviceSession.screenshot(device.id);
   final file = File(
     '${Directory.systemTemp.path}/simutil-shot-${device.id}.png',
   );

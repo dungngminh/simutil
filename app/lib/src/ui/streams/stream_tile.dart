@@ -9,6 +9,7 @@ import 'package:simutil_app/src/recording/grid_recorder.dart';
 import 'package:simutil_app/src/recording/saved_recordings.dart';
 import 'package:simutil_app/src/recording/screenshot.dart';
 import 'package:simutil_app/src/stream/device_keyboard.dart';
+import 'package:simutil_app/src/stream/ios/ios_device_session.dart';
 import 'package:simutil_app/src/ui/recording_toast.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
@@ -313,15 +314,17 @@ List<TileAction> _tileActions(
         nav: true,
         onPressed: live ? () => session!.press(button) : null,
       ),
-    TileAction(
-      icon: typing ? LucideIcons.keyboard : LucideIcons.keyboardOff,
-      label: typing
-          ? 'Keyboard goes to this device (click to stop)'
-          : 'Send keyboard to this device',
-      priority: 4,
-      active: typing,
-      onPressed: live ? onKeyboard : null,
-    ),
+    // A USB iPhone / iPad is view only.
+    if (session is! IosDeviceSession)
+      TileAction(
+        icon: typing ? LucideIcons.keyboard : LucideIcons.keyboardOff,
+        label: typing
+            ? 'Keyboard goes to this device (click to stop)'
+            : 'Send keyboard to this device',
+        priority: 4,
+        active: typing,
+        onPressed: live ? onKeyboard : null,
+      ),
     TileAction(
       icon: LucideIcons.camera,
       label: 'Screenshot',

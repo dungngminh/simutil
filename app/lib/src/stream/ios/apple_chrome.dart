@@ -19,6 +19,7 @@ class AppleChrome {
     this.mask,
     this.padding = EdgeInsets.zero,
     this.inputs = const [],
+    this.drawIsland = false,
   });
 
   /// Whole device body.
@@ -49,6 +50,10 @@ class AppleChrome {
   /// Side buttons (volume, power, action…) drawn around [body].
   final List<AppleChromeInput> inputs;
 
+  /// Draw the Dynamic Island over the screen: a real device's capture
+  /// leaves it out, while a simulator draws its own.
+  final bool drawIsland;
+
   /// [body] plus [padding]: the whole drawn frame.
   Size get frame => padding.inflateSize(body);
 
@@ -60,10 +65,16 @@ class AppleChrome {
     return max(0, outerRadius - inset / 2);
   }
 
-  /// Loads [udid]'s chrome over [channel]; null when Xcode has none.
-  static Future<AppleChrome?> load(MethodChannel channel, String udid) async {
+  /// Loads [udid]'s chrome over [channel], or the chrome of hardware
+  /// [model] (`iPhone15,2`) for a real device; null when Xcode has none.
+  static Future<AppleChrome?> load(
+    MethodChannel channel,
+    String udid, {
+    String? model,
+  }) async {
     final map = await channel.invokeMapMethod<String, Object?>('chrome', {
       'udid': udid,
+      'model': ?model,
     });
     if (map == null) return null;
     final screenWidth = map['screenWidth'] as double?;
@@ -107,6 +118,7 @@ class AppleChrome {
         for (final input in (map['inputs'] as List?) ?? const [])
           AppleChromeInput._fromMap((input as Map).cast<String, Object?>()),
       ],
+      drawIsland: model != null && map['dynamicIsland'] == true,
     );
   }
 }

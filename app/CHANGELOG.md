@@ -5,6 +5,22 @@ All notable changes to the SimUtil desktop app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Stream an iPhone or iPad connected by USB cable (view only, on macOS),
+  with its device frame, screenshots and recording with sound.
+
+### Changed
+
+- Real devices are listed before emulators and simulators.
+
+### Fixed
+
+- iPhones and iPads connected by cable no longer go missing from the device
+  list until Xcode connects to them.
+
 ## [0.2.0] - 2026-10-13
 
 ### Added

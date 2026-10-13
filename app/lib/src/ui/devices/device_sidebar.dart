@@ -58,10 +58,10 @@ class _DeviceSidebarState extends State<DeviceSidebar> {
                       child: Center(child: SimuSpinner()),
                     ),
                   for (final (title, devices) in [
-                    ('Android emulators', state.androidEmulators),
                     ('Android devices', state.androidDevices),
-                    ('iOS simulators', state.iosSimulators),
+                    ('Android emulators', state.androidEmulators),
                     ('iOS devices', state.iosDevices),
+                    ('iOS simulators', state.iosSimulators),
                   ])
                     _Section(title, _filter(devices), state),
                 ],

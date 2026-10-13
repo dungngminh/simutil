@@ -53,14 +53,39 @@ private enum SimFrameworks {
     return devices.first { ($0.value(forKey: "UDID") as? NSUUID)?.uuidString == udid }
   }
 
+  /// The simulator device type (`SimDeviceType`) of the hardware model
+  /// [model] (`iPhone15,2`), matched on its profile's `modelIdentifier`.
+  static func deviceType(model: String) -> NSObject? {
+    _ = load
+    guard let contextClass = NSClassFromString("SimServiceContext") as? NSObject.Type,
+      let context = contextClass.perform(
+        NSSelectorFromString("sharedServiceContextForDeveloperDir:error:"),
+        with: developerDir, with: nil)?.takeUnretainedValue() as? NSObject,
+      let types = context.value(forKey: "supportedDeviceTypes") as? [NSObject]
+    else { return nil }
+    return types.first { type in
+      guard let bundle = type.value(forKey: "bundlePath") as? String,
+        let profile = NSDictionary(
+          contentsOfFile: "\(bundle)/Contents/Resources/profile.plist")
+      else { return false }
+      return profile["modelIdentifier"] as? String == model
+    }
+  }
+
+  static func deviceType(of device: NSObject) -> NSObject? {
+    let typeSel = NSSelectorFromString("deviceType")
+    guard device.responds(to: typeSel) else { return nil }
+    return device.perform(typeSel)?.takeUnretainedValue() as? NSObject
+  }
+
   /// Native screen size in pixels from the private `SimDeviceType.mainScreenSize`.
   static func mainScreenSize(_ device: NSObject) -> CGSize? {
-    let typeSel = NSSelectorFromString("deviceType")
+    deviceType(of: device).flatMap(mainScreenSize(type:))
+  }
+
+  static func mainScreenSize(type: NSObject) -> CGSize? {
     let sizeSel = NSSelectorFromString("mainScreenSize")
-    guard device.responds(to: typeSel),
-      let type = device.perform(typeSel)?.takeUnretainedValue() as? NSObject,
-      type.responds(to: sizeSel)
-    else { return nil }
+    guard type.responds(to: sizeSel) else { return nil }
     typealias GetSize = @convention(c) (AnyObject, Selector) -> CGSize
     let size = unsafeBitCast(type.method(for: sizeSel), to: GetSize.self)(type, sizeSel)
     return size.width > 0 && size.height > 0 ? size : nil
@@ -655,9 +680,13 @@ private enum SimChrome {
   /// screenWidth, screenHeight}` in points, or nil without chrome.
   /// Same sources as serve-sim's `devicekit-chrome.ts`.
   static func load(device: NSObject) -> [String: Any]? {
-    guard let type = device.perform(NSSelectorFromString("deviceType"))?
-      .takeUnretainedValue() as? NSObject,
-      let bundle = type.value(forKey: "bundlePath") as? String
+    SimFrameworks.deviceType(of: device).flatMap(load(type:))
+  }
+
+  /// The chrome of simulator device type [type] (also used for real devices
+  /// of the same model).
+  static func load(type: NSObject) -> [String: Any]? {
+    guard let bundle = type.value(forKey: "bundlePath") as? String
     else { return nil }
     let resources = URL(fileURLWithPath: bundle).appendingPathComponent("Contents/Resources")
     guard let profile = NSDictionary(contentsOf: resources.appendingPathComponent("profile.plist")),
@@ -690,7 +719,7 @@ private enum SimChrome {
       "outerRadius": border?["cornerRadiusX"] as? Double ?? 0,
     ]
     let scaleSel = NSSelectorFromString("mainScreenScale")
-    if let pixels = SimFrameworks.mainScreenSize(device), type.responds(to: scaleSel) {
+    if let pixels = SimFrameworks.mainScreenSize(type: type), type.responds(to: scaleSel) {
       typealias GetScale = @convention(c) (AnyObject, Selector) -> Float
       let scale = CGFloat(unsafeBitCast(type.method(for: scaleSel), to: GetScale.self)(type, scaleSel))
       if scale > 0 {
@@ -746,6 +775,10 @@ private enum SimChrome {
     {
       result["mask"] = FlutterStandardTypedData(bytes: maskPng)
     }
+    let capabilities = NSDictionary(contentsOf: resources.appendingPathComponent("capabilities.plist"))
+    result["dynamicIsland"] =
+      (capabilities?["capabilities"] as? [String: Any])?["DeviceSupportsDynamicIsland"] as? Bool
+      ?? false
 
     // Side buttons drawn around the body (inside devicePadding), placed by
     // their chrome.json anchor and offsets.
@@ -791,12 +824,13 @@ private enum SimChrome {
 
 // MARK: - Plugin
 
-private struct SimStreamError: LocalizedError {
+struct SimStreamError: LocalizedError {
   let errorDescription: String?
   init(_ message: String) { errorDescription = message }
 }
 
 /// `simutil/ios_stream` channel: start(udid) → {textureId, width, height},
+/// chrome(udid, model?) → device frame (of a hardware model when given),
 /// stop(udid), touch(udid, phase, x, y), press(udid, button),
 /// frames(udid) → frames shown.
 /// Size changes (rotation) are pushed back as `size` calls.
@@ -836,7 +870,12 @@ final class SimStreamPlugin: NSObject, FlutterPlugin {
         x: args["x"] as? Double ?? 0, y: args["y"] as? Double ?? 0)
       result(nil)
     case "chrome":
-      result(SimFrameworks.device(udid: udid).flatMap(SimChrome.load))
+      // A real device's frame comes from the simulator type of its model.
+      if let model = args["model"] as? String {
+        result(SimFrameworks.deviceType(model: model).flatMap(SimChrome.load(type:)))
+      } else {
+        result(SimFrameworks.device(udid: udid).flatMap(SimChrome.load(device:)))
+      }
     case "press":
       sessions[udid]?.hid?.press(args["button"] as? String ?? "")
       result(nil)

@@ -179,7 +179,8 @@ class _SideButtonState extends State<_SideButton> {
 }
 
 /// [child] clipped to the screen opening's corners and, when the device
-/// has one, its framebuffer mask (notch / Dynamic Island cut-out).
+/// has one, its framebuffer mask (notch cut-out), with the Dynamic Island
+/// on top when [AppleChrome.drawIsland].
 class _Screen extends StatelessWidget {
   const _Screen({required this.chrome, required this.child});
 
@@ -205,6 +206,9 @@ class _Screen extends StatelessWidget {
         child: screen,
       );
     }
+    if (chrome.drawIsland) {
+      screen = Stack(children: [screen, const _DynamicIsland()]);
+    }
     final radius = chrome.screenRadius;
     if (radius <= 0) return screen;
     return ClipRRect(
@@ -212,6 +216,32 @@ class _Screen extends StatelessWidget {
       child: screen,
     );
   }
+}
+
+/// The Dynamic Island pill, in points.
+// ponytail: one size (iPhone 14 Pro and later); per-model sizes differ by
+// about a point.
+class _DynamicIsland extends StatelessWidget {
+  const _DynamicIsland();
+
+  @override
+  Widget build(BuildContext context) => const Positioned(
+    top: 11.33,
+    left: 0,
+    right: 0,
+    child: Center(
+      child: SizedBox(
+        width: 126,
+        height: 37.33,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Color(0xFF000000),
+            borderRadius: BorderRadius.all(Radius.circular(18.67)),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _Bezel extends StatelessWidget {
