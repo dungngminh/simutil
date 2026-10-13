@@ -22,7 +22,6 @@ class _AndroidAutomation implements AndroidAutomation {
 
   @override
   Future<void> install(Device device, String path) async {
-    // ponytail: one APK per call; split APKs need `install-multiple`.
     final result = await _exec.run(
       adbPath(),
       arguments: ['-s', device.id, 'install', '-r', '-t', path],

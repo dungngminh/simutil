@@ -23,6 +23,15 @@ class SimuToast extends StatelessWidget {
     this.onClose,
   });
 
+  /// Line height of the title and subtitle, on the 4 px grid.
+  static const lineHeight = 16.0;
+
+  static TextStyle titleStyle(SimuTokens t) =>
+      t.label.copyWith(height: lineHeight / t.label.fontSize!);
+
+  static TextStyle subtitleStyle(SimuTokens t) =>
+      t.mono.copyWith(height: lineHeight / t.mono.fontSize!);
+
   /// Fixed height; the toast stack lays toasts out by it.
   final double height;
   final String title;
@@ -81,7 +90,7 @@ class SimuToast extends StatelessWidget {
                     title,
                     maxLines: titleLines,
                     overflow: TextOverflow.ellipsis,
-                    style: t.label,
+                    style: titleStyle(t),
                   ),
                   if (subtitle != null) ...[
                     const SizedBox(height: 4),
@@ -89,7 +98,7 @@ class SimuToast extends StatelessWidget {
                       subtitle,
                       maxLines: subtitleLines,
                       overflow: TextOverflow.ellipsis,
-                      style: t.mono.copyWith(height: 1.3),
+                      style: subtitleStyle(t),
                     ),
                   ],
                   if (actions.isNotEmpty) ...[

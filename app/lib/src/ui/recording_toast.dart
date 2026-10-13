@@ -94,15 +94,14 @@ VoidCallback showNotice(
     NoticeTone.success => (LucideIcons.circleCheck, t.success),
     NoticeTone.error => (LucideIcons.circleAlert, t.danger),
   };
-  final titleLines = _lines(title, t.label, 2);
-  final subtitleStyle = t.mono.copyWith(height: 1.3);
+  final titleLines = _lines(title, SimuToast.titleStyle(t), 2);
   final subtitleLines = subtitle == null
       ? 1
-      : _lines(subtitle, subtitleStyle, 4);
+      : _lines(subtitle, SimuToast.subtitleStyle(t), 4);
+  // Each extra line adds one 16 px line, so heights stay on the 4 px grid.
   final height =
       (subtitle == null ? 52.0 : 60.0) +
-      (titleLines - 1) * _titleLineHeight +
-      (subtitleLines - 1) * subtitleStyle.fontSize! * 1.3;
+      (titleLines + subtitleLines - 2) * SimuToast.lineHeight;
   final toast = showSimuToast(
     context,
     height,
@@ -125,11 +124,9 @@ VoidCallback showNotice(
   return () => toasts.hide(toast);
 }
 
-const _titleLineHeight = 17.0;
-
 /// How many lines (1..[max]) [text] takes in a [showNotice] toast.
-/// ponytail: the text width is the toast viewer's 380 minus the toast's
-/// border, padding, icon and close button; update it if those change.
+/// The text width is the toast viewer's 380 minus the toast's border,
+/// padding, icon and close button.
 int _lines(String text, TextStyle style, int max) {
   final painter = TextPainter(
     text: TextSpan(text: text, style: style),

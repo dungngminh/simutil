@@ -48,9 +48,10 @@ class _InstallDropTargetState extends State<InstallDropTarget> {
               child: IgnorePointer(
                 child: Container(
                   alignment: Alignment.center,
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: t.accent.withValues(alpha: 0.12),
-                    border: Border.all(color: t.accent, width: 1.5),
+                    border: Border.all(color: t.accent, width: 2),
                     borderRadius: BorderRadius.circular(SimuTokens.radius),
                   ),
                   child: Text(
