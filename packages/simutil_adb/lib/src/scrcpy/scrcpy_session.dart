@@ -237,6 +237,15 @@ class _ScrcpySession implements ScrcpySession {
       'show_touches=$showTouches',
       'power_off_on_close=$powerOffOnClose',
     ]);
+    // The server only exits when stopped or when the device goes away
+    // (unplugged, adb disconnected); the video socket may not notice.
+    unawaited(
+      _server!.exitCode.then((_) {
+        if (!_stopped && _status is SessionLive) {
+          _emit(const SessionFailed('Device disconnected'));
+        }
+      }),
+    );
     // ponytail: unbounded, but log_level=warn keeps it to a few lines.
     for (final out in [_server!.stdout, _server!.stderr]) {
       out.transform(utf8.decoder).listen(_serverLog.write, onError: (_) {});

@@ -4,6 +4,8 @@
 
 - `AndroidAutomation.install` runs `adb install -r -t` and reports the
   `Failure [...]` code. Requires `simutil_core` 1.3.0.
+- `ScrcpySession` fails a live stream with `Device disconnected` when the
+  server process exits (device unplugged or adb disconnected).
 
 ## 1.2.0
 
