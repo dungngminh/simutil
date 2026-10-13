@@ -8,6 +8,7 @@ import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
 import 'package:simutil_app/src/ui/shared/device_actions.dart';
 import 'package:simutil_app/src/ui/shared/device_context_menu.dart';
+import 'package:simutil_app/src/ui/shared/install_drop_target.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// Glyph, name, state and quick actions for one device.
@@ -38,56 +39,59 @@ class DeviceRow extends StatelessWidget {
       if (slim) 'slim',
       if (open) 'streaming',
     ].join(' · ');
-    return SimuHoverable(
-      // Tapping an open device brings its stream into the spotlight.
-      onTap: open
-          ? () => context.read<ViewSettingsCubit>().spotlight(device.id)
-          : null,
-      onSecondaryTap: () => showDeviceContextMenu(context, device),
-      builder: (context, hovered) => AnimatedContainer(
-        duration: SimuTokens.motion,
-        margin: const EdgeInsets.symmetric(vertical: 1),
-        padding: const EdgeInsets.fromLTRB(6, 6, 4, 6),
-        decoration: BoxDecoration(
-          color: open
-              ? t.accent.withValues(alpha: hovered ? 0.14 : 0.08)
-              : hovered
-              ? t.hover
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(SimuTokens.radius),
-        ),
-        child: Row(
-          children: [
-            DeviceGlyph(device: device, busy: busy),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    device.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.label,
-                  ),
-                  if (subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(subtitle, style: t.mono.copyWith(fontSize: 11)),
+    return InstallDropTarget(
+      device: device,
+      child: SimuHoverable(
+        // Tapping an open device brings its stream into the spotlight.
+        onTap: open
+            ? () => context.read<ViewSettingsCubit>().spotlight(device.id)
+            : null,
+        onSecondaryTap: () => showDeviceContextMenu(context, device),
+        builder: (context, hovered) => AnimatedContainer(
+          duration: SimuTokens.motion,
+          margin: const EdgeInsets.symmetric(vertical: 1),
+          padding: const EdgeInsets.fromLTRB(6, 6, 4, 6),
+          decoration: BoxDecoration(
+            color: open
+                ? t.accent.withValues(alpha: hovered ? 0.14 : 0.08)
+                : hovered
+                ? t.hover
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(SimuTokens.radius),
+          ),
+          child: Row(
+            children: [
+              DeviceGlyph(device: device, busy: busy),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      device.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.label,
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(subtitle, style: t.mono.copyWith(fontSize: 11)),
+                    ],
                   ],
-                ],
-              ),
-            ),
-            if (busy)
-              const Padding(padding: EdgeInsets.all(7), child: SimuSpinner())
-            else
-              for (final action in deviceActions(context, device, state))
-                SimuIconButton(
-                  icon: _actionIcon(action.kind),
-                  tooltip: action.label,
-                  size: 15,
-                  onPressed: action.onPressed,
                 ),
-          ],
+              ),
+              if (busy)
+                const Padding(padding: EdgeInsets.all(7), child: SimuSpinner())
+              else
+                for (final action in deviceActions(context, device, state))
+                  SimuIconButton(
+                    icon: _actionIcon(action.kind),
+                    tooltip: action.label,
+                    size: 15,
+                    onPressed: action.onPressed,
+                  ),
+            ],
+          ),
         ),
       ),
     );

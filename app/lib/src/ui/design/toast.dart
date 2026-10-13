@@ -15,6 +15,7 @@ class SimuToast extends StatelessWidget {
     required this.icon,
     required this.tone,
     this.busy = false,
+    this.titleLines = 1,
     this.subtitle,
     this.subtitleLines = 1,
     this.actions = const [],
@@ -28,6 +29,7 @@ class SimuToast extends StatelessWidget {
   final IconData icon;
   final Color tone;
   final bool busy;
+  final int titleLines;
   final String? subtitle;
   final int subtitleLines;
   final List<Widget> actions;
@@ -77,7 +79,7 @@ class SimuToast extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    maxLines: 1,
+                    maxLines: titleLines,
                     overflow: TextOverflow.ellipsis,
                     style: t.label,
                   ),

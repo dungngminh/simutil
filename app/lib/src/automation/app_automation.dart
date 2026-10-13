@@ -4,7 +4,7 @@ import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// [DeviceAutomation] for every platform the app streams: Android through
-/// adb, iOS launches through xcrun, and iOS simulator typing and
+/// adb, iOS installs and launches through xcrun, and iOS simulator typing and
 /// accessibility through the native stream plugin of the device's open
 /// [IosSimSession] (found with [iosSession]).
 class AppAutomation implements DeviceAutomation {
@@ -20,6 +20,10 @@ class AppAutomation implements DeviceAutomation {
 
   DeviceAutomation _of(Device device) =>
       device.os == DeviceOs.android ? android : ios;
+
+  @override
+  Future<void> install(Device device, String path) =>
+      _of(device).install(device, path);
 
   @override
   Future<void> launch(Device device, String appId, {bool clearState = false}) =>
