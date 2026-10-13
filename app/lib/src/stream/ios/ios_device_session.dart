@@ -86,14 +86,22 @@ class IosDeviceSession implements DeviceSession {
       }))!;
       textureId = result['textureId']! as int;
       setFrameCounter(this, _framesShown);
-      chrome ??= await _loadChrome().catchError((Object _) => null);
-      // The first frame may have gone live before the frame was known.
-      if (chrome != null && _status is SessionLive) _emit(_status);
+      // Off the start path: devicectl takes a second or more, and sessions
+      // start one at a time.
+      if (chrome == null) unawaited(_attachChrome());
       // Live once the first frame reports its size.
     } on PlatformException catch (e) {
       _active.remove(udid);
       _emit(SessionFailed(e.message ?? e.code));
     }
+  }
+
+  Future<void> _attachChrome() async {
+    final chrome = await _loadChrome().catchError((Object _) => null);
+    if (chrome == null || _statusController.isClosed) return;
+    this.chrome = chrome;
+    // Re-emit so a tile that went live without the frame redraws with it.
+    if (_status is SessionLive) _emit(_status);
   }
 
   Future<AppleChrome?> _loadChrome() async {

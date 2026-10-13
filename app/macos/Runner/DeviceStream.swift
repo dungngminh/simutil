@@ -153,6 +153,9 @@ final class DeviceStreamPlugin: NSObject, FlutterPlugin {
   private let textures: FlutterTextureRegistry
   private let channel: FlutterMethodChannel
   private var sessions: [String: (capture: DeviceCapture, textureId: Int64)] = [:]
+  /// Bumped by every stop, so a start still waiting (camera access, device
+  /// discovery) when its stream is closed gives up instead of capturing.
+  private var generations: [String: Int] = [:]
 
   init(textures: FlutterTextureRegistry, channel: FlutterMethodChannel) {
     self.textures = textures
@@ -217,11 +220,15 @@ final class DeviceStreamPlugin: NSObject, FlutterPlugin {
   @MainActor
   private func start(udid: String, name: String) async throws -> [String: Any] {
     stop(udid: udid)
+    let generation = generations[udid, default: 0]
     guard await AVCaptureDevice.requestAccess(for: .video) else {
       throw SimStreamError(
         "SimUtil needs Camera access to show device screens: allow it in System Settings › Privacy & Security › Camera")
     }
     let device = try await findDevice(name: name)
+    guard generations[udid, default: 0] == generation else {
+      throw SimStreamError("The stream was closed")
+    }
     let capture = try DeviceCapture(device: device)
     let textureId = textures.register(capture)
     // One main-thread hop per batch of frames, not per frame.
@@ -274,6 +281,7 @@ final class DeviceStreamPlugin: NSObject, FlutterPlugin {
   }
 
   private func stop(udid: String) {
+    generations[udid, default: 0] += 1
     guard let session = sessions.removeValue(forKey: udid) else { return }
     session.capture.stop()
     textures.unregisterTexture(session.textureId)
