@@ -55,10 +55,10 @@ void main() {
     await expectLater(
       IosAutomation(exec).install(_sim, '/b/Runner.app'),
       throwsA(
-        isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          contains('built for iPhone and iPad devices'),
+        isA<DeviceOnlyBuildException>().having(
+          (e) => e.bundleName,
+          'bundleName',
+          'Runner.app',
         ),
       ),
     );

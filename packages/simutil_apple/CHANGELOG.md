@@ -6,6 +6,11 @@
   with `simctl install` on simulators and `devicectl device install app` on
   devices; a device-only build on a simulator, or an App Store-signed build
   on a device, fails early with a clear message. Requires `simutil_core` 1.3.0.
+- `convertForSimulator(exec, app)` makes a device-built, unencrypted arm64
+  app run on an Apple Silicon simulator: `lipo` / `vtool` re-tag every
+  Mach-O as iOS Simulator and `codesign -s -` re-signs it.
+  `IosAutomation.installForSimulator` converts a copy and installs it;
+  `install` throws `DeviceOnlyBuildException` for a device-only build.
 
 ## 1.2.0
 

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:simutil_apple/src/simulator_app_converter.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// [DeviceAutomation] for iOS simulators (`simctl`) and devices
@@ -9,6 +10,28 @@ import 'package:simutil_core/simutil_core.dart';
 abstract interface class IosAutomation implements DeviceAutomation {
   /// Runs xcrun through [exec].
   factory IosAutomation(CommandExec exec) = _IosAutomation;
+
+  /// Installs the device-built `.app` / `.ipa` at [path] on simulator
+  /// [device] after [convertForSimulator] on a temporary copy; [path] is
+  /// left untouched. For a [DeviceOnlyBuildException] from [install].
+  Future<void> installForSimulator(Device device, String path);
+}
+
+/// [IosAutomation.install] was given a device-only build for a simulator;
+/// [IosAutomation.installForSimulator] can convert it.
+class DeviceOnlyBuildException implements Exception {
+  /// Creates the exception for the bundle named [bundleName].
+  const DeviceOnlyBuildException(this.bundleName);
+
+  /// File name of the app bundle, e.g. `Runner.app`.
+  final String bundleName;
+
+  /// Explanation for the user.
+  String get message =>
+      '$bundleName is built for iPhone and iPad devices, not the simulator.';
+
+  @override
+  String toString() => message;
 }
 
 class _IosAutomation implements IosAutomation {
@@ -26,10 +49,7 @@ class _IosAutomation implements IosAutomation {
         app = await _unpackIpa(path, unpacked);
       }
       if (!device.type.isPhysical && await _deviceOnly(app)) {
-        throw StateError(
-          '${app.split('/').last} is built for iPhone and iPad devices, not '
-          'the simulator. Build it for the simulator or install it on a device.',
-        );
+        throw DeviceOnlyBuildException(app.split('/').last);
       }
       if (device.type.isPhysical && await _storeSigned(app)) {
         throw StateError(
@@ -60,6 +80,44 @@ class _IosAutomation implements IosAutomation {
       }
     } finally {
       await unpacked?.delete(recursive: true);
+    }
+  }
+
+  @override
+  Future<void> installForSimulator(Device device, String path) async {
+    if (device.type.isPhysical) {
+      throw UnsupportedError('Converting an app needs a simulator');
+    }
+    final work = await Directory.systemTemp.createTemp('simutil_sim_app');
+    try {
+      final String app;
+      if (path.toLowerCase().endsWith('.ipa')) {
+        app = await _unpackIpa(path, work);
+      } else {
+        app = '${work.path}/${path.split('/').last}';
+        // ditto keeps the frameworks' symlinks.
+        final copy = await _exec.run(
+          'ditto',
+          arguments: [path, app],
+          timeout: const Duration(minutes: 2),
+        );
+        if (!copy.success) {
+          throw StateError('Could not copy $path: ${copy.stderr}'.trim());
+        }
+      }
+      await convertForSimulator(_exec, app);
+      final result = await _exec.run(
+        'xcrun',
+        arguments: ['simctl', 'install', device.id, app],
+        timeout: const Duration(minutes: 5),
+      );
+      if (!result.success) {
+        throw StateError(
+          'Could not install on ${device.name}: ${result.stderr}'.trim(),
+        );
+      }
+    } finally {
+      await work.delete(recursive: true);
     }
   }
 
