@@ -47,13 +47,18 @@ class IosDeviceSession implements DeviceSession {
     _handlerSet = true;
     _channel.setMethodCallHandler((call) async {
       final args = (call.arguments as Map).cast<String, Object?>();
-      if (call.method == 'size') {
-        _active[args['udid']]?._emit(
-          SessionLive(
-            width: args['width']! as int,
-            height: args['height']! as int,
-          ),
-        );
+      final session = _active[args['udid']];
+      switch (call.method) {
+        case 'size':
+          session?._emit(
+            SessionLive(
+              width: args['width']! as int,
+              height: args['height']! as int,
+            ),
+          );
+        // Unplugged: a live tile closes itself (see StreamsCubit).
+        case 'ended':
+          session?._emit(const SessionFailed('Device disconnected'));
       }
     });
   }

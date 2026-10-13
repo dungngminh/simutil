@@ -131,6 +131,7 @@ class StreamsCubit extends CubitSignal<StreamsState> {
   /// How long a device may be missing from the lists before its stream is
   /// closed; longer than one refresh so a single failed load is ignored.
   static const missingGrace = Duration(seconds: 15);
+  Timer? _missingCheck;
 
   /// Feed of device lists: opens pending devices that are now booted and
   /// closes streams whose device was shut down outside the app.
@@ -149,6 +150,17 @@ class StreamsCubit extends CubitSignal<StreamsState> {
         _missingSince.remove(id);
         unawaited(closeStream(id));
       }
+    }
+    // The list only changes on device events, so look again once the grace
+    // ran out instead of waiting for the next one.
+    _missingCheck?.cancel();
+    _missingCheck = null;
+    if (_missingSince.isNotEmpty && !isClosed) {
+      final last = devices.toList();
+      _missingCheck = Timer(
+        missingGrace,
+        () => onDevices(last, now: time.add(missingGrace)),
+      );
     }
 
     if (_pendingByName.isEmpty) return;
@@ -239,6 +251,7 @@ class StreamsCubit extends CubitSignal<StreamsState> {
 
   @override
   Future<void> close() async {
+    _missingCheck?.cancel();
     for (final subscription in _subscriptions.values) {
       await subscription.cancel();
     }

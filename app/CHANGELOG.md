@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Real devices are listed before emulators and simulators.
+- Unplugging or disconnecting a streamed device closes its stream right
+  away, saving a running recording.
 
 ### Fixed
 

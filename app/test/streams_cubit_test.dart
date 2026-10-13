@@ -76,6 +76,22 @@ void main() {
     },
   );
 
+  // testWidgets for its fake clock: the recheck is a timer.
+  testWidgets('closes a missing device without another list update', (
+    tester,
+  ) async {
+    final session = _FakeSession('UDID')..gate.complete();
+    final cubit = StreamsCubit((_) async => session);
+    await cubit.open(sim(DeviceState.booted));
+
+    cubit.onDevices([]); // unplugged; no further list events
+    await tester.pump(StreamsCubit.missingGrace - const Duration(seconds: 1));
+    expect(cubit.stateValue.isOpen('UDID'), isTrue);
+
+    await tester.pump(const Duration(seconds: 1));
+    expect(cubit.stateValue.isOpen('UDID'), isFalse);
+  });
+
   test(
     'a live stream that drops closes; one that never started stays',
     () async {

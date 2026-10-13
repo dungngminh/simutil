@@ -43,6 +43,11 @@ private final class DeviceCapture: NSObject, FlutterTexture,
 
   var onFrame: (() -> Void)?
   var onSize: ((Int, Int) -> Void)?
+  /// Called on the main thread when the device is unplugged or the capture
+  /// dies.
+  var onEnded: (() -> Void)?
+  private var observers: [NSObjectProtocol] = []
+  private var connected: NSKeyValueObservation?
 
   var framesShown: Int {
     lock.lock()
@@ -65,6 +70,23 @@ private final class DeviceCapture: NSObject, FlutterTexture,
     }
     session.addOutput(output)
     if session.canAddOutput(movie) { session.addOutput(movie) }
+    let center = NotificationCenter.default
+    let id = device.uniqueID
+    observers = [
+      // The posted object may not be ours, so match by id.
+      center.addObserver(
+        forName: AVCaptureDevice.wasDisconnectedNotification, object: nil, queue: .main
+      ) { [weak self] n in
+        if (n.object as? AVCaptureDevice)?.uniqueID == id { self?.onEnded?() }
+      },
+      center.addObserver(
+        forName: AVCaptureSession.runtimeErrorNotification, object: session, queue: .main
+      ) { [weak self] _ in self?.onEnded?() },
+    ]
+    connected = device.observe(\.isConnected) { [weak self] device, _ in
+      guard !device.isConnected else { return }
+      DispatchQueue.main.async { self?.onEnded?() }
+    }
   }
 
   var isRecording: Bool { movie.isRecording }
@@ -137,6 +159,10 @@ private final class DeviceCapture: NSObject, FlutterTexture,
   }
 
   func stop() {
+    observers.forEach(NotificationCenter.default.removeObserver)
+    observers = []
+    connected = nil
+    onEnded = nil
     queue.sync {
       session.stopRunning()
       onFrame = nil
@@ -148,7 +174,8 @@ private final class DeviceCapture: NSObject, FlutterTexture,
 /// `simutil/ios_device_stream` channel: start(udid, name) → {textureId},
 /// stop(udid), frames(udid) → frames shown, png(udid) → latest frame,
 /// record(udid, path) / stop_recording(udid). The size arrives with the first
-/// frame (and on rotation) as a `size` call.
+/// frame (and on rotation) as a `size` call; an unplugged device or a dead
+/// capture sends `ended`.
 final class DeviceStreamPlugin: NSObject, FlutterPlugin {
   private let textures: FlutterTextureRegistry
   private let channel: FlutterMethodChannel
@@ -250,6 +277,9 @@ final class DeviceStreamPlugin: NSObject, FlutterPlugin {
       DispatchQueue.main.async {
         self?.channel.invokeMethod("size", arguments: ["udid": udid, "width": w, "height": h])
       }
+    }
+    capture.onEnded = { [weak self] in
+      self?.channel.invokeMethod("ended", arguments: ["udid": udid])
     }
     capture.start()
     sessions[udid] = (capture, textureId)

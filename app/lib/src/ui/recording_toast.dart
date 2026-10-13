@@ -293,8 +293,11 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     for (final id in _statuses.keys) {
       if (!next.containsKey(id)) _hide(_opening.remove(id));
     }
+    final previous = _statuses;
     _statuses = next;
-    changes.forEach(_announce);
+    for (final entry in changes) {
+      _announce(entry, wasLive: previous[entry.device.id] is SessionLive);
+    }
     _maybeSuggestSlim(state);
   }
 
@@ -318,7 +321,7 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     );
   }
 
-  void _announce(StreamEntry entry) {
+  void _announce(StreamEntry entry, {bool wasLive = false}) {
     final device = entry.device;
     final opening = _opening.remove(device.id);
     _hide(opening);
@@ -358,9 +361,12 @@ class _ToastFeedsState extends State<_ToastFeeds> {
           76,
           (close) => SimuToast(
             height: 76,
-            icon: LucideIcons.circleAlert,
-            tone: t.danger,
-            title: '${device.name} failed',
+            icon: wasLive ? LucideIcons.unplug : LucideIcons.circleAlert,
+            tone: wasLive ? t.warning : t.danger,
+            // A live stream that drops was disconnected, not failed.
+            title: wasLive
+                ? '${device.name} stream closed'
+                : '${device.name} failed',
             subtitle: message,
             subtitleLines: 2,
             onClose: close,
