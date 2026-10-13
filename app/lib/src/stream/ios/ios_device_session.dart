@@ -143,8 +143,13 @@ class IosDeviceSession implements DeviceSession {
   Future<void> repairInput() async {}
 
   /// The latest frame of streaming device [udid] as PNG.
-  static Future<Uint8List> screenshot(String udid) async =>
-      (await _channel.invokeMethod<Uint8List>('png', {'udid': udid}))!;
+  static Future<Uint8List> screenshot(String udid) async {
+    try {
+      return (await _channel.invokeMethod<Uint8List>('png', {'udid': udid}))!;
+    } on PlatformException catch (e) {
+      throw StateError(e.message ?? e.code);
+    }
+  }
 
   String? _recording;
 

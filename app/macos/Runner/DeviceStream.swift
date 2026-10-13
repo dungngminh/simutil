@@ -185,8 +185,12 @@ final class DeviceStreamPlugin: NSObject, FlutterPlugin {
     case "frames":
       result(sessions[udid]?.capture.framesShown ?? 0)
     case "png":
-      guard let png = sessions[udid]?.capture.png() else {
-        return result(FlutterError(code: "png", message: "No frame from \(udid) yet", details: nil))
+      guard let capture = sessions[udid]?.capture else {
+        return result(FlutterError(
+          code: "png", message: "Stream the device to take a screenshot", details: nil))
+      }
+      guard let png = capture.png() else {
+        return result(FlutterError(code: "png", message: "No frame from the device yet", details: nil))
       }
       result(FlutterStandardTypedData(bytes: png))
     case "record":
