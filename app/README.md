@@ -52,7 +52,7 @@ optional and defaults to every streamed device:
 ```json
 {
   "flow": "appId: com.android.settings\n---\n- launchApp\n- assertVisible: \"Settings\"",
-  "devices": ["Pixel 8", "iPhone 18 Pro"]
+  "devices": ["Pixel 8", "Pixel 6a"]
 }
 ```
 

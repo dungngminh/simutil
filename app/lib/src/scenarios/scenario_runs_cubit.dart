@@ -2,7 +2,7 @@ import 'package:bloc_signals/bloc_signals.dart';
 import 'package:equatable/equatable.dart';
 
 /// Where a device (or a whole run) stands in a Maestro flow run.
-enum ScenarioStatus { running, ok, failed }
+enum ScenarioStatus { running, ok, failed, stopped }
 
 /// One device's outcome in a Maestro run (one shard per device).
 final class ScenarioDeviceRun extends Equatable {

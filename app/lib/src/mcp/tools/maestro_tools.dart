@@ -64,20 +64,21 @@ List<McpTool> maestroTools(ToolContext c) => [
         // each result back to its device rather than by list position, since a
         // missing shard would otherwise shift every later device's result.
         if (runId != null) {
+          // A stopped run's killed process reports no shards; mark the devices
+          // that never finished as stopped rather than failed.
+          final stopped = c.runs?.isStopped(runId) ?? false;
           for (var i = 0; i < booted.length; i++) {
             final shard = result.shardFor(booted[i].id, i);
             c.runs?.setDevice(
               runId,
               booted[i].id,
-              status: shard != null && shard.passed
-                  ? ScenarioStatus.ok
-                  : ScenarioStatus.failed,
+              status: shard != null
+                  ? (shard.passed ? ScenarioStatus.ok : ScenarioStatus.failed)
+                  : (stopped ? ScenarioStatus.stopped : ScenarioStatus.failed),
               seconds: shard?.seconds,
-              error: shard == null
-                  ? 'No result from Maestro'
-                  : shard.passed
-                  ? null
-                  : 'Flow failed',
+              error: shard != null
+                  ? (shard.passed ? null : 'Flow failed')
+                  : (stopped ? null : 'No result from Maestro'),
             );
           }
         }

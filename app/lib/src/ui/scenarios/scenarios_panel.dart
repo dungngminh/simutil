@@ -139,20 +139,21 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
         deviceIds: [for (final d in devices) d.id],
         onLine: (l) => _runs.appendLine(runId, l),
       );
+      // A stopped run's killed process reports no shards; mark the devices
+      // that never finished as stopped rather than failed.
+      final stopped = _runs.isStopped(runId);
       for (var i = 0; i < devices.length; i++) {
         final shard = result.shardFor(devices[i].id, i);
         _runs.setDevice(
           runId,
           devices[i].id,
-          status: shard != null && shard.passed
-              ? ScenarioStatus.ok
-              : ScenarioStatus.failed,
+          status: shard != null
+              ? (shard.passed ? ScenarioStatus.ok : ScenarioStatus.failed)
+              : (stopped ? ScenarioStatus.stopped : ScenarioStatus.failed),
           seconds: shard?.seconds,
-          error: shard == null
-              ? 'No result from Maestro'
-              : shard.passed
-              ? null
-              : 'Flow failed',
+          error: shard != null
+              ? (shard.passed ? null : 'Flow failed')
+              : (stopped ? null : 'No result from Maestro'),
         );
       }
     } on MaestroNotInstalled catch (e) {
@@ -478,6 +479,7 @@ class _DevicePill extends StatelessWidget {
         t.success,
       ),
       ScenarioStatus.failed => ('failed', t.danger),
+      ScenarioStatus.stopped => ('stopped', t.textFaint),
     };
     final pill = SimuStatusPill(label: '${device.name} · $label', color: color);
     return device.error == null ? pill : Tooltip(message: device.error!, child: pill);
