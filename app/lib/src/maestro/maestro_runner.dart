@@ -239,18 +239,27 @@ class MaestroRunner {
 
       // Drain both streams to completion before reading the exit code:
       // `exitCode` can complete before stdout/stderr deliver their last lines,
-      // which are the per-shard results and the `Passed: x/y` summary.
+      // which are the per-shard results and the `Passed: x/y` summary. Decode
+      // leniently so a stray non-UTF-8 byte from the JVM can't abort the read.
+      const decoder = Utf8Decoder(allowMalformed: true);
       final outDone = process.stdout
-          .transform(utf8.decoder)
+          .transform(decoder)
           .transform(const LineSplitter())
           .listen(handle)
           .asFuture<void>();
       final errDone = process.stderr
-          .transform(utf8.decoder)
+          .transform(decoder)
           .transform(const LineSplitter())
           .listen(handle)
           .asFuture<void>();
-      await Future.wait([outDone, errDone]);
+      try {
+        await Future.wait([outDone, errDone]);
+      } catch (_) {
+        // If reading the output fails, kill the process so it isn't orphaned
+        // (the `finally` clears `_process`, leaving nothing to stop it).
+        process.kill();
+        rethrow;
+      }
       final code = await process.exitCode;
 
       final shardList = shards.values.toList()
