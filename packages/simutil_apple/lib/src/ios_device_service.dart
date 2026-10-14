@@ -263,13 +263,7 @@ class IOSDeviceService implements DeviceService {
     try {
       final devicectl = await _exec.run(
         'xcrun',
-        arguments: [
-          'devicectl',
-          'list',
-          'devices',
-          '-j',
-          outputFile.path,
-        ],
+        arguments: ['devicectl', 'list', 'devices', '-j', outputFile.path],
         priority: CommandPriority.background,
       );
 
