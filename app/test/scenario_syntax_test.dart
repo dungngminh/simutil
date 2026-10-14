@@ -4,13 +4,13 @@ import 'package:simutil_app/src/ui/design/design.dart';
 import 'package:simutil_app/src/ui/scenarios/scenario_syntax.dart';
 
 void main() {
-  testWidgets('actions, options, strings, numbers and comments get colors', (
+  testWidgets('commands, other keys, strings, numbers and comments get colors', (
     tester,
   ) async {
     late TextSpan span;
     late SimuTokens t;
     final controller = ScenarioSyntaxController(
-      text: 'steps:\n  - tap: "Sign # in"  # go\n    repeat: 3\n',
+      text: '- tapOn: "Sign # in"  # go\n    direction: 3\n',
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -32,8 +32,8 @@ void main() {
         .firstWhere((s) => s.text == text)
         .style
         ?.color;
-    expect(colorOf('tap'), t.accent);
-    expect(colorOf('repeat'), t.warning);
+    expect(colorOf('tapOn'), t.accent);
+    expect(colorOf('direction'), t.warning);
     expect(colorOf('"Sign # in"'), t.success); // # in a string is no comment
     expect(colorOf('3'), t.apple);
     expect(colorOf('# go'), t.textFaint);

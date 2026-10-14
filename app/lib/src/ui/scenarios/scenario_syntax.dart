@@ -1,11 +1,50 @@
 import 'package:flutter/widgets.dart';
-import 'package:simutil_app/src/scenarios/scenario_suggest.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
 
-/// Scenario YAML with syntax colors: actions, other keys, strings, numbers
-/// and booleans, punctuation, comments.
+/// Common Maestro flow commands, highlighted as keywords in the editor.
+const maestroCommands = {
+  'launchApp',
+  'stopApp',
+  'killApp',
+  'clearState',
+  'clearKeychain',
+  'tapOn',
+  'doubleTapOn',
+  'longPressOn',
+  'assertVisible',
+  'assertNotVisible',
+  'assertTrue',
+  'inputText',
+  'inputRandomText',
+  'inputRandomEmail',
+  'eraseText',
+  'copyTextFrom',
+  'pasteText',
+  'swipe',
+  'scroll',
+  'scrollUntilVisible',
+  'back',
+  'hideKeyboard',
+  'pressKey',
+  'openLink',
+  'takeScreenshot',
+  'waitForAnimationToEnd',
+  'extendedWaitUntil',
+  'repeat',
+  'retry',
+  'runFlow',
+  'runScript',
+  'setLocation',
+  'addMedia',
+  'startRecording',
+  'stopRecording',
+  'appId',
+};
+
+/// Maestro flow YAML with syntax colors: commands, other keys, strings,
+/// numbers and booleans, punctuation, comments.
 /// ponytail: colors the whole text each build, no IME composing underline;
-/// fine for scenario-sized ASCII YAML.
+/// fine for flow-sized ASCII YAML.
 class ScenarioSyntaxController extends TextEditingController {
   ScenarioSyntaxController({super.text});
 
@@ -30,7 +69,7 @@ class ScenarioSyntaxController extends TextEditingController {
         _ when m[2] != null => t.textFaint,
         _ when m[3] != null => t.textMuted,
         _ when m[4] != null =>
-          scenarioActions.contains(m[4]) ? t.accent : t.warning,
+          maestroCommands.contains(m[4]) ? t.accent : t.warning,
         _ when m[5] != null || m[6] != null => t.apple,
         _ => t.textMuted,
       };
@@ -39,7 +78,7 @@ class ScenarioSyntaxController extends TextEditingController {
           text: m[0],
           style: TextStyle(
             color: color,
-            fontWeight: m[4] != null && scenarioActions.contains(m[4])
+            fontWeight: m[4] != null && maestroCommands.contains(m[4])
                 ? FontWeight.w600
                 : null,
           ),

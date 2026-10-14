@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Scenarios now run [Maestro](https://maestro.dev) flows instead of the
+  built-in step format: pick which streamed devices to run on (or all of them)
+  and the same flow runs on them at once, in parallel. A Samples menu loads
+  ready-made example flows. Needs the Maestro CLI installed.
+
 ## [0.3.1] - 2026-10-14
 
 ### Changed

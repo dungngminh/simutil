@@ -40,30 +40,25 @@ claude mcp add --transport http simutil http://127.0.0.1:8765/mcp
 | `start_device` / `shutdown_device` | Boot (headless by default) or shut down an emulator / simulator |
 | `stream_device` | Show a running device in the grid |
 | `tap` / `swipe` / `press_button` | Input with coordinates normalized to 0..1; back (Android), home, recents, lock |
-| `run_scenario` | The same steps (`tap`, `swipe`, `press`, `wait`) on several Android and iOS devices in parallel, all starting together; reports each device's outcome and timing |
+| `run_maestro` / `stop_maestro` | Run a Maestro flow (YAML) on several Android and iOS devices in parallel — the same flow on every device, one shard each; reports each device's pass/fail and timing. Needs the Maestro CLI |
 | `screenshot` | PNG of a running device |
 | `record_device` / `record_grid` | Start / stop a recording; returns the file when stopping |
 | `set_slim` | iOS simulator: turn background services off / on (reboots a running one) |
 
-A scenario on every streamed device:
+The same [Maestro](https://maestro.dev) flow on every streamed device at once
+(one shard per device). `flow` is Maestro YAML; `devices` (ids or names) is
+optional and defaults to every streamed device:
 
 ```json
 {
-  "steps": [
-    { "action": "press", "button": "home" },
-    { "action": "swipe", "x1": 0.8, "y1": 0.5, "x2": 0.2, "y2": 0.5 },
-    { "action": "wait", "ms": 800 },
-    { "action": "tap", "x": 0.5, "y": 0.4 }
-  ]
+  "flow": "appId: com.android.settings\n---\n- launchApp\n- assertVisible: \"Settings\"",
+  "devices": ["Pixel 8", "Pixel 6a"]
 }
 ```
 
-Pass `devices` (ids or names) to pick devices; every step is checked before
-any device moves. iOS simulators that are not slim yet are switched to Slim
-first (rebooted in parallel, which closes open apps); pass `"slim": false` to
-skip that. Every device is readied before any starts, so they begin together;
-the result has `prep_ms` (slimming and readying) and, per device, `start_ms` / `end_ms` from that
-common start and `steps_ms`.
+The devices run in parallel and the result reports each one's pass/fail and
+duration. Needs the Maestro CLI installed (`stop_maestro` kills a running
+flow).
 
 ## Install
 
@@ -133,13 +128,12 @@ Tests: `flutter test` here, or `dart run melos run test:flutter` from the root.
 
 `benchmark/bench.dart` measures the running app through its MCP server:
 CPU and memory of the app and its child processes, stream FPS, recording
-frame rate, MCP latency and `run_scenario` skew / overhead. Build and start a
-release app, boot the devices, then for example:
+frame rate and MCP latency. Build and start a release app, boot the devices,
+then for example:
 
 ```bash
 cd app
 dart run benchmark/bench.dart stream --devices "iPhone 17e,Pixel_7" --animate
-dart run benchmark/bench.dart scenario --devices "iPhone 17e,Pixel_7" --runs 20
 dart run benchmark/bench.dart record --quality high --animate --devices "iPhone 17e"
 ```
 

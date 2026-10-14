@@ -4,6 +4,7 @@ import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_app/src/devices/slim_mode_cubit.dart';
 import 'package:simutil_app/src/recording/recording_lock.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
+import 'package:simutil_app/src/maestro/maestro_runner.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
 import 'package:simutil_app/src/recording/saved_recordings.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
@@ -96,7 +97,8 @@ Future<void> configureDependencies() async {
         streams: getIt<StreamsCubit>(),
       ),
       dispose: (cubit) => cubit.close(),
-    );
+    )
+    ..registerLazySingleton<MaestroRunner>(MaestroRunner.new);
 }
 
 class _SimulatorSlimControl implements SlimControl {
