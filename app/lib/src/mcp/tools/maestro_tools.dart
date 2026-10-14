@@ -99,9 +99,10 @@ List<McpTool> maestroTools(ToolContext c) => [
     name: 'stop_maestro',
     description: 'Stop the running Maestro flow (kills the maestro process).',
     handler: (_) async {
+      final wasRunning = c.maestro.running;
       c.maestro.stop();
       final ids = c.runs?.stopAll() ?? const [];
-      return c.text(ids.isEmpty ? 'Nothing running' : 'Stopped');
+      return c.text(wasRunning || ids.isNotEmpty ? 'Stopped' : 'Nothing running');
     },
   ),
 ];

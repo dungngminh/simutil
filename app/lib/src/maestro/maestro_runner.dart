@@ -100,6 +100,10 @@ class MaestroRunner {
   final String _binary;
   Process? _process;
 
+  /// Held for the whole of a [run], from before the first `await` until its
+  /// `finally`, so overlapping runs are rejected even while the CLI is probed.
+  bool _busy = false;
+
   /// How to install Maestro, shown when it is missing.
   static const installHint =
       'Maestro is not installed. Install it with:\n'
@@ -164,15 +168,23 @@ class MaestroRunner {
     if (deviceIds.isEmpty) {
       throw ArgumentError('No devices to run on');
     }
-    if (_process != null) {
+    // Claim the run slot synchronously, before the first await. The panel and
+    // the MCP tool share this singleton, so a guard that only checks after an
+    // await (e.g. `isAvailable()` spinning up a JVM) would let two calls in.
+    if (_busy) {
       throw StateError('A Maestro flow is already running; stop it first');
     }
-    if (!await isAvailable()) throw const MaestroNotInstalled(installHint);
+    _busy = true;
 
-    final dir = await Directory.systemTemp.createTemp('simutil-maestro-');
-    final flows = Directory('${dir.path}/flows')..createSync();
-    File('${flows.path}/flow.yaml').writeAsStringSync(flowYaml);
+    Process? proc;
+    Directory? dir;
     try {
+      if (!await isAvailable()) throw const MaestroNotInstalled(installHint);
+
+      dir = await Directory.systemTemp.createTemp('simutil-maestro-');
+      final flows = Directory('${dir.path}/flows')..createSync();
+      File('${flows.path}/flow.yaml').writeAsStringSync(flowYaml);
+
       final args = [
         '--device',
         deviceIds.join(','),
@@ -181,8 +193,9 @@ class MaestroRunner {
         '${deviceIds.length}',
         flows.path,
       ];
-      final proc = await Process.start(_binary, args, environment: _env);
-      _process = proc;
+      final process = await Process.start(_binary, args, environment: _env);
+      proc = process;
+      _process = process;
 
       final output = StringBuffer();
       final shardDevice = <int, String>{};
@@ -214,19 +227,18 @@ class MaestroRunner {
       // Drain both streams to completion before reading the exit code:
       // `exitCode` can complete before stdout/stderr deliver their last lines,
       // which are the per-shard results and the `Passed: x/y` summary.
-      final outDone = proc.stdout
+      final outDone = process.stdout
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen(handle)
           .asFuture<void>();
-      final errDone = proc.stderr
+      final errDone = process.stderr
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen(handle)
           .asFuture<void>();
       await Future.wait([outDone, errDone]);
-      final code = await proc.exitCode;
-      _process = null;
+      final code = await process.exitCode;
 
       final shardList = shards.values.toList()
         ..sort((a, b) => a.shard.compareTo(b.shard));
@@ -240,18 +252,22 @@ class MaestroRunner {
         output: output.toString(),
       );
     } finally {
-      try {
-        dir.deleteSync(recursive: true);
-      } catch (_) {}
+      // Only the run that owns the shared handle clears it, so a later run's
+      // process is never dropped by an earlier run finishing.
+      if (identical(_process, proc)) _process = null;
+      _busy = false;
+      if (dir != null) {
+        try {
+          dir.deleteSync(recursive: true);
+        } catch (_) {}
+      }
     }
   }
 
-  /// Stops the running `maestro test`, if any.
-  void stop() {
-    _process?.kill();
-    _process = null;
-  }
+  /// Stops the running `maestro test`, if any. The kill makes the process
+  /// exit, so the owning [run] clears `_process`/`_busy` in its `finally`.
+  void stop() => _process?.kill();
 
   /// Whether a run is in progress.
-  bool get running => _process != null;
+  bool get running => _busy;
 }
