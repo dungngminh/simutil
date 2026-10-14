@@ -2,10 +2,12 @@
 
 ## 1.3.1
 
-- `IOSDeviceService.getPhysicalDevices` no longer passes
-  `--filter "Reality = 'physical'"` to `devicectl`, which matches nothing on
-  current Xcode and hid every connected iPhone / iPad. Simulators are still
-  skipped while parsing.
+- `IOSDeviceService.getPhysicalDevices` passes
+  `--filter "Reality = 'physical'"` to `devicectl` only on Xcode 27+
+  (DeviceHub.app present), where booted simulators are listed too. On older
+  Xcode that filter matches nothing and hid every connected iPhone / iPad.
+- New `IOSDeviceService.listPhysicalDevicesArguments` and
+  `IOSDeviceService.isDeviceHub`.
 
 ## 1.3.0
 

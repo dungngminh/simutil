@@ -129,17 +129,20 @@ class IOSDeviceService implements DeviceService {
   /// ship Simulator.app under `Contents/Developer/Applications`. Same lookup
   /// as Flutter's `Xcode.getSimulatorPath` (flutter/flutter#187910).
   Future<void> openSimulatorApp(String uuid) async {
-    final developerPath = await _xcodeDeveloperPath();
-    final appPath = resolveSimulatorAppPath(
-      developerPath: developerPath,
-      exists: _pathExists,
-    );
     await _exec.run(
       'open',
-      arguments: openSimulatorArguments(uuid: uuid, appPath: appPath),
+      arguments: openSimulatorArguments(
+        uuid: uuid,
+        appPath: await _simulatorAppPath(),
+      ),
       priority: CommandPriority.interactive,
     );
   }
+
+  Future<String?> _simulatorAppPath() async => resolveSimulatorAppPath(
+    developerPath: await _xcodeDeveloperPath(),
+    exists: _pathExists,
+  );
 
   Future<String?> _xcodeDeveloperPath() async {
     try {
@@ -179,6 +182,10 @@ class IOSDeviceService implements DeviceService {
     return null;
   }
 
+  /// Whether [appPath] is DeviceHub.app, i.e. the selected Xcode is 27+.
+  static bool isDeviceHub(String? appPath) =>
+      appPath != null && p.posix.basename(appPath) == 'DeviceHub.app';
+
   /// `open` arguments for [appPath].
   ///
   /// Simulator.app focuses a device with `-CurrentDeviceUDID`. DeviceHub.app
@@ -189,9 +196,7 @@ class IOSDeviceService implements DeviceService {
   }) {
     final app = appPath ?? 'Simulator';
     final args = <String>['-a', app];
-    final isDeviceHub =
-        appPath != null && p.posix.basename(appPath) == 'DeviceHub.app';
-    if (!isDeviceHub) {
+    if (!isDeviceHub(appPath)) {
       args.addAll(['--args', '-CurrentDeviceUDID', uuid]);
     }
     return args;
@@ -263,7 +268,10 @@ class IOSDeviceService implements DeviceService {
     try {
       final devicectl = await _exec.run(
         'xcrun',
-        arguments: ['devicectl', 'list', 'devices', '-j', outputFile.path],
+        arguments: listPhysicalDevicesArguments(
+          outputPath: outputFile.path,
+          xcode27: isDeviceHub(await _simulatorAppPath()),
+        ),
         priority: CommandPriority.background,
       );
 
@@ -282,6 +290,22 @@ class IOSDeviceService implements DeviceService {
       }
     }
   }
+
+  /// `xcrun devicectl list devices` arguments writing JSON to [outputPath].
+  ///
+  /// Xcode 27+ lists booted simulators too, so ask for physical devices only.
+  /// Older Xcodes list hardware only and match nothing with that filter.
+  static List<String> listPhysicalDevicesArguments({
+    required String outputPath,
+    required bool xcode27,
+  }) => [
+    'devicectl',
+    'list',
+    'devices',
+    if (xcode27) ...['--filter', "Reality = 'physical'"],
+    '-j',
+    outputPath,
+  ];
 
   /// Parses `xcrun devicectl list devices -j` JSON into connected hardware,
   /// skipping simulators. Pure function (no I/O) so it is unit-testable on

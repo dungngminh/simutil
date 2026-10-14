@@ -291,6 +291,36 @@ void main() {
     );
   });
 
+  group('listPhysicalDevicesArguments', () {
+    test('filters to physical devices on Xcode 27+', () {
+      expect(
+        IOSDeviceService.listPhysicalDevicesArguments(
+          outputPath: '/tmp/out.json',
+          xcode27: true,
+        ),
+        [
+          'devicectl',
+          'list',
+          'devices',
+          '--filter',
+          "Reality = 'physical'",
+          '-j',
+          '/tmp/out.json',
+        ],
+      );
+    });
+
+    test('omits the filter on older Xcode, where it matches nothing', () {
+      expect(
+        IOSDeviceService.listPhysicalDevicesArguments(
+          outputPath: '/tmp/out.json',
+          xcode27: false,
+        ),
+        ['devicectl', 'list', 'devices', '-j', '/tmp/out.json'],
+      );
+    });
+  });
+
   group('platform guards', () {
     test('non-macOS returns empty/false without invoking commands', () async {
       // These guards short-circuit before touching CommandExec on non-macOS.
