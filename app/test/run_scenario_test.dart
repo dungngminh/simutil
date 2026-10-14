@@ -249,7 +249,11 @@ void main() {
     expect(rows[0], containsPair('ok', false));
     expect(rows[0], containsPair('failed_step', 0));
     expect(rows[1], containsPair('ok', true));
-    expect(notices.last, (text: 'Scenario done: 1/2', error: true));
+    expect(notices.last, (
+      text: 'Scenario done: 1/2',
+      kind: DeviceNoticeKind.error,
+      deviceId: null,
+    ));
   });
 
   test('label taps hit each device at its own position', () async {

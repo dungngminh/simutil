@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Streaming an iPhone connected only over Wi-Fi no longer shows another
   iPhone's screen. Wi-Fi streaming is not supported yet; connect it by USB
   cable.
+- Wiping or deleting a simulator / emulator shows a loading toast that turns
+  into a success or error toast, instead of a red toast on success.
 
 ## [0.3.0] - 2026-10-14
 

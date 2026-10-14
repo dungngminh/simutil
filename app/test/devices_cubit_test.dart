@@ -48,7 +48,9 @@ void main() {
 
     await cubit.shutdown(emulator('pixel', DeviceState.booted));
 
-    expect(notices, [(text: 'Stopping pixel…', error: false)]);
+    expect(notices, [
+      (text: 'Stopping pixel…', kind: DeviceNoticeKind.info, deviceId: null),
+    ]);
     expect(cubit.stateValue.busy, isEmpty);
     await cubit.close();
   });
@@ -135,6 +137,64 @@ void main() {
     await cubit.close();
   });
 
+  group('wipe and delete notices', () {
+    Future<List<DeviceNotice>> run(
+      FakeDeviceService android,
+      Future<void> Function(DevicesCubit cubit, Device device) action,
+    ) async {
+      final cubit = DevicesCubit(
+        android: android,
+        ios: FakeDeviceService(),
+        loadIos: false,
+      );
+      final notices = <DeviceNotice>[];
+      cubit.notices.listen(notices.add);
+      await action(cubit, emulator('pixel', DeviceState.shutdown));
+      await cubit.close();
+      return notices;
+    }
+
+    test('delete shows loading, then success', () async {
+      expect(await run(FakeDeviceService(), (c, d) => c.delete(d)), [
+        (
+          text: 'Deleting pixel…',
+          kind: DeviceNoticeKind.busy,
+          deviceId: 'pixel',
+        ),
+        (
+          text: 'Deleted pixel',
+          kind: DeviceNoticeKind.success,
+          deviceId: 'pixel',
+        ),
+      ]);
+    });
+
+    test('wipe shows loading, then success', () async {
+      expect(await run(FakeDeviceService(), (c, d) => c.wipeData(d)), [
+        (text: 'Wiping pixel…', kind: DeviceNoticeKind.busy, deviceId: 'pixel'),
+        (
+          text: 'Wiped pixel',
+          kind: DeviceNoticeKind.success,
+          deviceId: 'pixel',
+        ),
+      ]);
+    });
+
+    test('a failure ends in an error', () async {
+      final failing = _FailingDeviceService();
+      expect((await run(failing, (c, d) => c.delete(d))).last, (
+        text: 'Failed to delete pixel',
+        kind: DeviceNoticeKind.error,
+        deviceId: 'pixel',
+      ));
+      expect((await run(failing, (c, d) => c.wipeData(d))).last, (
+        text: 'Failed to wipe pixel',
+        kind: DeviceNoticeKind.error,
+        deviceId: 'pixel',
+      ));
+    });
+  });
+
   test('refresh is single-flight', () async {
     final android = FakeDeviceService(
       simulators: [emulator('pixel', DeviceState.shutdown)],
@@ -171,4 +231,12 @@ void main() {
     expect(cubit.stateValue.androidEmulators.single.id, 'pixel');
     await cubit.close();
   });
+}
+
+class _FailingDeviceService extends FakeDeviceService {
+  @override
+  Future<bool> deleteSimulator({required String deviceId}) async => false;
+
+  @override
+  Future<bool> wipeData({required String deviceId}) async => false;
 }

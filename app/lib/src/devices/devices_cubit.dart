@@ -12,8 +12,13 @@ abstract interface class SlimControl {
   Future<void> setSlim(String udid, {required bool slim});
 }
 
-/// A [DevicesCubit.notices] message; [error] for failures.
-typedef DeviceNotice = ({String text, bool error});
+/// How a [DeviceNotice] reads: [busy] stays up (with a spinner) until the
+/// next notice for the same device replaces it.
+enum DeviceNoticeKind { info, busy, success, error }
+
+/// A [DevicesCubit.notices] message. [deviceId] ties a [DeviceNoticeKind.busy]
+/// notice to the result that replaces it.
+typedef DeviceNotice = ({String text, DeviceNoticeKind kind, String? deviceId});
 
 /// Loads Android and iOS device lists, reloads them when a platform
 /// reports a change, and starts, stops and slims emulators/simulators.
@@ -201,22 +206,32 @@ class DevicesCubit extends CubitSignal<DevicesState> {
   /// Permanently deletes a shut-down emulator/simulator.
   Future<void> delete(Device device) async {
     if (device.type.isPhysical || device.state != DeviceState.shutdown) return;
-    _setBusy(device.id, true, 'Deleting ${device.name}…');
+    _setBusy(device.id, true);
+    _progress(device, 'Deleting ${device.name}…');
     final ok = await _serviceFor(device).deleteSimulator(deviceId: device.id);
-    _setMessage(
-      ok ? 'Deleted ${device.name}' : 'Failed to delete ${device.name}',
-    );
+    _result(device, ok, 'Deleted ${device.name}', 'Failed to delete');
     await _settle(device.id);
   }
 
   /// Erases a shut-down simulator / emulator's data (factory reset).
   Future<void> wipeData(Device device) async {
     if (device.type.isPhysical || device.state != DeviceState.shutdown) return;
-    _setBusy(device.id, true, 'Wiping ${device.name}…');
+    _setBusy(device.id, true);
+    _progress(device, 'Wiping ${device.name}…');
     final ok = await _serviceFor(device).wipeData(deviceId: device.id);
-    _setMessage(ok ? 'Wiped ${device.name}' : 'Failed to wipe ${device.name}');
+    _result(device, ok, 'Wiped ${device.name}', 'Failed to wipe');
     await _settle(device.id);
   }
+
+  /// A loading toast for [device], replaced by its [_result].
+  void _progress(Device device, String text) =>
+      _notify(text, DeviceNoticeKind.busy, deviceId: device.id);
+
+  void _result(Device device, bool ok, String done, String failed) => _notify(
+    ok ? done : '$failed ${device.name}',
+    ok ? DeviceNoticeKind.success : DeviceNoticeKind.error,
+    deviceId: device.id,
+  );
 
   DeviceService _serviceFor(Device device) =>
       device.os == DeviceOs.android ? _android : _ios;
@@ -258,12 +273,17 @@ class DevicesCubit extends CubitSignal<DevicesState> {
             : ({...stateValue.busy}..remove(id)),
       ),
     );
-    if (message != null) _notices.add((text: message, error: false));
+    if (message != null) _notify(message, DeviceNoticeKind.info);
   }
 
   /// Shows [text] as a toast, e.g. progress of an MCP tool.
-  void notify(String text, {bool error = false}) {
-    if (!isClosed) _notices.add((text: text, error: error));
+  void notify(String text, {bool error = false}) =>
+      _notify(text, error ? DeviceNoticeKind.error : DeviceNoticeKind.info);
+
+  void _notify(String text, DeviceNoticeKind kind, {String? deviceId}) {
+    if (!isClosed) {
+      _notices.add((text: text, kind: kind, deviceId: deviceId));
+    }
   }
 
   void _setMessage(String message) => notify(message, error: true);

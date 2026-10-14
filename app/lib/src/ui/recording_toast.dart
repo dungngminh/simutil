@@ -183,6 +183,9 @@ class _ToastFeedsState extends State<_ToastFeeds> {
   /// "Switching…" toast while open simulators reboot into the new mode.
   Toast? _slimSwitching;
 
+  /// Hides each device's loading toast (wipe, delete) once its result shows.
+  final _deviceBusy = <String, VoidCallback>{};
+
   static const _streamHeight = 60.0;
 
   @override
@@ -190,14 +193,7 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     super.didChangeDependencies();
     if (_unsubscribeStreams != null) return;
     _saved = getIt<SavedRecordings>().saved.listen(_onSaved);
-    _deviceNotices = getIt<DevicesCubit>().notices.listen((n) {
-      if (!mounted) return;
-      showNotice(
-        context,
-        n.text,
-        tone: n.error ? NoticeTone.error : NoticeTone.info,
-      );
-    });
+    _deviceNotices = getIt<DevicesCubit>().notices.listen(_onDeviceNotice);
     final streams = getIt<StreamsCubit>();
     // Seeded first so the immediate subscribe call announces nothing.
     _statuses = _statusesOf(streams.stateValue);
@@ -206,6 +202,23 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     if (getIt.isRegistered<SlimModeCubit>()) {
       _unsubscribeSlim = getIt<SlimModeCubit>().state.subscribe(_onSlimMode);
     }
+  }
+
+  void _onDeviceNotice(DeviceNotice n) {
+    if (!mounted) return;
+    final id = n.deviceId;
+    if (id != null) _deviceBusy.remove(id)?.call();
+    final hide = showNotice(
+      context,
+      n.text,
+      busy: n.kind == DeviceNoticeKind.busy,
+      tone: switch (n.kind) {
+        DeviceNoticeKind.info || DeviceNoticeKind.busy => NoticeTone.info,
+        DeviceNoticeKind.success => NoticeTone.success,
+        DeviceNoticeKind.error => NoticeTone.error,
+      },
+    );
+    if (id != null && n.kind == DeviceNoticeKind.busy) _deviceBusy[id] = hide;
   }
 
   @override
