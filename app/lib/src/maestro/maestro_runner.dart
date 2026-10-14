@@ -104,6 +104,10 @@ class MaestroRunner {
   /// `finally`, so overlapping runs are rejected even while the CLI is probed.
   bool _busy = false;
 
+  /// Set by [stop]; checked after each `await` in [run] so a stop during the
+  /// CLI probe or process start cancels the launch instead of leaking a run.
+  bool _canceled = false;
+
   /// How to install Maestro, shown when it is missing.
   static const installHint =
       'Maestro is not installed. Install it with:\n'
@@ -175,11 +179,13 @@ class MaestroRunner {
       throw StateError('A Maestro flow is already running; stop it first');
     }
     _busy = true;
+    _canceled = false;
 
     Process? proc;
     Directory? dir;
     try {
       if (!await isAvailable()) throw const MaestroNotInstalled(installHint);
+      if (_canceled) return _stoppedResult(deviceIds);
 
       dir = await Directory.systemTemp.createTemp('simutil-maestro-');
       final flows = Directory('${dir.path}/flows')..createSync();
@@ -193,9 +199,16 @@ class MaestroRunner {
         '${deviceIds.length}',
         flows.path,
       ];
+      if (_canceled) return _stoppedResult(deviceIds);
       final process = await Process.start(_binary, args, environment: _env);
       proc = process;
       _process = process;
+      // A stop that landed while the process was starting still needs to kill
+      // it, since stop() saw no `_process` yet.
+      if (_canceled) {
+        process.kill();
+        return _stoppedResult(deviceIds);
+      }
 
       final output = StringBuffer();
       final shardDevice = <int, String>{};
@@ -264,9 +277,23 @@ class MaestroRunner {
     }
   }
 
-  /// Stops the running `maestro test`, if any. The kill makes the process
-  /// exit, so the owning [run] clears `_process`/`_busy` in its `finally`.
-  void stop() => _process?.kill();
+  /// An empty result for a run that was stopped before (or as) it started, so
+  /// callers mark the devices stopped rather than failed.
+  MaestroRunResult _stoppedResult(List<String> deviceIds) => MaestroRunResult(
+    ok: false,
+    passed: 0,
+    total: deviceIds.length,
+    shards: const [],
+    output: '',
+  );
+
+  /// Stops the running `maestro test`. Sets the cancel flag so a launch still
+  /// in its `await`s is abandoned, and kills the process once one exists. The
+  /// owning [run] clears `_process`/`_busy` in its `finally`.
+  void stop() {
+    _canceled = true;
+    _process?.kill();
+  }
 
   /// Whether a run is in progress.
   bool get running => _busy;
