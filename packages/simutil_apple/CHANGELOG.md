@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1
+
+- `IOSDeviceService.getPhysicalDevices` no longer passes
+  `--filter "Reality = 'physical'"` to `devicectl`, which matches nothing on
+  current Xcode and hid every connected iPhone / iPad. Simulators are still
+  skipped while parsing.
+
 ## 1.3.0
 
 - `IosAutomation.install` installs an `.app` or `.ipa` (unpacked first)

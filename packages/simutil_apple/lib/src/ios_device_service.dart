@@ -267,8 +267,6 @@ class IOSDeviceService implements DeviceService {
           'devicectl',
           'list',
           'devices',
-          '--filter',
-          "Reality = 'physical'",
           '-j',
           outputFile.path,
         ],
@@ -291,9 +289,9 @@ class IOSDeviceService implements DeviceService {
     }
   }
 
-  /// Parses the JSON written by `xcrun devicectl list devices -j` into devices.
-  /// Pure function (no I/O) so it is unit-testable on any platform.
-  /// Parses `xcrun devicectl list devices -j` JSON into connected hardware.
+  /// Parses `xcrun devicectl list devices -j` JSON into connected hardware,
+  /// skipping simulators. Pure function (no I/O) so it is unit-testable on
+  /// any platform.
   static List<Device> parsePhysicalDevices(Map<String, dynamic> json) {
     final result = json['result'] as Map<String, dynamic>? ?? {};
     final deviceList = result['devices'] as List<dynamic>? ?? [];
