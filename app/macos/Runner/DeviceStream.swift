@@ -287,7 +287,8 @@ final class DeviceStreamPlugin: NSObject, FlutterPlugin {
   }
 
   /// The capture device for [name]. Its uniqueID is not the device's UDID,
-  /// so it is matched by name, or taken when it is the only one.
+  /// so it is matched by name. Never falls back to the only capture device:
+  /// that one may be another iPhone, while [name] is on Wi-Fi only.
   // ponytail: two devices with the same name pick the first; map through
   // MobileDevice (AMDevice) if that shows up.
   @MainActor
@@ -299,12 +300,9 @@ final class DeviceStreamPlugin: NSObject, FlutterPlugin {
         deviceTypes: [externalDeviceType], mediaType: .muxed, position: .unspecified
       ).devices
       if let match = devices.first(where: { $0.localizedName == name }) { return match }
-      if devices.count == 1 { return devices[0] }
       if Date() > deadline {
         throw SimStreamError(
-          devices.isEmpty
-            ? "\(name) is not connected by USB cable (or is locked). Connect it with a cable and unlock it."
-            : "Could not tell which USB device is \(name)")
+          "\(name) is not connected by USB cable (or is locked). Streaming over Wi-Fi is not supported yet: connect it with a cable and unlock it.")
       }
       try await Task.sleep(nanoseconds: 250_000_000)
     }

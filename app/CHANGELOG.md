@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pump `simutil_apple` to 1.3.1 for supporting iOS real devices discovery in later macOS 27 and older than macOS 27
 
+### Fixed
+
+- Streaming an iPhone connected only over Wi-Fi no longer shows another
+  iPhone's screen. Wi-Fi streaming is not supported yet; connect it by USB
+  cable.
+
 ## [0.3.0] - 2026-10-14
 
 ### Added
