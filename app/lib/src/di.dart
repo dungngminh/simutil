@@ -8,6 +8,7 @@ import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
 import 'package:simutil_app/src/recording/saved_recordings.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
+import 'package:simutil_app/src/settings/desktop_settings_store.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
@@ -28,8 +29,15 @@ Future<void> configureDependencies() async {
   await isolateRunner.init();
   final debugLog = DebugLog();
   final exec = LoggingCommandExec(CommandExec.isolate(isolateRunner), debugLog);
+  final settingsStore = DesktopSettingsStore();
+  await settingsStore.load();
 
   getIt
+    // First in, last disposed: cubits close before the final save is awaited.
+    ..registerSingleton<DesktopSettingsStore>(
+      settingsStore,
+      dispose: (store) => store.flush(),
+    )
     ..registerSingleton<DebugLog>(debugLog)
     ..registerSingleton<IsolateRunner>(
       isolateRunner,
@@ -58,7 +66,7 @@ Future<void> configureDependencies() async {
       dispose: (cubit) => cubit.close(),
     )
     ..registerLazySingleton<DeviceSettingsCubit>(
-      DeviceSettingsCubit.new,
+      () => DeviceSettingsCubit(store: getIt<DesktopSettingsStore>()),
       dispose: (cubit) => cubit.close(),
     )
     ..registerSingleton<SavedRecordings>(
@@ -79,7 +87,7 @@ Future<void> configureDependencies() async {
       dispose: (cubit) => cubit.close(),
     )
     ..registerLazySingleton<ViewSettingsCubit>(
-      ViewSettingsCubit.new,
+      () => ViewSettingsCubit(store: getIt<DesktopSettingsStore>()),
       dispose: (cubit) => cubit.close(),
     )
     ..registerLazySingleton<StreamsCubit>(
@@ -105,6 +113,7 @@ Future<void> configureDependencies() async {
       () => SlimModeCubit(
         devices: getIt<DevicesCubit>(),
         streams: getIt<StreamsCubit>(),
+        store: getIt<DesktopSettingsStore>(),
       ),
       dispose: (cubit) => cubit.close(),
     );

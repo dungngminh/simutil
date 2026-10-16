@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reinstall needed, with download and install progress, and a toast once
   the new version starts. Missed it? Click the arrow next to the SimUtil
   title.
+- The app remembers your settings between launches: stream layout,
+  headless mode, grid recording quality, per-device stream options and
+  Slim mode.
 
 ### Changed
 

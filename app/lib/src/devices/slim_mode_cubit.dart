@@ -1,6 +1,7 @@
 import 'package:bloc_signals/bloc_signals.dart';
 import 'package:equatable/equatable.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
+import 'package:simutil_app/src/settings/desktop_settings_store.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_core/simutil_core.dart';
 
@@ -21,15 +22,33 @@ final class SlimModeState extends Equatable {
 
 /// The one path that changes a simulator's slim state: it closes the
 /// stream, reboots the simulator through [DevicesCubit.setSlim] and reopens
-/// the stream, so tiles never keep a session of the old boot.
+/// the stream, so tiles never keep a session of the old boot. The mode is
+/// restored from and saved to [store] when given.
 class SlimModeCubit extends CubitSignal<SlimModeState> {
-  SlimModeCubit({required DevicesCubit devices, required StreamsCubit streams})
-    : _devices = devices,
-      _streams = streams,
-      super(initialState: const SlimModeState());
+  SlimModeCubit({
+    required DevicesCubit devices,
+    required StreamsCubit streams,
+    DesktopSettingsStore? store,
+  }) : _devices = devices,
+       _streams = streams,
+       _store = store,
+       super(
+         initialState: SlimModeState(
+           enabled: readField<bool>(store?.section(_key), 'enabled') ?? false,
+         ),
+       );
 
+  static const _key = 'slim';
   final DevicesCubit _devices;
   final StreamsCubit _streams;
+  final DesktopSettingsStore? _store;
+
+  @override
+  void onChange(Change<SlimModeState> change) {
+    super.onChange(change);
+    if (change.currentState.enabled == change.nextState.enabled) return;
+    _store?.write(_key, {'enabled': change.nextState.enabled});
+  }
 
   /// Slims or restores one simulator, keeping its stream.
   Future<void> setSlim(Device device, {required bool on}) async {
