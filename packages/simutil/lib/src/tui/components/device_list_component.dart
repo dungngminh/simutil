@@ -17,6 +17,8 @@ class DeviceListComponent extends StatefulComponent {
     this.onDeviceShowOptions,
     this.onDeviceShutdownRequested,
     this.onDeviceLogcatRequested,
+    this.onDeviceWipeRequested,
+    this.onDeviceDeleteRequested,
     this.isLoading = false,
     this.loadingMessage = 'Loading devices...',
     this.emptyMessage = 'No devices found',
@@ -48,6 +50,12 @@ class DeviceListComponent extends StatefulComponent {
 
   /// Called on `l` to open logcat for a running device.
   final void Function(Device)? onDeviceLogcatRequested;
+
+  /// Called on `d` to wipe the selected device's data.
+  final void Function(Device)? onDeviceWipeRequested;
+
+  /// Called on `D` (shift+d) to delete the selected device.
+  final void Function(Device)? onDeviceDeleteRequested;
 
   /// When true, shows [loadingMessage] instead of the list.
   final bool isLoading;
@@ -134,6 +142,16 @@ class _DeviceListComponentState extends State<DeviceListComponent> {
         return true;
       case LogicalKey.keyL:
         _handleLogcat();
+        return true;
+      case LogicalKey.keyD when !event.isControlPressed && !event.isAltPressed:
+        final callback = event.isShiftPressed
+            ? component.onDeviceDeleteRequested
+            : component.onDeviceWipeRequested;
+        if (callback == null ||
+            component.selectedIndex >= component.devices.length) {
+          return false;
+        }
+        callback(component.devices[component.selectedIndex]);
         return true;
       default:
         return false;

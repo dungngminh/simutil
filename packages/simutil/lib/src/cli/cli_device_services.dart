@@ -85,6 +85,14 @@ class CliDeviceServices {
   Future<bool> shutdownDevice(Device device) =>
       _serviceFor(device).shutdownSimulator(deviceId: device.id);
 
+  /// Erases a shut-down simulator/emulator's user data.
+  Future<bool> wipeDevice(Device device) =>
+      _serviceFor(device).wipeData(deviceId: device.id);
+
+  /// Permanently deletes a shut-down simulator/emulator.
+  Future<bool> deleteDevice(Device device) =>
+      _serviceFor(device).deleteSimulator(deviceId: device.id);
+
   DeviceService _serviceFor(Device device) =>
       _services[device.os] ??
       cliUsage('No service registered for ${device.os.name}');

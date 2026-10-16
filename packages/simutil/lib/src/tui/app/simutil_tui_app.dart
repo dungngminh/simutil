@@ -314,6 +314,8 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
     return _joinStatusHints([
       'Launch: <space> or <enter>',
       if (device.isRunning) 'Shutdown: t',
+      if (!device.isRunning) 'Wipe data: d',
+      if (!device.isRunning) 'Delete: D',
       'Plugins: p',
       'Edit config: e',
       'ADB Tools: n',
@@ -353,6 +355,8 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
       'Launch with option: <enter>',
       if (device.isRunning) 'Shutdown: t',
       if (device.isRunning) 'Logcat: l',
+      if (!device.isRunning) 'Wipe data: d',
+      if (!device.isRunning) 'Delete: D',
       'Plugins: p',
       'Edit config: e',
       'ADB Tools: n',
@@ -680,6 +684,74 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
     }
   }
 
+  Future<void> _onDeviceWipeRequested(Device device) => _confirmAndRun(
+    device,
+    title: 'Wipe Data',
+    message:
+        'Erase all apps, settings and snapshots of ${device.name}?\n\n'
+        ' This cannot be undone.',
+    verb: 'wipe',
+    progress: 'Wiping',
+    done: 'wiped',
+    action: (service) => service.wipeData(deviceId: device.id),
+  );
+
+  Future<void> _onDeviceDeleteRequested(Device device) => _confirmAndRun(
+    device,
+    title: 'Delete Device',
+    message:
+        'Delete ${device.name} and all of its data?\n\n'
+        ' This cannot be undone.',
+    verb: 'delete',
+    progress: 'Deleting',
+    done: 'deleted',
+    action: (service) => service.deleteSimulator(deviceId: device.id),
+  );
+
+  /// Asks before a destructive [action] on a shut-down emulator / simulator.
+  Future<void> _confirmAndRun(
+    Device device, {
+    required String title,
+    required String message,
+    required String verb,
+    required String progress,
+    required String done,
+    required Future<bool> Function(DeviceService service) action,
+  }) async {
+    if (device.type.isPhysical) return;
+    if (device.isRunning) {
+      setState(
+        () =>
+            _statusMessage = 'Shut down ${device.name} before you $verb it (t)',
+      );
+      return;
+    }
+
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: title,
+      message: message,
+    );
+    if (!mounted) return;
+    if (!confirmed) {
+      setState(() => _statusMessage = _buildIdleStatusMessage());
+      return;
+    }
+
+    setState(() => _statusMessage = '$progress ${device.name}…');
+    final service = device.os == DeviceOs.android
+        ? _di.adbService
+        : _di.simctlService;
+    final ok = await action(service);
+    if (!mounted) return;
+    setState(
+      () => _statusMessage = ok
+          ? '${device.name} $done!'
+          : 'Failed to $verb ${device.name}',
+    );
+    await _refreshDevices(silent: true);
+  }
+
   Future<void> _onDeviceLogcatRequested(Device device) async {
     await showLogcatDialog(
       context: context,
@@ -847,6 +919,8 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
         isLoading: _loadingAndroidEmulators,
         selectedIndex: _androidEmulatorSelectedIndex,
         onDeviceShutdownRequested: _onDeviceShutdownRequested,
+        onDeviceWipeRequested: _onDeviceWipeRequested,
+        onDeviceDeleteRequested: _onDeviceDeleteRequested,
         emptyMessage: 'No Android emulators found',
         onSelectionChanged: (i) => setState(() {
           _androidEmulatorSelectedIndex = i;
@@ -895,6 +969,8 @@ class _SimutilTuiAppState extends State<SimutilTuiApp> {
         onDeviceLaunchRequested: _onDeviceDefaultLaunch,
         onDeviceShowOptions: _onDeviceShowOptions,
         onDeviceShutdownRequested: _onDeviceShutdownRequested,
+        onDeviceWipeRequested: _onDeviceWipeRequested,
+        onDeviceDeleteRequested: _onDeviceDeleteRequested,
       ),
     );
   }

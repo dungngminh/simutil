@@ -131,6 +131,8 @@ simutil launch <device-id>         # boot (alias: start)
 simutil launch <id> -c --no-audio  # cold boot, no audio (Android)
 simutil launch <id> --headless     # no emulator window / Simulator app
 simutil shutdown <device-id>       # alias: stop
+simutil wipe <device-id>           # erase data of a shut-down device (asks y/N)
+simutil delete <device-id> -y      # delete it; -y skips the prompt
 simutil android device list -r     # running adb devices only
 simutil plugin run scrcpy mirror -d emulator-5554
 simutil schema                     # every command as JSON, for agents

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Press `d` to wipe a shut-down emulator or simulator's data, or `D` to delete
+  it, after a confirmation prompt.
+- `simutil wipe <id>` and `simutil delete <id>` do the same from the command
+  line; they ask y/N first, `--yes` skips the question.
+
 ### Fixed
 
 - Connected iPhones and iPads show up again in the device list.

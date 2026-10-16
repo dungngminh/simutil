@@ -2,6 +2,7 @@ import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:simutil/src/cli/cli_catalog.dart';
+import 'package:simutil/src/cli/commands/destructive_device_commands.dart';
 import 'package:simutil/src/cli/commands/schema_command.dart';
 import 'package:simutil/src/cli/commands/launch_command.dart';
 import 'package:simutil/src/cli/commands/list_command.dart';
@@ -38,6 +39,8 @@ class SimutilCommandRunner extends CommandRunner<int> {
     addCommand(ListCommand(logger: _logger));
     addCommand(LaunchCommand(logger: _logger));
     addCommand(ShutdownCommand(logger: _logger));
+    addCommand(WipeCommand(logger: _logger));
+    addCommand(DeleteCommand(logger: _logger));
     addCommand(PluginCommand(logger: _logger));
     addCommand(SchemaCommand(logger: _logger, version: _version));
     addCommand(
