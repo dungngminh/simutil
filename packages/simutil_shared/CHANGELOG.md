@@ -8,6 +8,8 @@
 - `DeviceChangeWatcher`: reloads device lists when `DeviceService.watchDevices`
   reports a change (debounced), with a slow fallback reload.
 - `kReloadInterval` is now the 60 s fallback period (was a 10 s poll).
+- `UpdateChecker`: GitHub installs take the newest CLI release (`cli-v*`, or
+  legacy `v*`) and skip desktop app releases (`app-v*`).
 
 ## 1.0.0
 

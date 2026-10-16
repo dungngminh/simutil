@@ -7,13 +7,16 @@ cutting a release.
 
 ## TL;DR
 
-Pushing a tag that matches `v*` triggers two independent workflows in parallel:
+Pushing a tag that matches `cli-v*` triggers two independent workflows in parallel:
 
 - [release.yaml](../../.github/workflows/release.yaml) builds binaries for four
   targets, drafts a GitHub Release, and uploads archives + checksums.
 - [deploy-pub-dev.yaml](../../.github/workflows/deploy-pub-dev.yaml) publishes
   the package named by the pushed tag to [pub.dev](https://pub.dev/packages/simutil):
-  `vX.Y.Z` → the app, `simutil_<pkg>-vX.Y.Z` → that library.
+  `cli-vX.Y.Z` → the CLI/TUI, `simutil_<pkg>-vX.Y.Z` → that library.
+
+Tags up to v1.1.0 were plain `vX.Y.Z`; scripts that look for the newest CLI
+release accept both.
 
 When the GitHub Release is later **published** (i.e. promoted from draft),
 [deploy-homebrew.yaml](../../.github/workflows/deploy-homebrew.yaml) fires and
@@ -24,7 +27,7 @@ tap formula. The WinGet workflow is currently manual / `workflow_call` only.
 
 ```mermaid
 flowchart TD
-    Tag["git push tag vX.Y.Z"] --> Release["release.yaml"]
+    Tag["git push tag cli-vX.Y.Z"] --> Release["release.yaml"]
     Tag --> Pub["deploy-pub-dev.yaml"]
 
     subgraph release [release.yaml]
@@ -61,11 +64,28 @@ extracts it into a temporary install location, puts it on `PATH`, and runs
 `checksums.txt` via `sha256sum`, and creates a **draft** GitHub Release with
 auto-generated notes (categorized per [.github/release.yaml](../../.github/release.yaml)).
 
+### Release notes and PR labels
+
+CLI and app releases share the repo, so notes come from
+[.github/scripts/release-notes.sh](../../.github/scripts/release-notes.sh): it
+calls GitHub's generate-notes API with an explicit previous tag of the same
+product (otherwise GitHub would diff against the other product's release) and
+a per-product label config:
+
+| Release | Config | Leaves out PRs labeled |
+| ------- | ------ | ---------------------- |
+| `cli-v*` | [.github/release.yaml](../../.github/release.yaml) | `app`, `ignore-for-release` |
+| `app-v*` | [.github/release-app.yaml](../../.github/release-app.yaml) | `cli`, `ignore-for-release` |
+
+Label each PR `cli` or `app` when it touches only one product; a PR with
+neither (shared packages, CI) appears in both. App release notes are the
+`app/CHANGELOG.md` section followed by these generated notes.
+
 ## Workflows in detail
 
 ### release.yaml
 
-- **Trigger**: `push` of a tag matching `v*`.
+- **Trigger**: `push` of a tag matching `cli-v*`.
 - **Output**: draft GitHub Release with four archives + `checksums.txt`.
 - **Secret**: `GH_PAT` (used by `softprops/action-gh-release@v2` to create the release).
 - Gates the draft release behind `test-install`, which verifies Linux, macOS
@@ -77,14 +97,14 @@ auto-generated notes (categorized per [.github/release.yaml](../../.github/relea
 ### deploy-pub-dev.yaml
 
 - **Trigger**: tag push. One tag publishes exactly one package:
-  - `vX.Y.Z` → `packages/simutil` (the app). Libraries are untouched.
+  - `cli-vX.Y.Z` → `packages/simutil` (the CLI/TUI). Libraries are untouched.
   - `simutil_<pkg>-vX.Y.Z` → `packages/simutil_<pkg>` only.
   - `workflow_dispatch` from a branch fails fast; run it on a tag ref.
 - The job fails before publishing if the tag version differs from that
   package's `pubspec.yaml` `version:`.
 - **Auth**: OIDC — uses `id-token: write` to authenticate to pub.dev. No long-lived
   token. On pub.dev, each package's **Admin → Automated publishing** must trust
-  `dungngminh/simutil` with its own tag pattern: `v{{version}}` for `simutil`,
+  `dungngminh/simutil` with its own tag pattern: `cli-v{{version}}` for `simutil`,
   `simutil_core-v{{version}}` for `simutil_core`, and so on.
 - Runs the codegen tools so [packages/simutil/lib/src/version.dart](../../packages/simutil/lib/src/version.dart)
   matches `packages/simutil/pubspec.yaml` before publishing.
@@ -93,7 +113,7 @@ auto-generated notes (categorized per [.github/release.yaml](../../.github/relea
 
 - **Trigger**: GitHub `release: released` (when a draft release is published) or
   `workflow_dispatch`.
-- Reads `${GITHUB_REF_NAME}` (e.g. `v0.4.1`) → `VERSION=0.4.1`.
+- Reads `${GITHUB_REF_NAME}` (e.g. `cli-v0.4.1`) → `VERSION=0.4.1`.
 - Downloads the macOS and Linux archives from the release, computes their `sha256`,
   renders [.github/homebrew/simutil.rb.template](../../.github/homebrew/simutil.rb.template)
   with `{{VERSION}}`, `{{ARM64_SHA256}}`, `{{X64_SHA256}}`,
@@ -144,8 +164,8 @@ when they change. `packageVersion` shown by the app always comes from
 3. Merge to `main`, then tag and push:
 
    ```bash
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
+   git tag cli-vX.Y.Z
+   git push origin cli-vX.Y.Z
    ```
 
 4. Watch [release.yaml](../../.github/workflows/release.yaml) and
@@ -166,7 +186,7 @@ order), configure its tag pattern on pub.dev, then use tags from then on.
 ## Desktop app (`app/`)
 
 The desktop app versions independently (`app/pubspec.yaml`) and ships from
-its own tag, `app-vX.Y.Z`. That prefix matches neither `v*` nor
+its own tag, `app-vX.Y.Z`. That prefix matches neither `cli-v*` nor
 `simutil_*-v*`, so the CLI release, pub.dev and the CLI Homebrew formula
 ignore it.
 
@@ -234,7 +254,7 @@ quarantine flag on install.
 
 | Secret               | Used by                | Purpose                                         |
 | -------------------- | ---------------------- | ----------------------------------------------- |
-| `GH_PAT`             | `release.yaml`         | Create the draft release with custom notes      |
+| `GH_PAT`             | `release.yaml`, `release-app.yaml` | Generate notes and create the draft release |
 | `HOMEBREW_TAP_TOKEN` | `deploy-homebrew.yaml`, `deploy-app.yaml` | Push to `dungngminh/homebrew-simutil`           |
 | `GITHUB_TOKEN`       | `deploy-winget.yaml`   | Default token for the winget-releaser PR        |
 | `WINGET_TOKEN`       | `deploy-app.yaml`      | Classic PAT (`public_repo`) for winget-releaser |

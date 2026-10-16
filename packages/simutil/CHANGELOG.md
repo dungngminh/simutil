@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Connected iPhones and iPads show up again in the device list.
+- The update check no longer mistakes a desktop app release for a new CLI version.
 
 ## [1.1.0] - 2026-10-14
 

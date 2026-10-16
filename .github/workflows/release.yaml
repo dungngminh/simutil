@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "cli-v*"
 
 permissions:
   contents: write
@@ -100,6 +100,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -113,10 +115,16 @@ jobs:
           sha256sum *.tar.gz *.zip > checksums.txt
           cat checksums.txt
 
+      # Legacy vX.Y.Z tags count as earlier CLI releases.
+      - name: Release notes
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: .github/scripts/release-notes.sh "$GITHUB_REF_NAME" .github/release.yaml 'cli-v*' 'v[0-9]*' > notes.md
+
       - name: Create Draft GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          body_path: notes.md
           token: ${{ secrets.GH_PAT }}
           files: |
             artifacts/*.tar.gz

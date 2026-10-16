@@ -74,6 +74,7 @@ InstallSource currentInstallSource() {
 }
 
 final _semver = RegExp(r'^v?(\d+)\.(\d+)\.(\d+)$');
+final _cliTag = RegExp(r'^(?:cli-)?v(\d.*)$');
 
 /// Whether [latest] is a higher `major.minor.patch` than [current].
 ///
@@ -187,15 +188,22 @@ final class _UpdateChecker implements UpdateChecker {
         final json = jsonDecode(body) as Map<String, dynamic>;
         return (json['latest'] as Map<String, dynamic>)['version'] as String;
       }
+      // Desktop app releases (app-v*) share the repo, so `/releases/latest`
+      // may be the app: take the newest CLI tag (cli-v*, or legacy v*).
       final body = await _httpGet(
         Uri.parse(
-          'https://api.github.com/repos/dungngminh/simutil/releases/latest',
+          'https://api.github.com/repos/dungngminh/simutil/releases?per_page=30',
         ),
       );
       if (body == null) return null;
-      final json = jsonDecode(body) as Map<String, dynamic>;
-      final tag = json['tag_name'] as String;
-      return tag.startsWith('v') ? tag.substring(1) : tag;
+      for (final release in jsonDecode(body) as List<dynamic>) {
+        final r = release as Map<String, dynamic>;
+        final match = _cliTag.firstMatch(r['tag_name'] as String? ?? '');
+        if (match != null && r['draft'] != true && r['prerelease'] != true) {
+          return match[1];
+        }
+      }
+      return null;
     } catch (_) {
       return null;
     }

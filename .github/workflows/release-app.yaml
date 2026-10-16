@@ -224,6 +224,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: actions/download-artifact@v4
         with:
@@ -233,9 +235,12 @@ jobs:
       - name: Checksums and notes
         env:
           VERSION: ${{ needs.version.outputs.version }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           (cd dist && sha256sum -- * > checksums.txt && cat checksums.txt)
           awk -v v="## [$VERSION]" 'index($0, v) == 1 {on=1; next} /^## \[/ {on=0} on' app/CHANGELOG.md > notes.md
+          echo >> notes.md
+          .github/scripts/release-notes.sh "$GITHUB_REF_NAME" .github/release-app.yaml 'app-v*' >> notes.md
 
       - uses: softprops/action-gh-release@v2
         with:

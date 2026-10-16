@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/github/stars/dungngminh/simutil" alt="GitHub Repo stars" />
   <a href="https://github.com/dungngminh/simutil/actions/workflows/ci.yaml"><img src="https://github.com/dungngminh/simutil/actions/workflows/ci.yaml/badge.svg" alt="Build" /></a>
   <a href="https://github.com/dungngminh/simutil/releases?q=app-v"><img src="https://img.shields.io/github/v/release/dungngminh/simutil?filter=app-v*&label=Desktop" alt="Desktop release" /></a>
-  <a href="https://github.com/dungngminh/simutil/releases"><img src="https://img.shields.io/github/v/release/dungngminh/simutil?filter=v*&label=CLI" alt="CLI release" /></a>
+  <a href="https://github.com/dungngminh/simutil/releases?q=cli-v"><img src="https://img.shields.io/github/v/release/dungngminh/simutil?filter=!app-v*&label=CLI" alt="CLI release" /></a>
 </p>
 
 Mobile development means juggling Android Studio, Xcode, `adb`, `simctl`,
