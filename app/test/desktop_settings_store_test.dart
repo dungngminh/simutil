@@ -70,15 +70,24 @@ void main() {
       state: DeviceState.booted,
       type: DeviceType.simulator,
     );
+    // Every scrcpy option off its default.
+    const scrcpy = DeviceSettings(
+      headless: false,
+      maxSize: 1920,
+      maxFps: 120,
+      bitRateMbps: 24,
+      showFrame: false,
+      showTouches: true,
+      stayAwake: false,
+      turnScreenOff: true,
+      powerOffOnClose: true,
+    );
     ViewSettingsCubit(store: store)
       ..toggleHeadless()
       ..setGridQuality(GridRecordQuality.high)
       ..spotlight('emulator-5554')
       ..setLayout(StreamLayout.spotlightHorizontal);
-    DeviceSettingsCubit(store: store).update(
-      device,
-      (s) => s.copyWith(headless: () => false, maxFps: 30, showTouches: true),
-    );
+    DeviceSettingsCubit(store: store).update(device, (_) => scrcpy);
     await store.flush();
 
     final reopened = await open();
@@ -91,10 +100,7 @@ void main() {
         gridQuality: GridRecordQuality.high,
       ),
     );
-    expect(
-      DeviceSettingsCubit(store: reopened).of(device),
-      const DeviceSettings(headless: false, maxFps: 30, showTouches: true),
-    );
+    expect(DeviceSettingsCubit(store: reopened).of(device), scrcpy);
   });
 
   test('slim mode survives a restart', () async {
