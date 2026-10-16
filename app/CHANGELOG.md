@@ -5,7 +5,7 @@ All notable changes to the SimUtil desktop app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0]
 
 ### Added
 
@@ -15,8 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reinstall needed, with download and install progress, and a toast once
   the new version starts. Missed it? Click the arrow next to the SimUtil
   title.
-
-## [0.3.1] - 2026-10-14
 
 ### Changed
 
