@@ -11,6 +11,8 @@ import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/stream/streams_state.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
 import 'package:simutil_app/src/ui/toasts/slim_suggestion.dart';
+import 'package:simutil_app/src/ui/toasts/update_toast.dart';
+import 'package:simutil_app/src/update/app_update_cubit.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:zentoast/zentoast.dart';
 
@@ -178,6 +180,7 @@ class _ToastFeedsState extends State<_ToastFeeds> {
   var _slimSuggested = false;
 
   void Function()? _unsubscribeSlim;
+  void Function()? _unsubscribeUpdate;
   var _slimApplying = false;
 
   /// "Switching…" toast while open simulators reboot into the new mode.
@@ -201,6 +204,24 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     _unsubscribeStreams = streams.state.subscribe(_onStreams);
     if (getIt.isRegistered<SlimModeCubit>()) {
       _unsubscribeSlim = getIt<SlimModeCubit>().state.subscribe(_onSlimMode);
+    }
+    if (getIt.isRegistered<AppUpdateCubit>()) {
+      final current = getIt<AppUpdateCubit>().currentVersion;
+      versionBeforeUpdate(current: current).then((previous) {
+        if (previous == null || !mounted) return;
+        showNotice(
+          context,
+          'Updated to SimUtil $current',
+          subtitle: 'From $previous',
+          tone: NoticeTone.success,
+        );
+      });
+      // Once per launch; the sidebar button reopens it.
+      _unsubscribeUpdate = getIt<AppUpdateCubit>().state.subscribe((update) {
+        if (update == null || !mounted) return;
+        _unsubscribeUpdate?.call();
+        showUpdateToast(context, update);
+      });
     }
   }
 
@@ -227,6 +248,7 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     _deviceNotices?.cancel();
     _unsubscribeStreams?.call();
     _unsubscribeSlim?.call();
+    _unsubscribeUpdate?.call();
     super.dispose();
   }
 

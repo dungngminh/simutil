@@ -12,6 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   bloc_signals: ^1.6.0
+  crypto: ^3.0.7
   bloc_signals_flutter: ^1.4.0
   equatable: ^2.0.7
   get_it: ^9.3.0
@@ -29,6 +30,7 @@ dependencies:
   desktop_drop: ^0.8.4
   file_selector: ^1.1.0
   tray_manager: ^0.8.0
+  package_info_plus: ^10.2.2
 
 dev_dependencies:
   flutter_lints: ^6.0.0

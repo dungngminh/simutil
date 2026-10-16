@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Update SimUtil from inside the app: on launch a toast tells you when a
+  newer version is out, and "Update & restart" installs it the way you
+  installed SimUtil (Homebrew, DMG, Windows installer or AppImage), no
+  reinstall needed, with download and install progress, and a toast once
+  the new version starts. Missed it? Click the arrow next to the SimUtil
+  title.
+
 ## [0.3.1] - 2026-10-14
 
 ### Changed

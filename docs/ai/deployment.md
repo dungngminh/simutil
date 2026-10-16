@@ -210,7 +210,8 @@ quarantine flag on install.
 ### Desktop app release
 
 1. Date the version heading in [app/CHANGELOG.md](../../app/CHANGELOG.md)
-   (`## [X.Y.Z] - YYYY-MM-DD`) and bump `version:` in `app/pubspec.yaml`.
+   (`## [X.Y.Z] - YYYY-MM-DD`) and bump `version:` in `app/pubspec.yaml`
+   (the in-app update check reads it from the built bundle).
 2. Merge, then `git tag app-vX.Y.Z && git push origin app-vX.Y.Z`.
 3. Check the draft release, then **Publish** it; that fires `deploy-app.yaml`.
 4. First release only: WinGet updates need the package to exist already.

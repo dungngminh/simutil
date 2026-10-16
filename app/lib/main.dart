@@ -22,6 +22,7 @@ import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/stream/touch_marks.dart';
+import 'package:simutil_app/src/update/app_update_cubit.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,21 +38,12 @@ Future<void> main() async {
     ),
   );
 
+  getIt<AppUpdateCubit>().check();
   final devices = getIt<DevicesCubit>()..start();
   final streams = getIt<StreamsCubit>();
   devices.state.subscribe((state) => streams.onDevices(state.all));
   // Closing the window quits, after streams and recordings are released.
-  windowManager.addListener(
-    _QuitOnClose(() async {
-      try {
-        await disposeDependencies();
-      } catch (e, s) {
-        debugPrint('Dispose on quit failed: $e\n$s');
-      } finally {
-        await windowManager.destroy();
-      }
-    }),
-  );
+  windowManager.addListener(_QuitOnClose(quitApp));
   await windowManager.setPreventClose(true);
 
   // Shared by the MCP tools and the scenario editor.

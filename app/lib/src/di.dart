@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:simutil_app/src/logging/debug_log.dart';
 import 'package:simutil_adb/simutil_adb.dart';
@@ -11,6 +12,9 @@ import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/stream/touch_marks.dart';
+import 'package:simutil_app/src/update/app_installer.dart';
+import 'package:simutil_app/src/update/app_update_cubit.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
 
@@ -90,6 +94,13 @@ Future<void> configureDependencies() async {
       ),
       dispose: (cubit) => cubit.close(),
     )
+    ..registerLazySingleton<AppInstaller>(
+      () => AppInstaller(exec, quit: quitApp),
+    )
+    ..registerSingleton<AppUpdateCubit>(
+      AppUpdateCubit(currentVersion: await getAppVersion()),
+      dispose: (cubit) => cubit.close(),
+    )
     ..registerLazySingleton<SlimModeCubit>(
       () => SlimModeCubit(
         devices: getIt<DevicesCubit>(),
@@ -114,3 +125,14 @@ class _SimulatorSlimControl implements SlimControl {
 
 /// Closes cubits and stops the shell-command isolate.
 Future<void> disposeDependencies() => getIt.reset();
+
+/// Releases streams and recordings, then closes the window and quits.
+Future<void> quitApp() async {
+  try {
+    await disposeDependencies();
+  } catch (e, s) {
+    debugPrint('Dispose on quit failed: $e\n$s');
+  } finally {
+    await windowManager.destroy();
+  }
+}

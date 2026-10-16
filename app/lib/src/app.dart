@@ -9,6 +9,7 @@ import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/ui/app_shell.dart';
+import 'package:simutil_app/src/update/app_update_cubit.dart';
 
 /// Provides the cubits around the shared [SimutilShell].
 class SimutilApp extends StatelessWidget {
@@ -34,6 +35,9 @@ class SimutilApp extends StatelessWidget {
         ),
         BlocSignalProvider<SlimModeCubit>(
           create: (_) => getIt<SlimModeCubit>(),
+        ),
+        BlocSignalProvider<AppUpdateCubit>(
+          create: (_) => getIt<AppUpdateCubit>(),
         ),
       ],
       child: const SimutilShell(),
