@@ -7,12 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-17
+
 ### Added
 
-- Press `d` to wipe a shut-down emulator or simulator's data, or `D` to delete
-  it, after a confirmation prompt.
-- `simutil wipe <id>` and `simutil delete <id>` do the same from the command
-  line; they ask y/N first, `--yes` skips the question.
+- Press `d` to wipe a shut-down emulator or simulator, or `D` to delete it (asks first).
+- `simutil wipe <id>` and `simutil delete <id>` do the same; `--yes` skips the question.
 
 ### Fixed
 

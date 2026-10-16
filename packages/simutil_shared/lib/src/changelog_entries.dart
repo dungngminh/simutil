@@ -14,6 +14,16 @@ class ChangelogEntry {
 
 const List<ChangelogEntry> changelogEntries = [
   ChangelogEntry(
+    version: '1.2.0',
+    date: '2026-10-17',
+    items: [
+      'Press `d` to wipe a shut-down emulator or simulator, or `D` to delete it (asks first).',
+      '`simutil wipe <id>` and `simutil delete <id>` do the same; `--yes` skips the question.',
+      'Connected iPhones and iPads show up again in the device list.',
+      'The update check no longer mistakes a desktop app release for a new CLI version.',
+    ],
+  ),
+  ChangelogEntry(
     version: '1.1.0',
     date: '2026-10-14',
     items: [
