@@ -588,4 +588,25 @@ void main() {
       );
     });
   });
+
+  test('listWebcams parses emulator -webcam-list', () async {
+    final exec = FakeCommandExec(
+      (_, args) => args.contains('-webcam-list')
+          ? FakeCommandExec.ok('''
+List of web cameras connected to the computer:
+ Camera 'webcam0' is connected to device 'FaceTime HD Camera' on channel 0 using pixel format 'YV12'
+ Camera 'webcam1' is connected to device 'iPhone Camera' on channel 0 using pixel format 'YV12'
+''')
+          : null,
+    );
+
+    expect(await service(exec).listWebcams(), [
+      (id: 'webcam0', name: 'FaceTime HD Camera'),
+      (id: 'webcam1', name: 'iPhone Camera'),
+    ]);
+    expect(
+      await service(FakeCommandExec((_, _) => null)).listWebcams(),
+      isEmpty,
+    );
+  });
 }

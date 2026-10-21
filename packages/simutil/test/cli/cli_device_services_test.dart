@@ -30,6 +30,14 @@ void main() {
     expect(launch.args, ['-no-snapshot-load', '-no-audio']);
   });
 
+  test('launchDevice appends camera args for Android', () async {
+    await services.launchDevice(
+      emulator,
+      cameraArgs: ['-camera-back', 'webcam0'],
+    );
+    expect(android.launched.single.args, ['-camera-back', 'webcam0']);
+  });
+
   test('shutdownDevice routes to the device OS service', () async {
     expect(await services.shutdownDevice(emulator), isTrue);
     expect(android.shutdown, [emulator.id]);

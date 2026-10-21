@@ -112,12 +112,14 @@ class DevicesCubit extends CubitSignal<DevicesState> {
   }
 
   /// Boots an emulator/simulator; [headless] skips its window, [coldBoot]
-  /// skips the Android snapshot, [noAudio] boots an Android emulator mute.
+  /// skips the Android snapshot, [noAudio] boots an Android emulator mute,
+  /// [cameraArgs] (from `emulatorCameraArgs`) pick its camera sources.
   Future<void> launch(
     Device device, {
     bool headless = false,
     bool coldBoot = false,
     bool noAudio = false,
+    List<String> cameraArgs = const [],
   }) async {
     if (device.type.isPhysical || device.state != DeviceState.shutdown) return;
     _setBusy(device.id, true, 'Starting ${device.name}…');
@@ -139,6 +141,7 @@ class DevicesCubit extends CubitSignal<DevicesState> {
       additionalArgs: [
         if (coldBoot && android) '-no-snapshot-load',
         if (noAudio && android) '-no-audio',
+        if (android) ...cameraArgs,
       ],
     );
     unawaited(
@@ -165,6 +168,7 @@ class DevicesCubit extends CubitSignal<DevicesState> {
     bool headless = false,
     bool coldBoot = false,
     bool noAudio = false,
+    List<String> cameraArgs = const [],
   }) async {
     if (device.type.isPhysical || device.state != DeviceState.booted) return;
     _setBusy(device.id, true, 'Restarting ${device.name}…');
@@ -182,6 +186,7 @@ class DevicesCubit extends CubitSignal<DevicesState> {
       headless: headless,
       coldBoot: coldBoot,
       noAudio: noAudio,
+      cameraArgs: cameraArgs,
     );
   }
 

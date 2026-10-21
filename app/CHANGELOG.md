@@ -5,6 +5,15 @@ All notable changes to the SimUtil desktop app will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Pick what an Android emulator's back and front cameras see from the
+  device menu (Camera): your Mac's webcam, an image or a video file. It
+  applies the next time the emulator starts, and agents can set it over
+  MCP too.
+
 ## [0.4.0]
 
 ### Added

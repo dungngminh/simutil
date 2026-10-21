@@ -62,17 +62,21 @@ class CliDeviceServices {
     return matches.first;
   }
 
-  /// Launches [device], optionally with Android cold boot / no-audio flags,
-  /// or [headless] (no emulator window / Simulator app).
+  /// Launches [device], optionally with Android cold boot / no-audio flags
+  /// and [cameraArgs] (from `emulatorCameraArgs`), or [headless] (no
+  /// emulator window / Simulator app).
   Future<void> launchDevice(
     Device device, {
     bool cold = false,
     bool noAudio = false,
     bool headless = false,
+    List<String> cameraArgs = const [],
   }) async {
+    final android = device.os == DeviceOs.android;
     final extra = <String>[];
     if (cold) extra.add('-no-snapshot-load');
     if (noAudio) extra.add('-no-audio');
+    if (android) extra.addAll(cameraArgs);
 
     await _serviceFor(device).launchDevice(
       deviceId: device.id,

@@ -3,6 +3,7 @@ import 'package:args/command_runner.dart';
 import 'package:simutil/src/cli/cli_device_services.dart';
 import 'package:simutil/src/cli/cli_flags.dart';
 import 'package:simutil/src/cli/commands/simutil_command.dart';
+import 'package:simutil_adb/simutil_adb.dart';
 
 /// Boots an emulator or simulator by device id.
 class LaunchCommand extends SimutilCommand {
@@ -36,6 +37,18 @@ class LaunchCommand extends SimutilCommand {
         help: 'Disable emulator audio (Android).',
         negatable: false,
       )
+      ..addOption(
+        'camera-back',
+        help:
+            'Android back camera: webcam<N>, image:<path>, video:<path>, '
+            'virtualscene, emulated or none.',
+        valueHelp: 'source',
+      )
+      ..addOption(
+        'camera-front',
+        help: 'Android front camera (same sources as --camera-back).',
+        valueHelp: 'source',
+      )
       ..addFlag(
         'headless',
         help: 'Start without the emulator window / Simulator app.',
@@ -53,6 +66,16 @@ class LaunchCommand extends SimutilCommand {
       throw UsageException('Expected a single device id.', usage);
     }
 
+    final List<String> cameraArgs;
+    try {
+      cameraArgs = emulatorCameraArgs(
+        back: argResults!['camera-back'] as String?,
+        front: argResults!['camera-front'] as String?,
+      );
+    } on FormatException catch (e) {
+      throw UsageException(e.message, usage);
+    }
+
     final device = await _services.resolveDevice(
       rest.first,
       osHint: osHintFromFlags(argResults!),
@@ -63,6 +86,7 @@ class LaunchCommand extends SimutilCommand {
       cold: argResults!['cold'] == true,
       noAudio: argResults!['no-audio'] == true,
       headless: argResults!['headless'] == true,
+      cameraArgs: cameraArgs,
     );
 
     logger.success('Launched ${device.name} (${device.id})');

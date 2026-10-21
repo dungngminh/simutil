@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:simutil_adb/simutil_adb.dart';
@@ -14,9 +17,18 @@ import 'package:simutil_app/src/ui/shared/native_menu.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:tray_manager/tray_manager.dart' as native;
 
+// ponytail: listed once per run, so a camera plugged in later needs an app
+// restart; re-list on every menu open if that matters.
+Future<List<({String id, String name})>>? _webcams;
+
 /// Opens a native context menu for [device] at the cursor: its actions plus
 /// per-device settings.
-void showDeviceContextMenu(BuildContext context, Device device) {
+Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
+  final emulator = device.os == DeviceOs.android && !device.type.isPhysical;
+  final webcams = emulator
+      ? await (_webcams ??= getIt<AndroidDeviceService>().listWebcams())
+      : const <({String id, String name})>[];
+  if (!context.mounted) return;
   final settingsCubit = context.read<DeviceSettingsCubit>();
   void set(DeviceSettings Function(DeviceSettings) change) =>
       settingsCubit.update(device, change);
@@ -27,6 +39,7 @@ void showDeviceContextMenu(BuildContext context, Device device) {
       _actionItems(context, device),
       if (!busy) _deviceItems(context, device),
       if (!device.type.isPhysical) _launchItems(context, device, set),
+      if (emulator) _cameraItems(settingsCubit.of(device), webcams, set),
       _streamItems(context, device, set),
       if (!device.type.isPhysical && !busy) _deleteItems(context, device),
     ],
@@ -115,6 +128,73 @@ List<native.MenuItem> _launchItems(
         () => commands.start(coldBoot: true, noAudio: true),
       ),
     ],
+  ];
+}
+
+/// Back / front camera source of an Android emulator, used from its next
+/// boot: the AVD default, the emulator's fake camera, a host webcam, an
+/// image or a video file.
+List<native.MenuItem> _cameraItems(
+  DeviceSettings settings,
+  List<({String id, String name})> webcams,
+  void Function(DeviceSettings Function(DeviceSettings)) set,
+) {
+  native.MenuItem side(
+    String label,
+    String? current, {
+    required bool back,
+    required void Function(String? source) pick,
+  }) {
+    native.MenuItem file(String kind, String title, List<String> extensions) {
+      final picked = current?.startsWith('$kind:') ?? false;
+      return menuCheck(
+        picked
+            ? '$title: ${current!.split(Platform.pathSeparator).last}'
+            : '$title…',
+        picked,
+        () async {
+          final file = await openFile(
+            acceptedTypeGroups: [
+              XTypeGroup(label: title, extensions: extensions),
+            ],
+          );
+          if (file != null) pick('$kind:${file.path}');
+        },
+      );
+    }
+
+    return menuSubmenu(label, [
+      menuCheck('AVD default', current == null, () => pick(null)),
+      menuCheck('Emulated', current == 'emulated', () => pick('emulated')),
+      if (back)
+        menuCheck(
+          'Virtual scene',
+          current == 'virtualscene',
+          () => pick('virtualscene'),
+        ),
+      menuCheck('Off', current == 'none', () => pick('none')),
+      for (final cam in webcams)
+        menuCheck(cam.name, current == cam.id, () => pick(cam.id)),
+      file('image', 'Image', const ['png', 'jpg', 'jpeg']),
+      file('video', 'Video', const ['mp4', 'mov', 'webm']),
+    ]);
+  }
+
+  return [
+    menuSubmenu('Camera (next boot)', [
+      side(
+        'Back camera',
+        settings.cameraBack,
+        back: true,
+        pick: (v) => set((s) => s.copyWith(cameraBack: () => v)),
+      ),
+      side(
+        'Front camera',
+        settings.cameraFront,
+        back: false,
+        pick: (v) => set((s) => s.copyWith(cameraFront: () => v)),
+      ),
+    ]),
   ];
 }
 

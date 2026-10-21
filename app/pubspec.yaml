@@ -16,7 +16,7 @@ dependencies:
   bloc_signals_flutter: ^1.4.0
   equatable: ^2.0.7
   get_it: ^9.3.0
-  simutil_adb: ^1.3.0
+  simutil_adb: ^1.4.0
   simutil_apple: ^1.3.1
   simutil_core: ^1.3.0
   simutil_h264: ^0.1.0

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0
+
+- `emulatorCameraArgs(back:, front:)` builds `-camera-back` /
+  `-camera-front` emulator args from `webcam<N>`, `image:<path>`,
+  `video:<path>`, `virtualscene`, `emulated` or `none`.
+- `AndroidDeviceService.listWebcams()` lists the host cameras the emulator
+  can use (`emulator -webcam-list`).
+
 ## 1.3.0
 
 - `AndroidAutomation.install` runs `adb install -r -t` and reports the

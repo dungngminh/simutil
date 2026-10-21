@@ -15,6 +15,8 @@ final class DeviceSettings extends Equatable {
     this.stayAwake = true,
     this.turnScreenOff = false,
     this.powerOffOnClose = false,
+    this.cameraBack,
+    this.cameraFront,
   });
 
   /// Reads what [toJson] wrote; missing or invalid fields keep defaults.
@@ -31,6 +33,8 @@ final class DeviceSettings extends Equatable {
       turnScreenOff: readField<bool>(json, 'turnScreenOff') ?? d.turnScreenOff,
       powerOffOnClose:
           readField<bool>(json, 'powerOffOnClose') ?? d.powerOffOnClose,
+      cameraBack: readField<String>(json, 'cameraBack'),
+      cameraFront: readField<String>(json, 'cameraFront'),
     );
   }
 
@@ -61,6 +65,12 @@ final class DeviceSettings extends Equatable {
   /// scrcpy: turn the screen off when the stream closes.
   final bool powerOffOnClose;
 
+  /// Android emulator back / front camera source for the next boot (an
+  /// `emulatorCameraArgs` source such as `webcam0` or `image:<path>`);
+  /// null keeps the AVD's own setting.
+  final String? cameraBack;
+  final String? cameraFront;
+
   DeviceSettings copyWith({
     bool? Function()? headless,
     int? maxSize,
@@ -71,6 +81,8 @@ final class DeviceSettings extends Equatable {
     bool? stayAwake,
     bool? turnScreenOff,
     bool? powerOffOnClose,
+    String? Function()? cameraBack,
+    String? Function()? cameraFront,
   }) => DeviceSettings(
     headless: headless != null ? headless() : this.headless,
     maxSize: maxSize ?? this.maxSize,
@@ -81,6 +93,8 @@ final class DeviceSettings extends Equatable {
     stayAwake: stayAwake ?? this.stayAwake,
     turnScreenOff: turnScreenOff ?? this.turnScreenOff,
     powerOffOnClose: powerOffOnClose ?? this.powerOffOnClose,
+    cameraBack: cameraBack != null ? cameraBack() : this.cameraBack,
+    cameraFront: cameraFront != null ? cameraFront() : this.cameraFront,
   );
 
   Map<String, Object?> toJson() => {
@@ -93,6 +107,8 @@ final class DeviceSettings extends Equatable {
     'stayAwake': stayAwake,
     'turnScreenOff': turnScreenOff,
     'powerOffOnClose': powerOffOnClose,
+    'cameraBack': cameraBack,
+    'cameraFront': cameraFront,
   };
 
   @override
@@ -106,6 +122,8 @@ final class DeviceSettings extends Equatable {
     stayAwake,
     turnScreenOff,
     powerOffOnClose,
+    cameraBack,
+    cameraFront,
   ];
 }
 

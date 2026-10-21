@@ -267,6 +267,22 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
+  /// Host cameras the emulator can use as `webcam<N>` camera sources,
+  /// from `emulator -webcam-list`; empty when it fails.
+  Future<List<({String id, String name})>> listWebcams() async {
+    try {
+      final result = await _exec.run(emulatorPath, arguments: ['-webcam-list']);
+      return [
+        for (final m in RegExp(
+          r"Camera '(webcam\d+)' is connected to device '([^']*)'",
+        ).allMatches(result.stdout))
+          (id: m.group(1)!, name: m.group(2)!),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// Reads the device LAN IP via `ip route` / `ifconfig`.
   Future<String?> getDeviceIpAddress(String serial) async {
     try {

@@ -20,6 +20,7 @@ export 'src/scrcpy/scrcpy_install.dart';
 export 'src/scrcpy/scrcpy_session.dart';
 export 'src/models/adb_connect_result.dart';
 export 'src/models/android_quick_launch_option.dart';
+export 'src/models/emulator_camera.dart';
 export 'src/models/wifi_pairing_device.dart';
 export 'src/models/wireless_connect_request.dart';
 export 'src/models/wireless_pairing_info.dart';

@@ -58,6 +58,20 @@ List<CliCommandSpec> simutilCliCatalog({required String version}) => [
         description: 'Disable emulator audio (Android)',
       ),
       CliFlagSpec(
+        long: 'camera-back',
+        kind: CliArgKind.option,
+        valueName: 'source',
+        description:
+            'Android back camera: webcam<N>, image:<path>, video:<path>, '
+            'virtualscene, emulated, none',
+      ),
+      CliFlagSpec(
+        long: 'camera-front',
+        kind: CliArgKind.option,
+        valueName: 'source',
+        description: 'Android front camera (same sources)',
+      ),
+      CliFlagSpec(
         long: 'headless',
         description:
             'No emulator window / Simulator app (for streaming in another UI)',
@@ -68,6 +82,7 @@ List<CliCommandSpec> simutilCliCatalog({required String version}) => [
       'simutil start emulator-5554 -a',
       'simutil launch <avd> -c --no-audio',
       'simutil launch <udid> --headless',
+      'simutil launch <avd> --camera-back image:qr.png --camera-front webcam0',
     ],
   ),
   CliCommandSpec(

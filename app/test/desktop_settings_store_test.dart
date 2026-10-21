@@ -81,6 +81,8 @@ void main() {
       stayAwake: false,
       turnScreenOff: true,
       powerOffOnClose: true,
+      cameraBack: 'image:/tmp/qr.png',
+      cameraFront: 'webcam0',
     );
     ViewSettingsCubit(store: store)
       ..toggleHeadless()
