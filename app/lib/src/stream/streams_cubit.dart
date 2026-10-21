@@ -263,8 +263,9 @@ class StreamsCubit extends CubitSignal<StreamsState> {
   }
 }
 
-/// Default factory: scrcpy for Android, the native capture for iOS
-/// simulators and USB devices.
+/// Default factory: the emulator's own gRPC API for Android emulators on
+/// macOS (scrcpy when it has none), scrcpy for other Android devices, the
+/// native capture for iOS simulators and USB devices.
 DeviceSessionFactory defaultSessionFactory({
   required CommandExec exec,
   required String Function() adbPath,
@@ -274,6 +275,16 @@ DeviceSessionFactory defaultSessionFactory({
   return (device) async {
     switch (device.os) {
       case DeviceOs.android:
+        if (Platform.isMacOS && device.type.isSimulator) {
+          if (await _emulatorEndpoint(device.id) case final endpoint?) {
+            return EmulatorGrpcSession(
+              serial: device.id,
+              endpoint: endpoint,
+              adbPath: adbPath(),
+              exec: exec,
+            );
+          }
+        }
         final install = await (scrcpy ??= _locateScrcpy(exec));
         final options = settings(device);
         return ScrcpySession(
@@ -299,6 +310,18 @@ DeviceSessionFactory defaultSessionFactory({
         return IosSimSession(device.id, exec: exec);
     }
   };
+}
+
+/// The emulator writes its discovery file a moment after adb lists it.
+/// ponytail: macOS only until Linux / Windows get a shared-frame texture.
+Future<EmulatorEndpoint?> _emulatorEndpoint(String serial) async {
+  for (var attempt = 0; attempt < 10; attempt++) {
+    if (await EmulatorEndpoint.find(serial) case final endpoint?) {
+      return endpoint;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+  }
+  return null;
 }
 
 /// Version of `assets/scrcpy-server` (Genymobile/scrcpy release, Apache-2.0).

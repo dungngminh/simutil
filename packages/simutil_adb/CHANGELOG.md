@@ -2,6 +2,12 @@
 
 ## 1.4.0
 
+- `EmulatorGrpcSession` streams and controls an Android emulator over its
+  gRPC API (`streamScreenshot` with the MMAP transport into a caller-owned
+  RGB888 file, input through `streamInputEvent`, recording with
+  `adb emu screenrecord`), like Android Studio's embedded emulator.
+- `EmulatorEndpoint.find(serial)` reads an emulator's gRPC port and token
+  from its discovery file (`avd/running/pid_<pid>.ini`).
 - `emulatorCameraArgs(back:, front:)` builds `-camera-back` /
   `-camera-front` emulator args from `webcam<N>`, `image:<path>`,
   `video:<path>`, `virtualscene`, `emulated` or `none`; one webcam cannot

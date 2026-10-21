@@ -16,6 +16,19 @@ class _Scrcpy implements ScrcpySession {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _Emulator implements EmulatorGrpcSession {
+  final sent = <String>[];
+
+  @override
+  void typeText(String text) => sent.add(text);
+
+  @override
+  void pressKey(String key) => sent.add('<$key>');
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 KeyEvent _down(LogicalKeyboardKey key, {String? character}) => KeyDownEvent(
   physicalKey: PhysicalKeyboardKey.keyA,
   logicalKey: key,
@@ -51,5 +64,13 @@ void main() {
     );
     expect(sendKeyToDevice(s, _down(LogicalKeyboardKey.shiftLeft)), isFalse);
     expect(s.sent, ['a', 67, 21]);
+  });
+
+  test('Android emulator: text as text, special keys as W3C key values', () {
+    final s = _Emulator();
+    sendKeyToDevice(s, _down(LogicalKeyboardKey.keyA, character: 'a'));
+    sendKeyToDevice(s, _down(LogicalKeyboardKey.enter));
+    sendKeyToDevice(s, _down(LogicalKeyboardKey.arrowUp, character: ''));
+    expect(s.sent, ['a', '<Enter>', '<ArrowUp>']);
   });
 }

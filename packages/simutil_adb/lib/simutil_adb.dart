@@ -2,7 +2,8 @@
 ///
 /// Lists AVDs and hardware, launches the emulator, and handles wireless
 /// `adb connect` / `adb pair`, and streams/controls devices through scrcpy
-/// ([ScrcpySession]).
+/// ([ScrcpySession]) or emulators through their gRPC API
+/// ([EmulatorGrpcSession]).
 ///
 /// ```dart
 /// import 'package:simutil_adb/simutil_adb.dart';
@@ -15,6 +16,8 @@ library;
 
 export 'src/adb_wireless_pairing.dart';
 export 'src/android_device_service.dart';
+export 'src/emulator/emulator_endpoint.dart';
+export 'src/emulator/emulator_grpc_session.dart';
 export 'src/logcat_helper.dart';
 export 'src/scrcpy/scrcpy_install.dart';
 export 'src/scrcpy/scrcpy_session.dart';

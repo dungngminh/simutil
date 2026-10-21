@@ -64,7 +64,8 @@ stdio with the user:
 - Long-lived streaming / recording processes: the scrcpy server in
   `ScrcpySession` (`simutil_adb`), `simctl io recordVideo` in
   `SimulatorRecorder` (`simutil_apple`), and the grid recorder's ffmpeg in
-  `app/`.
+  `app/`. The emulator gRPC streams in `EmulatorGrpcSession` are not
+  processes either.
 
 **Testing:** import `package:simutil_core/testing.dart` (`FakeCommandExec`, `FakeDeviceService`, device fixtures) or `package:simutil_plugins/testing.dart` (`FakePluginRunner`) instead
 of spawning real processes. Never call `Process.run` inside service unit tests
@@ -111,8 +112,11 @@ installs Flutter for that.
   UI from the tokens and primitives, not Material styling. Screens live
   under `app/lib/src/ui/` (`devices/`, `streams/`), shared pieces in
   `app/lib/src/ui/shared/`.
-- Streaming goes through `DeviceSession` (`simutil_core`): `ScrcpySession`
-  for Android, `IosSimSession` (app) over the native `SimStreamPlugin` in
+- Streaming goes through `DeviceSession` (`simutil_core`): on macOS
+  `EmulatorGrpcSession` for Android emulators (the emulator's gRPC API,
+  raw RGB888 frames through a shared file shown by `SharedFrameTexture` in
+  `simutil_h264`), `ScrcpySession` for other Android devices and as the
+  fallback, `IosSimSession` (app) over the native `SimStreamPlugin` in
   `app/macos/Runner/SimStream.swift` (private CoreSimulator/SimulatorKit,
   adapted from serve-sim). macOS runs unsandboxed with library validation
   off for that.

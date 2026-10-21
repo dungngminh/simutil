@@ -58,6 +58,13 @@ melos:
         dart run packages/simutil/tool/generate_version.dart &&
         dart format packages/simutil/lib/src/version.dart packages/simutil_shared/lib/src/changelog_entries.dart
 
+    protoc:
+      description: Regenerate simutil_adb's emulator gRPC stubs (needs protoc and `dart pub global activate protoc_plugin`)
+      run: >-
+        protoc --dart_out=grpc:packages/simutil_adb/lib/src/emulator/generated
+        -Ipackages/simutil_adb/protos emulator_controller.proto &&
+        rm packages/simutil_adb/lib/src/emulator/generated/*.pbjson.dart
+
     compile:
       description: Compile the simutil executable to ./simutil
       run: dart compile exe packages/simutil/bin/simutil.dart -o simutil

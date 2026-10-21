@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   turns the camera off. Agents can pass
   a camera to launch_app over MCP. Uses serve-sim's camera injector.
 
+### Changed
+
+- Android emulators stream straight from the emulator on macOS, like
+  Android Studio's embedded emulator: a steady 60 fps with less load on
+  the emulator, sized to the view. Older emulators, ones started without
+  gRPC, and other platforms keep using scrcpy. Emulator recordings are
+  made by the emulator itself.
+
 ### Fixed
 
 - Android emulators started for streaming (headless) use your computer's

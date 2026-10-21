@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:simutil_adb/src/ffmpeg.dart';
 import 'package:simutil_adb/src/scrcpy/scrcpy_install.dart';
 import 'package:simutil_adb/src/scrcpy/scrcpy_protocol.dart';
 import 'package:simutil_adb/src/scrcpy/scrcpy_video_worker.dart';
@@ -373,31 +374,19 @@ class _ScrcpySession implements ScrcpySession {
     _recordingPath = null;
     if (path == null) return null;
     await _video?.record(null);
-    for (final ffmpeg in _ffmpegCandidates) {
-      final CommandResult remux;
-      try {
-        remux = await _exec.run(
-          ffmpeg,
-          arguments: [
-            '-y',
-            '-loglevel',
-            'error',
-            '-i',
-            '$path.ts',
-            '-c',
-            'copy',
-            path,
-          ],
-        );
-      } catch (_) {
-        continue;
-      }
-      if (remux.success) {
-        await File('$path.ts').delete();
-        return path;
-      }
-    }
-    return '$path.ts';
+    final remuxed = await runFfmpeg(_exec, [
+      '-y',
+      '-loglevel',
+      'error',
+      '-i',
+      '$path.ts',
+      '-c',
+      'copy',
+      path,
+    ]);
+    if (!remuxed) return '$path.ts';
+    await File('$path.ts').delete();
+    return path;
   }
 
   @override
@@ -428,12 +417,4 @@ class _ScrcpySession implements ScrcpySession {
     timeout: timeout,
     priority: CommandPriority.interactive,
   );
-
-  /// GUI apps on macOS do not inherit the shell PATH.
-  static const _ffmpegCandidates = [
-    'ffmpeg',
-    '/opt/homebrew/bin/ffmpeg',
-    '/usr/local/bin/ffmpeg',
-    '/usr/bin/ffmpeg',
-  ];
 }
