@@ -67,6 +67,11 @@ jobs:
           security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
           security set-key-partition-list -S apple-tool:,apple: -k ci "$KEYCHAIN"
           security list-keychains -d user -s "$KEYCHAIN"
+          # --deep skips Mach-O files in Resources: sign the simulator
+          # camera injector first.
+          codesign --force --timestamp --options runtime \
+            --sign "$MACOS_SIGNING_IDENTITY" \
+            "$APP/Contents/Resources/libSimCameraInjector.dylib"
           codesign --force --deep --timestamp --options runtime \
             --entitlements app/macos/Runner/Release.entitlements \
             --sign "$MACOS_SIGNING_IDENTITY" "$APP"

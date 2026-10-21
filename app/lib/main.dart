@@ -20,6 +20,7 @@ import 'package:simutil_app/src/mcp/tools/tool_context.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
+import 'package:simutil_app/src/stream/ios/sim_camera.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/stream/touch_marks.dart';
 import 'package:simutil_app/src/update/app_update_cubit.dart';
@@ -41,7 +42,10 @@ Future<void> main() async {
   getIt<AppUpdateCubit>().check();
   final devices = getIt<DevicesCubit>()..start();
   final streams = getIt<StreamsCubit>();
-  devices.state.subscribe((state) => streams.onDevices(state.all));
+  devices.state.subscribe((state) {
+    streams.onDevices(state.all);
+    SimCamera.onDevices(state.all);
+  });
   // Closing the window quits, after streams and recordings are released.
   windowManager.addListener(_QuitOnClose(quitApp));
   await windowManager.setPreventClose(true);

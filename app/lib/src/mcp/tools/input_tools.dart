@@ -6,6 +6,7 @@ import 'package:simutil_app/src/mcp/mcp_server.dart';
 import 'package:simutil_app/src/mcp/tools/tool_context.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/scenarios/scenario_yaml.dart';
+import 'package:simutil_app/src/stream/ios/sim_camera.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
 
@@ -69,20 +70,49 @@ List<McpTool> inputTools(ToolContext c) => [
     description:
         'Launch an app by Android package name or iOS bundle id '
         '(e.g. com.example.app), stopping it first if it runs; clear_state '
-        'also wipes its data (simulators and Android).',
+        'also wipes its data (simulators and Android). camera (iOS '
+        'simulators, macOS app) feeds its camera from webcam, '
+        'webcam:<name>, image:<path> or video:<path>.',
     properties: {
       ...deviceArg,
       'app': {'type': 'string'},
       'clear_state': {'type': 'boolean', 'default': false},
+      'camera': {'type': 'string'},
     },
     required: ['device', 'app'],
     handler: (args) async {
       final app = args['app'];
       if (app is! String || app.isEmpty) throw ArgumentError('app required');
       final clear = args['clear_state'] == true;
-      await c.automation.launch(c.find(args), app, clearState: clear);
+      final camera = switch (args['camera']) {
+        final String value when value.isNotEmpty => SimCamera.parse(value),
+        _ => null,
+      };
+      final device = c.find(args);
+      if (camera == null) {
+        await c.automation.launch(device, app, clearState: clear);
+      } else {
+        if (device.os != DeviceOs.ios || device.type.isPhysical) {
+          throw ArgumentError(
+            'camera needs an iOS simulator; pick Android emulator cameras '
+            'with start_device cameraBack / cameraFront',
+          );
+        }
+        if (clear) await c.automation.launch(device, app, clearState: true);
+        await SimCamera.launch(
+          getIt<IosAutomation>(),
+          device,
+          app,
+          source: camera.source,
+          arg: camera.arg,
+        );
+      }
       return c.text(
-        clear ? 'Launched $app with a clean state' : 'Launched $app',
+        [
+          'Launched $app',
+          if (clear) 'with a clean state',
+          if (camera != null) 'with its camera on ${args['camera']}',
+        ].join(' '),
       );
     },
   ),

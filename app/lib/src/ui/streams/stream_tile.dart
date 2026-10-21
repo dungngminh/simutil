@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
@@ -355,10 +356,13 @@ List<TileAction> _tileActions(
         (s) => s.copyWith(showFrame: !s.showFrame),
       ),
     ),
-    if (device.os == DeviceOs.android && !device.type.isPhysical)
+    if (!device.type.isPhysical &&
+        (device.os == DeviceOs.android || Platform.isMacOS))
       TileAction(
         icon: LucideIcons.webcam,
-        label: 'Camera source (restarts the emulator)',
+        label: device.os == DeviceOs.android
+            ? 'Camera source (restarts the emulator)'
+            : 'Camera source',
         priority: 3,
         onPressed: live ? () => showCameraMenu(context, device) : null,
       ),

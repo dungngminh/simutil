@@ -1,0 +1,17 @@
+SimCameraInjector
+
+The Objective-C sources in this directory (everything except build.sh,
+NOTICE and LICENSE) are copied from serve-sim
+(https://github.com/EvanBacon/serve-sim, packages/serve-sim/Sources/
+SimCameraInjector at commit a30d70a55e05654d974c86803b68d4f675be77e3,
+serve-sim 0.1.46), Copyright Evan Bacon, licensed under the Apache
+License, Version 2.0 (see LICENSE in this directory).
+
+Modifications by SimUtil: the fake camera names (SimCamFakes.m), its
+manufacturer (SimCamFakes.m) and the fallback image text
+(SimCamFrameSource.m) say SimUtil instead of serve-sim.
+
+SimUtil builds them into libSimCameraInjector.dylib (build.sh, run by the
+Runner target) and ships it in the macOS app bundle's Resources. The
+host-side feed in ../Runner/SimCameraFeed.m is adapted from serve-sim's
+Sources/SimCameraHelper/main.m.

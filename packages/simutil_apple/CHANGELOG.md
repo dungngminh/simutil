@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0
+
+- `IosAutomation.launchWithCamera` grants a simulator app camera access and
+  relaunches it with a camera injector dylib inserted
+  (`SIMCTL_CHILD_DYLD_INSERT_LIBRARIES`) and its shared memory name
+  (`SIMCTL_CHILD_SIMCAM_SHM_NAME`), for the SimUtil desktop app's simulator
+  camera.
+- `IosAutomation.installedApps` lists a simulator's user-installed apps
+  (`simctl listapps`).
+
 ## 1.3.1
 
 - `IOSDeviceService.getPhysicalDevices` passes

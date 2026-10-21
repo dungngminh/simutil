@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   used from the next start) or the camera button on a running emulator's
   stream (restarts it). SimUtil asks for Camera access before an emulator
   uses your webcam. Agents can set it over MCP too.
+- Give iOS simulator apps a camera (macOS): pick your Mac's webcam, an
+  image or a looping video from the device menu (Camera) or the camera
+  button on its stream, then open an app with it; switching the source
+  updates running apps live, and closing its stream or shutting it down
+  turns the camera off. Agents can pass
+  a camera to launch_app over MCP. Uses serve-sim's camera injector.
 
 ### Fixed
 

@@ -13,6 +13,8 @@ class MainFlutterWindow: NSWindow {
       with: flutterViewController.registrar(forPlugin: "SimStreamPlugin"))
     DeviceStreamPlugin.register(
       with: flutterViewController.registrar(forPlugin: "DeviceStreamPlugin"))
+    SimCameraPlugin.register(
+      with: flutterViewController.registrar(forPlugin: "SimCameraPlugin"))
     WindowRecorderPlugin.register(
       with: flutterViewController.registrar(forPlugin: "WindowRecorderPlugin"))
 

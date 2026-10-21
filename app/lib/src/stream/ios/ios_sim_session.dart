@@ -7,6 +7,7 @@ import 'package:simutil_core/simutil_core.dart';
 
 import 'package:simutil_app/src/stream/stream_fps.dart';
 import 'package:simutil_app/src/stream/ios/apple_chrome.dart';
+import 'package:simutil_app/src/stream/ios/sim_camera.dart';
 
 /// [DeviceSession] for a booted iOS simulator, backed by the native
 /// `SimStreamPlugin` (macOS): the framebuffer is a Flutter texture and input
@@ -248,6 +249,8 @@ class IosSimSession implements DeviceSession {
     if (_active[udid] == this) _active.remove(udid);
     removeFrameCounter(this, _framesShown);
     await _channel.invokeMethod<void>('stop', {'udid': udid});
+    // Closing the stream turns the simulator's camera (and webcam) off too.
+    await SimCamera.stop(udid);
     await _statusController.close();
   }
 }

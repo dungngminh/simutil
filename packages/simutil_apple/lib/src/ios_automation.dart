@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:simutil_apple/src/simulator_app_converter.dart';
@@ -15,6 +16,20 @@ abstract interface class IosAutomation implements DeviceAutomation {
   /// [device] after [convertForSimulator] on a temporary copy; [path] is
   /// left untouched. For a [DeviceOnlyBuildException] from [install].
   Future<void> installForSimulator(Device device, String path);
+
+  /// User-installed apps on simulator [device] as (bundle id, name), sorted
+  /// by name.
+  Future<List<({String id, String name})>> installedApps(Device device);
+
+  /// Grants app [appId] camera access on simulator [device] and (re)launches
+  /// it with the camera injector [dylib] inserted (`DYLD_INSERT_LIBRARIES`),
+  /// reading frames from the POSIX shared memory region [shmName].
+  Future<void> launchWithCamera(
+    Device device,
+    String appId, {
+    required String dylib,
+    required String shmName,
+  });
 }
 
 /// [IosAutomation.install] was given a device-only build for a simulator;
@@ -202,6 +217,77 @@ class _IosAutomation implements IosAutomation {
               device.id,
               appId,
             ],
+      timeout: const Duration(seconds: 30),
+    );
+    if (!result.success) {
+      throw StateError(
+        'Could not launch $appId on ${device.name}: ${result.stderr}'.trim(),
+      );
+    }
+  }
+
+  @override
+  Future<List<({String id, String name})>> installedApps(Device device) async {
+    // simctl prints an old-style plist; plutil turns it into JSON.
+    final result = await _exec.run(
+      'sh',
+      arguments: [
+        '-c',
+        r'xcrun simctl listapps "$0" | plutil -convert json -o - -',
+        device.id,
+      ],
+      timeout: const Duration(seconds: 15),
+    );
+    if (!result.success) {
+      throw StateError(
+        'Could not list apps on ${device.name}: ${result.stderr}'.trim(),
+      );
+    }
+    final apps = [
+      for (final MapEntry(:key, :value)
+          in (jsonDecode(result.stdout) as Map<String, Object?>).entries)
+        if (value case {'ApplicationType': 'User'} && final Map info)
+          (
+            id: key,
+            name:
+                (info['CFBundleDisplayName'] ?? info['CFBundleName'] ?? key)
+                    as String,
+          ),
+    ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return apps;
+  }
+
+  @override
+  Future<void> launchWithCamera(
+    Device device,
+    String appId, {
+    required String dylib,
+    required String shmName,
+  }) async {
+    if (device.type.isPhysical) {
+      throw UnsupportedError('Camera injection needs a simulator');
+    }
+    // ponytail: best effort; an app without a camera usage description
+    // still launches, and the dylib does not check authorization anyway.
+    await _exec.run(
+      'xcrun',
+      arguments: ['simctl', 'privacy', device.id, 'grant', 'camera', appId],
+      timeout: const Duration(seconds: 15),
+    );
+    // CommandExec has no environment; env(1) sets the SIMCTL_CHILD_ variables
+    // simctl forwards to the app.
+    final result = await _exec.run(
+      'env',
+      arguments: [
+        'SIMCTL_CHILD_DYLD_INSERT_LIBRARIES=$dylib',
+        'SIMCTL_CHILD_SIMCAM_SHM_NAME=$shmName',
+        'xcrun',
+        'simctl',
+        'launch',
+        '--terminate-running-process',
+        device.id,
+        appId,
+      ],
       timeout: const Duration(seconds: 30),
     );
     if (!result.success) {
