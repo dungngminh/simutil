@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stream (restarts it). SimUtil asks for Camera access before an emulator
   uses your webcam. Agents can set it over MCP too.
 
+### Fixed
+
+- Android emulators started for streaming (headless) use your computer's
+  GPU: their stream runs at full speed instead of a few frames a second.
+- Streaming an Android emulator right as it starts no longer fails with
+  "scrcpy server did not start"; the stream waits for Android to finish
+  booting.
+
 ## [0.4.0]
 
 ### Added

@@ -8,6 +8,13 @@
   be both cameras.
 - `AndroidDeviceService.listWebcams()` lists the host cameras the emulator
   can use (`emulator -webcam-list`).
+- `launchDevice(headless: true)` also adds
+  `AndroidDeviceService.headlessGpuArgs` (`-gpu host`) unless the caller
+  passes `-gpu`: headless emulators otherwise render in software (lavapipe)
+  and stream at ~5 fps instead of ~55.
+- `ScrcpySession.start` waits (up to 3 min) for `sys.boot_completed` before
+  starting the server, which crashed when started on a still-booting
+  emulator.
 
 ## 1.3.0
 

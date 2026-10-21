@@ -24,7 +24,9 @@ void main() {
 
       expect(await statuses, [
         const SessionConnecting(),
-        const SessionFailed('Bad state: adb push failed: device offline'),
+        const SessionFailed(
+          'Bad state: device did not finish booting: device offline',
+        ),
       ]);
     },
   );

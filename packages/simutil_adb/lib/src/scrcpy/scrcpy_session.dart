@@ -195,6 +195,15 @@ class _ScrcpySession implements ScrcpySession {
   }
 
   Future<void> _startServer() async {
+    // adb lists an emulator while Android is still booting; the server needs
+    // system services (its cleanup thread crashes on a null ActivityManager).
+    final boot = await _adb([
+      'shell',
+      'while [ "\$(getprop sys.boot_completed)" != 1 ]; do sleep 1; done',
+    ], timeout: _bootTimeout);
+    if (!boot.success) {
+      throw StateError('device did not finish booting: ${boot.stderr.trim()}');
+    }
     final push = await _adb(['push', install.serverPath, _remoteJar]);
     if (!push.success) {
       throw StateError('adb push failed: ${push.stderr.trim()}');
@@ -407,10 +416,16 @@ class _ScrcpySession implements ScrcpySession {
     await _statusController.close();
   }
 
-  Future<CommandResult> _adb(List<String> args) => _exec.run(
+  /// A cold boot can take minutes after adb first sees the emulator.
+  static const _bootTimeout = Duration(minutes: 3);
+
+  Future<CommandResult> _adb(
+    List<String> args, {
+    Duration timeout = const Duration(seconds: 30),
+  }) => _exec.run(
     adbPath,
     arguments: ['-s', serial, ...args],
-    timeout: const Duration(seconds: 30),
+    timeout: timeout,
     priority: CommandPriority.interactive,
   );
 

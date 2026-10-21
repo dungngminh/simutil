@@ -413,6 +413,24 @@ void main() {
       expect(exec.calls.single.arguments, [
         '@Pixel_7',
         ...AndroidDeviceService.headlessArgs,
+        ...AndroidDeviceService.headlessGpuArgs,
+      ]);
+    });
+
+    test('headless keeps the gpu mode the caller passes', () async {
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+
+      await service(exec).launchDevice(
+        deviceId: 'Pixel_7',
+        headless: true,
+        additionalArgs: ['-gpu', 'swiftshader_indirect'],
+      );
+
+      expect(exec.calls.single.arguments, [
+        '@Pixel_7',
+        ...AndroidDeviceService.headlessArgs,
+        '-gpu',
+        'swiftshader_indirect',
       ]);
     });
 
@@ -428,6 +446,7 @@ void main() {
       expect(exec.calls.single.arguments, [
         '@Pixel_7',
         ...AndroidDeviceService.headlessArgs,
+        ...AndroidDeviceService.headlessGpuArgs,
         '-no-snapshot-load',
       ]);
     });

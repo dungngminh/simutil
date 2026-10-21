@@ -197,6 +197,8 @@ class AndroidDeviceService implements DeviceService {
     final launchArgs = {
       '@$deviceId',
       if (headless) ...headlessArgs,
+      // The caller's own `-gpu` wins; a set would merge the two values.
+      if (headless && !additionalArgs.contains('-gpu')) ...headlessGpuArgs,
       ...additionalArgs,
     }.toList();
     await _exec.run(
@@ -209,6 +211,11 @@ class AndroidDeviceService implements DeviceService {
   /// Emulator flags added by `headless`: no window, audio or boot animation,
   /// so many emulators fit at once while something else shows the screen.
   static const headlessArgs = ['-no-window', '-no-audio', '-no-boot-anim'];
+
+  /// GPU flags added by `headless` unless the caller passes `-gpu`: without a
+  /// window `-gpu auto` picks software rendering (lavapipe), which streams
+  /// at ~5 fps; the host GPU streams at ~55.
+  static const headlessGpuArgs = ['-gpu', 'host'];
 
   /// Runs `adb connect [host]`.
   Future<AdbConnectResult> connectDevice(String host) async {
