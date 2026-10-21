@@ -355,6 +355,13 @@ List<TileAction> _tileActions(
         (s) => s.copyWith(showFrame: !s.showFrame),
       ),
     ),
+    if (device.os == DeviceOs.android && !device.type.isPhysical)
+      TileAction(
+        icon: LucideIcons.webcam,
+        label: 'Camera source (restarts the emulator)',
+        priority: 3,
+        onPressed: live ? () => showCameraMenu(context, device) : null,
+      ),
     if (!device.type.isPhysical)
       TileAction(
         icon: LucideIcons.power,

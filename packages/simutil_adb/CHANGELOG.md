@@ -4,7 +4,8 @@
 
 - `emulatorCameraArgs(back:, front:)` builds `-camera-back` /
   `-camera-front` emulator args from `webcam<N>`, `image:<path>`,
-  `video:<path>`, `virtualscene`, `emulated` or `none`.
+  `video:<path>`, `virtualscene`, `emulated` or `none`; one webcam cannot
+  be both cameras.
 - `AndroidDeviceService.listWebcams()` lists the host cameras the emulator
   can use (`emulator -webcam-list`).
 

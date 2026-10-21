@@ -47,6 +47,10 @@ void main() {
       expect(() => emulatorCameraArgs(back: 'webcam'), throwsFormatException);
       expect(() => emulatorCameraArgs(back: 'image:'), throwsFormatException);
       expect(
+        () => emulatorCameraArgs(back: 'webcam0', front: 'webcam0'),
+        throwsFormatException,
+      );
+      expect(
         () => emulatorCameraArgs(front: 'video:/no/such/file.mp4'),
         throwsFormatException,
       );

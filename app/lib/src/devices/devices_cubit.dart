@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:bloc_signals/bloc_signals.dart';
+import 'package:flutter/services.dart';
 import 'package:simutil_app/src/devices/devices_state.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_shared/simutil_shared.dart';
@@ -30,7 +31,9 @@ class DevicesCubit extends CubitSignal<DevicesState> {
     bool Function()? slimOnLaunch,
     bool? loadIos,
     Duration pollInterval = const Duration(seconds: 1),
+    Future<bool> Function()? cameraAccess,
   }) : _android = android,
+       _cameraAccess = cameraAccess ?? _requestCameraAccess,
        _slimOnLaunch = slimOnLaunch,
        _pollInterval = pollInterval,
        _ios = ios,
@@ -45,6 +48,9 @@ class DevicesCubit extends CubitSignal<DevicesState> {
 
   final DeviceService _android;
   final DeviceService _ios;
+
+  /// Asks for Camera access before an emulator boots with a host webcam.
+  final Future<bool> Function() _cameraAccess;
   final SlimControl? _slim;
 
   /// Whether simulators are written slim before they boot (Slim mode).
@@ -135,13 +141,23 @@ class DevicesCubit extends CubitSignal<DevicesState> {
         _setMessage('Slim failed for ${device.name}: $e');
       }
     }
+    // The emulator reads the webcam under SimUtil's Camera permission;
+    // without it the camera gets no frames and the emulator's screen hangs.
+    var camera = android ? cameraArgs : const <String>[];
+    if (camera.any((a) => a.startsWith('webcam')) && !await _cameraAccess()) {
+      _setMessage(
+        'Allow SimUtil in System Settings › Privacy & Security › Camera to '
+        'use a webcam; starting ${device.name} with its own cameras',
+      );
+      camera = const [];
+    }
     final launching = _serviceFor(device).launchDevice(
       deviceId: device.id,
       headless: headless,
       additionalArgs: [
         if (coldBoot && android) '-no-snapshot-load',
         if (noAudio && android) '-no-audio',
-        if (android) ...cameraArgs,
+        ...camera,
       ],
     );
     unawaited(
@@ -308,3 +324,11 @@ class DevicesCubit extends CubitSignal<DevicesState> {
     await super.close();
   }
 }
+
+/// macOS asks the user once; other platforms have no camera permission.
+Future<bool> _requestCameraAccess() async =>
+    !Platform.isMacOS ||
+    (await const MethodChannel(
+          'simutil/ios_device_stream',
+        ).invokeMethod<bool>('camera_access') ??
+        false);

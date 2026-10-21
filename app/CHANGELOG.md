@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Pick what an Android emulator's back and front cameras see from the
-  device menu (Camera): your Mac's webcam, an image or a video file. It
-  applies the next time the emulator starts, and agents can set it over
-  MCP too.
+- Pick what an Android emulator's back and front cameras see: your Mac's
+  webcam, an image or a video file. Set it from the device menu (Camera,
+  used from the next start) or the camera button on a running emulator's
+  stream (restarts it). SimUtil asks for Camera access before an emulator
+  uses your webcam. Agents can set it over MCP too.
 
 ## [0.4.0]
 

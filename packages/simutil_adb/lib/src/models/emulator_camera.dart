@@ -6,11 +6,23 @@ final _plainModes = RegExp(r'^(emulated|none|virtualscene|webcam\d+)$');
 ///
 /// A source is `emulated`, `none`, `virtualscene`, `webcam<N>` (host camera,
 /// see `emulator -webcam-list`), `image:<path>` or `video:<path>`. Paths are
-/// made absolute and must exist. Throws [FormatException] otherwise.
-List<String> emulatorCameraArgs({String? back, String? front}) => [
-  if (back != null) ...['-camera-back', _cameraMode(back)],
-  if (front != null) ...['-camera-front', _cameraMode(front)],
-];
+/// made absolute and must exist. One webcam cannot feed both cameras (the
+/// emulator then crashes the camera app). Throws [FormatException] otherwise.
+List<String> emulatorCameraArgs({String? back, String? front}) {
+  final backMode = back == null ? null : _cameraMode(back);
+  final frontMode = front == null ? null : _cameraMode(front);
+  if (backMode != null &&
+      backMode == frontMode &&
+      backMode.startsWith('webcam')) {
+    throw FormatException(
+      '$backMode cannot be both the back and front camera.',
+    );
+  }
+  return [
+    if (backMode != null) ...['-camera-back', backMode],
+    if (frontMode != null) ...['-camera-front', frontMode],
+  ];
+}
 
 String _cameraMode(String source) {
   final value = source.trim();

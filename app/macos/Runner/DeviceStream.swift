@@ -197,6 +197,12 @@ final class DeviceStreamPlugin: NSObject, FlutterPlugin {
   }
 
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    // ponytail: rides this channel since it already owns camera access; an
+    // emulator's webcam runs under SimUtil's Camera permission.
+    if call.method == "camera_access" {
+      Task { result(await AVCaptureDevice.requestAccess(for: .video)) }
+      return
+    }
     let args = call.arguments as? [String: Any] ?? [:]
     guard let udid = args["udid"] as? String else {
       return result(FlutterError(code: "args", message: "udid required", details: nil))

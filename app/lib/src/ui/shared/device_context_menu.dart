@@ -21,12 +21,31 @@ import 'package:tray_manager/tray_manager.dart' as native;
 // restart; re-list on every menu open if that matters.
 Future<List<({String id, String name})>>? _webcams;
 
+Future<List<({String id, String name})>> _listWebcams() =>
+    _webcams ??= getIt<AndroidDeviceService>().listWebcams();
+
+/// The camera sources of a running Android emulator as their own menu (from
+/// its stream header); a pick restarts it so the camera changes right away.
+Future<void> showCameraMenu(BuildContext context, Device device) async {
+  final webcams = await _listWebcams();
+  if (!context.mounted) return;
+  final settingsCubit = context.read<DeviceSettingsCubit>();
+  showNativeMenu(
+    () => [
+      _cameraSides(settingsCubit.of(device), webcams, (change) {
+        settingsCubit.update(device, change);
+        if (context.mounted) DeviceCommands(context, device).restart();
+      }),
+    ],
+  );
+}
+
 /// Opens a native context menu for [device] at the cursor: its actions plus
 /// per-device settings.
 Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
   final emulator = device.os == DeviceOs.android && !device.type.isPhysical;
   final webcams = emulator
-      ? await (_webcams ??= getIt<AndroidDeviceService>().listWebcams())
+      ? await _listWebcams()
       : const <({String id, String name})>[];
   if (!context.mounted) return;
   final settingsCubit = context.read<DeviceSettingsCubit>();
@@ -39,7 +58,13 @@ Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
       _actionItems(context, device),
       if (!busy) _deviceItems(context, device),
       if (!device.type.isPhysical) _launchItems(context, device, set),
-      if (emulator) _cameraItems(settingsCubit.of(device), webcams, set),
+      if (emulator)
+        [
+          menuSubmenu(
+            'Camera (next boot)',
+            _cameraSides(settingsCubit.of(device), webcams, set),
+          ),
+        ],
       _streamItems(context, device, set),
       if (!device.type.isPhysical && !busy) _deleteItems(context, device),
     ],
@@ -134,7 +159,7 @@ List<native.MenuItem> _launchItems(
 /// Back / front camera source of an Android emulator, used from its next
 /// boot: the AVD default, the emulator's fake camera, a host webcam, an
 /// image or a video file.
-List<native.MenuItem> _cameraItems(
+List<native.MenuItem> _cameraSides(
   DeviceSettings settings,
   List<({String id, String name})> webcams,
   void Function(DeviceSettings Function(DeviceSettings)) set,
@@ -181,20 +206,18 @@ List<native.MenuItem> _cameraItems(
   }
 
   return [
-    menuSubmenu('Camera (next boot)', [
-      side(
-        'Back camera',
-        settings.cameraBack,
-        back: true,
-        pick: (v) => set((s) => s.copyWith(cameraBack: () => v)),
-      ),
-      side(
-        'Front camera',
-        settings.cameraFront,
-        back: false,
-        pick: (v) => set((s) => s.copyWith(cameraFront: () => v)),
-      ),
-    ]),
+    side(
+      'Back camera',
+      settings.cameraBack,
+      back: true,
+      pick: (v) => set((s) => s.copyWith(cameraBack: () => v)),
+    ),
+    side(
+      'Front camera',
+      settings.cameraFront,
+      back: false,
+      pick: (v) => set((s) => s.copyWith(cameraFront: () => v)),
+    ),
   ];
 }
 
