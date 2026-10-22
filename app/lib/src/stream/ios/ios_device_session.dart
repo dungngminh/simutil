@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 import 'package:simutil_app/src/stream/ios/apple_chrome.dart';
@@ -20,7 +21,7 @@ class IosDeviceSession implements DeviceSession {
     _ensureHandler();
   }
 
-  /// devicectl identifier.
+  /// Hardware UDID.
   final String udid;
 
   /// Device name, as the capture device reports it.
@@ -91,8 +92,8 @@ class IosDeviceSession implements DeviceSession {
       }))!;
       textureId = result['textureId']! as int;
       setFrameCounter(this, _framesShown);
-      // Off the start path: devicectl takes a second or more, and sessions
-      // start one at a time.
+      // Off the start path: the model lookup can fall back to devicectl,
+      // which takes a second or more, and sessions start one at a time.
       if (chrome == null) unawaited(_attachChrome());
       // Live once the first frame reports its size.
     } on PlatformException catch (e) {
@@ -115,8 +116,11 @@ class IosDeviceSession implements DeviceSession {
     return AppleChrome.load(_chromeChannel, udid, model: model);
   }
 
-  /// Hardware model (`iPhone15,2`) from devicectl.
+  /// Hardware model (`iPhone15,2`) from lockdownd, or devicectl when
+  /// usbmuxd does not have the device.
   Future<String?> _productType() async {
+    final values = await lockdownValues(udid);
+    if (values?['ProductType'] case final String type) return type;
     final dir = await Directory.systemTemp.createTemp('simutil-device-');
     final file = File('${dir.path}/info.json');
     try {

@@ -158,6 +158,65 @@ void main() {
     test('returns empty list for missing result', () {
       expect(IOSDeviceService.parsePhysicalDevices({}), isEmpty);
     });
+
+    test('uses the hardware UDID over the CoreDevice identifier', () {
+      final json = {
+        'result': {
+          'devices': [
+            {
+              'identifier': 'BB41C231-E589-59F1-B499-80349FE48FA5',
+              'deviceProperties': {'name': 'iPhone', 'osVersionNumber': '26'},
+              'hardwareProperties': {
+                'reality': 'physical',
+                'udid': '00008130-000A2DDA1AE0001C',
+              },
+              'connectionProperties': {'transportType': 'wired'},
+            },
+          ],
+        },
+      };
+
+      expect(
+        IOSDeviceService.parsePhysicalDevices(json).single.id,
+        '00008130-000A2DDA1AE0001C',
+      );
+    });
+  });
+
+  group('getPhysicalDevices', () {
+    final usbmuxPhone = Device.ios(
+      id: 'U1',
+      name: 'iPhone',
+      state: DeviceState.booted,
+      type: DeviceType.physical,
+    );
+
+    test('uses usbmuxd without running devicectl', () async {
+      if (!Platform.isMacOS) return;
+      final exec = FakeCommandExec((_, _) {
+        throw StateError('devicectl should not run');
+      });
+      final service = IOSDeviceService(
+        exec,
+        listUsbmuxDevices: () async => [usbmuxPhone],
+      );
+
+      expect(await service.getPhysicalDevices(), [usbmuxPhone]);
+      expect(exec.calls, isEmpty);
+    });
+
+    test('falls back to devicectl when usbmuxd does not answer', () async {
+      if (!Platform.isMacOS) return;
+      final exec = FakeCommandExec((_, _) => null);
+      final service = IOSDeviceService(
+        exec,
+        pathExists: (_) => false,
+        listUsbmuxDevices: () async => null,
+      );
+
+      expect(await service.getPhysicalDevices(), isEmpty);
+      expect(exec.calls.map((c) => c.arguments.first), contains('devicectl'));
+    });
   });
 
   group('resolveSimulatorAppPath', () {
@@ -327,7 +386,7 @@ void main() {
       final exec = FakeCommandExec((_, _) {
         throw StateError('command should not run on non-macOS');
       });
-      final service = IOSDeviceService(exec);
+      final service = IOSDeviceService(exec, listUsbmuxDevices: () async => []);
 
       if (Platform.isMacOS) {
         // On macOS the guard does not apply; nothing to assert here.

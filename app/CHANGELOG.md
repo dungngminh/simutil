@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Connected iPhones and iPads show up faster, and their device frame loads
+  without waiting on `devicectl`.
 - Android emulators stream straight from the emulator on macOS, like
   Android Studio's embedded emulator: a steady 60 fps with less load on
   the emulator, sized to the view. Older emulators, ones started without

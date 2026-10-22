@@ -4,9 +4,11 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:simutil_apple/src/apple_device_watch.dart';
+import 'package:simutil_apple/src/usbmux.dart' as usbmux;
 import 'package:simutil_core/simutil_core.dart';
 
-/// Apple simulators (`simctl`) and physical devices (`devicectl`).
+/// Apple simulators (`simctl`) and physical devices (usbmuxd + lockdownd,
+/// falling back to `devicectl`).
 ///
 /// Covers iPhone, iPad, Watch, TV, and other CoreSimulator runtimes.
 /// No-ops on non-macOS hosts.
@@ -14,12 +16,18 @@ class IOSDeviceService implements DeviceService {
   /// Creates a service that runs `xcrun` via [CommandExec].
   ///
   /// [pathExists] overrides the directory check used to locate the
-  /// simulator app (for tests).
-  IOSDeviceService(this._exec, {bool Function(String path)? pathExists})
-    : _pathExists = pathExists ?? _directoryExists;
+  /// simulator app, and [listUsbmuxDevices] the usbmuxd device lookup
+  /// (both for tests).
+  IOSDeviceService(
+    this._exec, {
+    bool Function(String path)? pathExists,
+    Future<List<Device>?> Function()? listUsbmuxDevices,
+  }) : _pathExists = pathExists ?? _directoryExists,
+       _listUsbmuxDevices = listUsbmuxDevices ?? usbmux.listUsbmuxDevices;
 
   final CommandExec _exec;
   final bool Function(String path) _pathExists;
+  final Future<List<Device>?> Function() _listUsbmuxDevices;
 
   static bool _directoryExists(String path) => Directory(path).existsSync();
 
@@ -258,10 +266,16 @@ class IOSDeviceService implements DeviceService {
         );
   }
 
+  /// Asks usbmuxd and each device's lockdownd first: no process, and no
+  /// simulators to filter out. `devicectl` (a second or more) only runs when
+  /// usbmuxd does not answer.
   @override
   Future<List<Device>> getPhysicalDevices() async {
     if (!Platform.isMacOS) return [];
+    return await _listUsbmuxDevices() ?? await _listDevicectlDevices();
+  }
 
+  Future<List<Device>> _listDevicectlDevices() async {
     final tempDirectory = Directory.systemTemp;
     final outputFile = File('${tempDirectory.path}/ios_devices.json');
 
@@ -282,7 +296,7 @@ class IOSDeviceService implements DeviceService {
 
       return parsePhysicalDevices(json);
     } catch (e, st) {
-      log('IOSDeviceService.getPhysicalDevices error: $e\n$st');
+      log('IOSDeviceService._listDevicectlDevices error: $e\n$st');
       return [];
     } finally {
       if (outputFile.existsSync()) {
@@ -322,7 +336,11 @@ class IOSDeviceService implements DeviceService {
           map['deviceProperties'] as Map<String, dynamic>? ?? {};
       final connectionProps =
           map['connectionProperties'] as Map<String, dynamic>? ?? {};
-      final identifier = map['identifier'] as String? ?? '';
+      final hardware = map['hardwareProperties'] as Map<String, dynamic>?;
+      // The hardware UDID, as usbmuxd reports it; `identifier` is a
+      // CoreDevice UUID.
+      final identifier =
+          hardware?['udid'] as String? ?? map['identifier'] as String? ?? '';
       final name = deviceProps['name'] as String? ?? '';
       final osVersion = deviceProps['osVersionNumber'] as String? ?? '';
       if (_deviceReality(map) == 'simulated') continue;
