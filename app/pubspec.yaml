@@ -1,7 +1,7 @@
 name: simutil_app
 description: SimUtil desktop app — multi-device streaming.
 publish_to: none
-version: 0.4.0
+version: 0.5.0
 resolution: workspace
 
 environment:
