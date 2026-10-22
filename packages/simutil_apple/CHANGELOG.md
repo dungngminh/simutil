@@ -2,6 +2,15 @@
 
 ## 1.4.0
 
+- `IOSDeviceService.getPhysicalDevices` asks usbmuxd (`ListDevices`) and
+  each device's lockdownd (`GetValue`, no pairing session) instead of
+  running `devicectl`; it falls back to `devicectl list devices` only when
+  usbmuxd or a device does not answer. Device ids are now hardware UDIDs on
+  both paths (`hardwareProperties.udid` from `devicectl`), not CoreDevice
+  identifiers. New optional `listUsbmuxDevices` constructor parameter for
+  tests.
+- `lockdownValues(udid)` reads a connected device's lockdownd values
+  (`DeviceName`, `ProductType`, `ProductVersion`, ...).
 - `IosAutomation.launchWithCamera` grants a simulator app camera access and
   relaunches it with a camera injector dylib inserted
   (`SIMCTL_CHILD_DYLD_INSERT_LIBRARIES`) and its shared memory name

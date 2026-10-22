@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `simutil launch --camera-back` / `--camera-front` feed an Android emulator's camera from your Mac's webcam, an image or a video file (`webcam0`, `image:qr.png`, `video:clip.mp4`).
 
+### Changed
+
+- Connected iPhones and iPads show up faster: SimUtil asks the Mac's device service directly and only falls back to `devicectl` when that does not answer.
+
 ### Fixed
 
 - Headless Android emulators (`simutil launch --headless`) use your computer's GPU, so they run much faster.
