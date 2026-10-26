@@ -258,7 +258,7 @@ class _ToastFeedsState extends State<_ToastFeeds> {
       showNotice(
         context,
         '$name opened in its own window',
-        subtitle: 'Back to the main window or close it to return',
+        subtitle: 'Use "Back to the main window" to return it to the grid',
       );
     }
   }

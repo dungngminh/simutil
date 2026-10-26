@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -419,7 +420,19 @@ List<TileAction> _tileActions(
             ? null
             : () async {
                 await streams.closeStream(device.id);
-                await getIt<DeviceWindows>().open(device);
+                try {
+                  await getIt<DeviceWindows>().open(device);
+                } catch (e) {
+                  // No window: stream it in the grid again.
+                  unawaited(streams.open(device, here: true));
+                  if (!context.mounted) return;
+                  showNotice(
+                    context,
+                    'Could not open ${device.name} in its own window',
+                    subtitle: '$e',
+                    tone: NoticeTone.error,
+                  );
+                }
               },
       ),
     TileAction(

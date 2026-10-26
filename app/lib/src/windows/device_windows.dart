@@ -92,7 +92,13 @@ class DeviceWindows {
 
   /// Has every device window stop its stream; for quitting.
   Future<void> closeAll() async {
-    for (final window in await WindowController.getAll()) {
+    final List<WindowController> windows;
+    try {
+      windows = await WindowController.getAll();
+    } catch (_) {
+      return; // quitting still releases the main window's services
+    }
+    for (final window in windows) {
       if (deviceOf(window.arguments) == null) continue;
       try {
         await window
