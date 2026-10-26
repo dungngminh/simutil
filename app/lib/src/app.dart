@@ -11,9 +11,12 @@ import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/ui/app_shell.dart';
 import 'package:simutil_app/src/update/app_update_cubit.dart';
 
-/// Provides the cubits around the shared [SimutilShell].
+/// Provides the cubits around [child]: the shared [SimutilShell], or a
+/// device window's own app.
 class SimutilApp extends StatelessWidget {
-  const SimutilApp({super.key});
+  const SimutilApp({super.key, this.child = const SimutilShell()});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +43,7 @@ class SimutilApp extends StatelessWidget {
           create: (_) => getIt<AppUpdateCubit>(),
         ),
       ],
-      child: const SimutilShell(),
+      child: child,
     );
   }
 }

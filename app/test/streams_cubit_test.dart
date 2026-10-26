@@ -47,6 +47,24 @@ void main() {
     type: DeviceType.simulator,
   );
 
+  test('a device streaming in its own window opens no tile', () async {
+    var created = 0;
+    var elsewhere = true;
+    final cubit = StreamsCubit((_) async {
+      created++;
+      return _FakeSession('UDID')..gate.complete();
+    }, openElsewhere: (_) async => elsewhere);
+
+    await cubit.open(sim(DeviceState.booted));
+    expect(cubit.stateValue.isOpen('UDID'), isFalse);
+    expect(created, 0);
+
+    elsewhere = false;
+    await cubit.open(sim(DeviceState.booted));
+    expect(cubit.stateValue.isOpen('UDID'), isTrue);
+    expect(created, 1);
+  });
+
   test(
     'closes a stream once its device stays shut down past the grace',
     () async {

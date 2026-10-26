@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:bloc_signals/bloc_signals.dart';
 import 'package:flutter/foundation.dart';
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_core/simutil_core.dart';
@@ -24,9 +25,18 @@ import 'package:simutil_app/src/stream/ios/sim_camera.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/stream/touch_marks.dart';
 import 'package:simutil_app/src/update/app_update_cubit.dart';
+import 'package:simutil_app/src/windows/device_window_app.dart';
+import 'package:simutil_app/src/windows/device_windows.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // A device window's engine starts with `multi_window <id> <arguments>`.
+  if (args.firstOrNull == 'multi_window') {
+    final window = await WindowController.fromCurrentEngine();
+    if (DeviceWindows.deviceOf(window.arguments) case final device?) {
+      return runDeviceWindow(window, device);
+    }
+  }
   await windowManager.ensureInitialized();
   await configureDependencies();
   final debugLog = getIt<DebugLog>();
@@ -46,8 +56,17 @@ Future<void> main() async {
     streams.onDevices(state.all);
     SimCamera.onDevices(state.all);
   });
-  // Closing the window quits, after streams and recordings are released.
-  windowManager.addListener(_QuitOnClose(quitApp));
+  // A device window sends its device back to the grid.
+  await getIt<DeviceWindows>().listen((device) async {
+    await windowManager.show(); // it may be hidden
+    await windowManager.focus();
+    await streams.open(device, here: true);
+  });
+  // Closing the window quits, after streams and recordings are released;
+  // while device windows are open it only hides.
+  final quitOnClose = _QuitOnClose(quitApp, getIt<DeviceWindows>());
+  windowManager.addListener(quitOnClose);
+  onWindowsChanged.listen((_) => quitOnClose.onWindowsChanged());
   await windowManager.setPreventClose(true);
 
   // Shared by the MCP tools and the scenario editor.
@@ -104,17 +123,39 @@ Future<void> main() async {
   runApp(const SimutilApp());
 }
 
-/// Runs [quit] when the main window is closed.
+/// Runs [quit] when the main window is closed, or hides it while device
+/// [windows] are open and quits once the last of them closes. The Dock icon
+/// or a device window's "Back to the main window" shows it again.
 class _QuitOnClose with WindowListener {
-  _QuitOnClose(this.quit);
+  _QuitOnClose(this.quit, this.windows);
 
   final Future<void> Function() quit;
+  final DeviceWindows windows;
   var _quitting = false;
+
+  /// Hidden by a close click (not minimized); shown again once focused.
+  var _hidden = false;
 
   /// Quits once; further close clicks while quitting are ignored.
   @override
   Future<void> onWindowClose() async {
     if (_quitting) return;
+    if (await windows.hasAny()) {
+      _hidden = true;
+      await windowManager.hide();
+      return;
+    }
+    _quitting = true;
+    await quit();
+  }
+
+  @override
+  void onWindowFocus() => _hidden = false;
+
+  /// A device window opened or closed.
+  Future<void> onWindowsChanged() async {
+    if (_quitting || !_hidden || await windows.hasAny()) return;
+    if (await windowManager.isVisible()) return;
     _quitting = true;
     await quit();
   }

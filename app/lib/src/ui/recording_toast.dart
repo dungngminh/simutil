@@ -13,6 +13,7 @@ import 'package:simutil_app/src/ui/design/design.dart';
 import 'package:simutil_app/src/ui/toasts/slim_suggestion.dart';
 import 'package:simutil_app/src/ui/toasts/update_toast.dart';
 import 'package:simutil_app/src/update/app_update_cubit.dart';
+import 'package:simutil_app/src/windows/device_windows.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:zentoast/zentoast.dart';
 
@@ -165,6 +166,7 @@ class _ToastFeeds extends StatefulWidget {
 class _ToastFeedsState extends State<_ToastFeeds> {
   StreamSubscription<String>? _saved;
   StreamSubscription<DeviceNotice>? _deviceNotices;
+  StreamSubscription<DeviceMove>? _moves;
   void Function()? _unsubscribeStreams;
   var _statuses = <String, SessionStatus>{};
 
@@ -197,6 +199,7 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     if (_unsubscribeStreams != null) return;
     _saved = getIt<SavedRecordings>().saved.listen(_onSaved);
     _deviceNotices = getIt<DevicesCubit>().notices.listen(_onDeviceNotice);
+    _moves = getIt.maybeGet<DeviceWindows>()?.moves.listen(_onMove);
     final streams = getIt<StreamsCubit>();
     // Seeded first so the immediate subscribe call announces nothing.
     _statuses = _statusesOf(streams.stateValue);
@@ -242,10 +245,29 @@ class _ToastFeedsState extends State<_ToastFeeds> {
     if (id != null && n.kind == DeviceNoticeKind.busy) _deviceBusy[id] = hide;
   }
 
+  void _onMove(DeviceMove move) {
+    if (!mounted) return;
+    final name = move.device.name;
+    if (move.back) {
+      showNotice(
+        context,
+        '$name is back in the main window',
+        tone: NoticeTone.success,
+      );
+    } else {
+      showNotice(
+        context,
+        '$name opened in its own window',
+        subtitle: 'Back to the main window or close it to return',
+      );
+    }
+  }
+
   @override
   void dispose() {
     _saved?.cancel();
     _deviceNotices?.cancel();
+    _moves?.cancel();
     _unsubscribeStreams?.call();
     _unsubscribeSlim?.call();
     _unsubscribeUpdate?.call();

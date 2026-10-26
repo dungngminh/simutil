@@ -24,6 +24,7 @@ import 'package:simutil_app/src/ui/shared/device_context_menu.dart';
 import 'package:simutil_app/src/ui/shared/install_drop_target.dart';
 import 'package:simutil_app/src/ui/shared/recording_clock.dart';
 import 'package:simutil_app/src/ui/shared/stream_tile_body.dart';
+import 'package:simutil_app/src/windows/device_windows.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// Where a tile sits in the layout.
@@ -35,6 +36,9 @@ enum StreamTileMode {
 
   /// A small tile in the spotlight strip; clicking it swaps it in.
   thumbnail,
+
+  /// The only stream of a device's own window: no layout controls.
+  window,
 }
 
 /// One device: header with status and controls, then the live screen
@@ -154,7 +158,9 @@ class _StreamTileState extends State<StreamTile> {
                         : StreamTileHeader(
                             entry: entry,
                             session: session,
-                            showResolution: mode == StreamTileMode.spotlight,
+                            showResolution:
+                                mode == StreamTileMode.spotlight ||
+                                mode == StreamTileMode.window,
                             actions: _tileActions(
                               context,
                               entry,
@@ -384,16 +390,41 @@ List<TileAction> _tileActions(
         priority: 6,
         onPressed: () => view.spotlight(device.id),
       )
-    else
+    else if (mode != StreamTileMode.window)
       TileAction(
         icon: LucideIcons.minimize2,
         label: 'Back to grid',
         priority: 6,
         onPressed: () => view.setLayout(StreamLayout.grid),
       ),
+    if (getIt.maybeGet<DeviceWindows>()?.backToMain case final back?
+        when mode == StreamTileMode.window)
+      TileAction(
+        icon: LucideIcons.panelsTopLeft,
+        label: entry.recording
+            ? 'Stop recording to move back to the main window'
+            : 'Back to the main window',
+        priority: 6,
+        onPressed: entry.recording ? null : back,
+      )
+    else if (mode != StreamTileMode.window)
+      TileAction(
+        icon: LucideIcons.appWindow,
+        label: entry.recording
+            ? 'Stop recording to open in its own window'
+            : 'Open in its own window',
+        priority: 5,
+        // Moving the stream restarts its session; a recording would end.
+        onPressed: entry.recording
+            ? null
+            : () async {
+                await streams.closeStream(device.id);
+                await getIt<DeviceWindows>().open(device);
+              },
+      ),
     TileAction(
       icon: LucideIcons.x,
-      label: 'Close stream',
+      label: mode == StreamTileMode.window ? 'Close window' : 'Close stream',
       priority: 7,
       onPressed: () => streams.closeStream(device.id),
     ),
@@ -601,8 +632,8 @@ class _MoreButton extends StatelessWidget {
   }
 }
 
-/// Device name, then REC / resolution / live FPS; one line that cuts the
-/// details before the name.
+/// Device name, then REC / resolution / live FPS; up to two lines, cut at
+/// the end.
 class _TitleLine extends StatelessWidget {
   const _TitleLine({
     required this.entry,
@@ -654,9 +685,9 @@ class _TitleLine extends StatelessWidget {
             ),
         ],
       ),
-      maxLines: 1,
+      // Two lines: a long name wraps before it is cut.
+      maxLines: 2,
       overflow: TextOverflow.ellipsis,
-      softWrap: false,
     );
   }
 }

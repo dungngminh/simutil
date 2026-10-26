@@ -19,9 +19,15 @@ typedef DeviceSessionFactory = Future<DeviceSession> Function(Device device);
 /// Open device sessions shown in the grid.
 class StreamsCubit extends CubitSignal<StreamsState> {
   /// Opens sessions with [_create]; [onSaved] gets each finished recording.
-  StreamsCubit(this._create, {this.onSaved, RecordingLock? recordingLock})
-    : _recordingLock = recordingLock ?? RecordingLock(),
-      super(initialState: const StreamsState());
+  /// [openElsewhere] returns true when the device is already streaming in
+  /// its own window (and brings that window up), so it opens no tile.
+  StreamsCubit(
+    this._create, {
+    this.onSaved,
+    this.openElsewhere,
+    RecordingLock? recordingLock,
+  }) : _recordingLock = recordingLock ?? RecordingLock(),
+       super(initialState: const StreamsState());
 
   /// One recording at a time, shared with the grid recorder.
   final RecordingLock _recordingLock;
@@ -30,6 +36,9 @@ class StreamsCubit extends CubitSignal<StreamsState> {
 
   /// Called with each finished recording.
   final void Function(String path)? onSaved;
+
+  /// See the constructor.
+  final Future<bool> Function(Device device)? openElsewhere;
   final _sessions = <String, DeviceSession>{};
   final _subscriptions = <String, StreamSubscription<SessionStatus>>{};
 
@@ -56,9 +65,14 @@ class StreamsCubit extends CubitSignal<StreamsState> {
 
   /// Adds [device]'s tile as connecting and queues its session start;
   /// completes once that start ran (or was skipped). Opening a device that
-  /// is already open does nothing.
-  Future<void> open(Device device) {
-    if (stateValue.isOpen(device.id)) return Future.value();
+  /// is already open does nothing. [here] skips [openElsewhere].
+  Future<void> open(Device device, {bool here = false}) async {
+    if (stateValue.isOpen(device.id)) return;
+    // No hook: the tile is added synchronously, before the first await.
+    if (openElsewhere case final elsewhere? when !here) {
+      if (await elsewhere(device) || isClosed) return;
+      if (stateValue.isOpen(device.id)) return;
+    }
     _setEntries([
       ...stateValue.entries,
       StreamEntry(device: device, status: const SessionConnecting()),
@@ -67,7 +81,7 @@ class StreamsCubit extends CubitSignal<StreamsState> {
     final done = Completer<void>();
     _startQueue.add((device, ticket, done));
     unawaited(_drain());
-    return done.future;
+    await done.future;
   }
 
   Future<void> _drain() async {

@@ -18,7 +18,10 @@ String resolveDesktopSettingsPath() {
 /// The app's persisted settings: one JSON object with a section per cubit.
 abstract interface class DesktopSettingsStore {
   /// File-backed store; [path] defaults to [resolveDesktopSettingsPath].
-  factory DesktopSettingsStore({String? path}) = _FileDesktopSettingsStore;
+  /// A [readOnly] store keeps writes in memory, so a device window never
+  /// overwrites the main window's newer settings with its stale copy.
+  factory DesktopSettingsStore({String? path, bool readOnly}) =
+      _FileDesktopSettingsStore;
 
   /// Reads the file. A missing or unreadable file leaves every section
   /// empty, so cubits start from their defaults.
@@ -35,10 +38,11 @@ abstract interface class DesktopSettingsStore {
 }
 
 final class _FileDesktopSettingsStore implements DesktopSettingsStore {
-  _FileDesktopSettingsStore({String? path})
+  _FileDesktopSettingsStore({String? path, this.readOnly = false})
     : _path = path ?? resolveDesktopSettingsPath();
 
   final String _path;
+  final bool readOnly;
   Map<String, Object?> _data = {};
   Future<void> _pending = Future.value();
 
@@ -58,6 +62,7 @@ final class _FileDesktopSettingsStore implements DesktopSettingsStore {
   @override
   void write(String key, Object? value) {
     _data = {..._data, key: value};
+    if (readOnly) return;
     final snapshot = jsonEncode(_data);
     // Chained so an older snapshot never lands after a newer one.
     _pending = _pending.then((_) => _save(snapshot));

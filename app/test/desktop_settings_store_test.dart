@@ -36,6 +36,15 @@ void main() {
     return store;
   }
 
+  test('a read-only store keeps writes in memory', () async {
+    final store = DesktopSettingsStore(path: path, readOnly: true);
+    await store.load();
+    store.write('view', {'layout': 'grid'});
+    await store.flush();
+    expect(store.section('view'), {'layout': 'grid'});
+    expect(File(path).existsSync(), isFalse);
+  });
+
   test('missing file starts every cubit from its defaults', () async {
     final store = await open();
     expect(ViewSettingsCubit(store: store).stateValue, const ViewSettings());
