@@ -28,6 +28,10 @@ class _SimulatorRecorder implements SimulatorRecorder {
   Process? _process;
   String? _path;
 
+  /// The start in progress: a second [start] joins it instead of launching
+  /// another `simctl`, and [stop] waits for it.
+  Future<void>? _starting;
+
   /// How long `simctl` may take to report `Recording started`.
   static const _startTimeout = Duration(seconds: 15);
 
@@ -35,8 +39,12 @@ class _SimulatorRecorder implements SimulatorRecorder {
   bool get isRecording => _process != null;
 
   @override
-  Future<void> start(String path) async {
-    if (_process != null) return;
+  Future<void> start(String path) {
+    if (_process != null) return Future.value();
+    return _starting ??= _start(path).whenComplete(() => _starting = null);
+  }
+
+  Future<void> _start(String path) async {
     // Long-lived until stopped: Process.start, not CommandExec.
     final process = await Process.start('xcrun', [
       'simctl',
@@ -74,6 +82,11 @@ class _SimulatorRecorder implements SimulatorRecorder {
     );
     if (!ok) {
       process.kill();
+      // So a retry does not overlap the failed simctl.
+      await process.exitCode.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => -1,
+      );
       throw StateError('Recording failed: ${_lastLine(stderr.toString())}');
     }
     _process = process;
@@ -83,6 +96,13 @@ class _SimulatorRecorder implements SimulatorRecorder {
   /// simctl finalizes the movie on SIGINT, not on SIGTERM.
   @override
   Future<String?> stop() async {
+    // A stream closed while its recording starts: let the start finish,
+    // then stop what it started rather than leave it running.
+    if (_starting case final starting?) {
+      try {
+        await starting;
+      } catch (_) {}
+    }
     final process = _process;
     final path = _path;
     _process = null;
