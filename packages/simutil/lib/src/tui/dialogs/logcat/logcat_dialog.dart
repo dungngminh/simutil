@@ -135,9 +135,18 @@ class _LogcatDialogState extends State<LogcatDialog> {
       ..addAll(
         _filter.isEmpty
             ? _lines
-            : _lines.where((l) => LogcatHelper.lineMatchesFilter(l, _filter)),
+            : _lines.where(
+                (l) =>
+                    _isDiagnostic(l) ||
+                    LogcatHelper.lineMatchesFilter(l, _filter),
+              ),
       );
   }
+
+  /// adb's errors and SimUtil's own notes stay visible under any filter,
+  /// so a filtered view still shows why logs stopped.
+  static bool _isDiagnostic(String line) =>
+      line.startsWith('[adb] ') || line.startsWith('[simutil] ');
 
   void _onFilterChanged(String value) {
     setState(() {

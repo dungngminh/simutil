@@ -74,6 +74,13 @@ void main() {
         final screen = tester.renderToString();
         expect(screen, contains('[adb] error: device not found'));
         expect(screen, contains('adb logcat exited (1)'));
+
+        // A filter that matches no log line keeps them visible.
+        await tester.sendKey(LogicalKey.slash);
+        await tester.enterText('MyAppTag');
+        final filtered = tester.renderToString();
+        expect(filtered, contains('[adb] error: device not found'));
+        expect(filtered, contains('adb logcat exited (1)'));
       },
       // Room for both lines; their order depends on the pipes.
       size: const Size(100, 60),
