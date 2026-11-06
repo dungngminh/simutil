@@ -50,15 +50,31 @@ final class _ProcessPluginRunner implements PluginRunner {
     PluginCommandConfig command,
   ) async {
     final check = command.availability ?? plugin.availability;
-    if (check == null) {
-      return _probe(command.command, const ['--version']);
-    }
+    if (check == null) return _isInstalled(command.command);
     return _probe(check.command, check.args);
   }
 
+  /// Whether [executable] exists, without running it: a GUI tool would
+  /// start (and hold a queue slot) on `--version`, and BSD tools such as
+  /// `open` reject that flag.
+  Future<bool> _isInstalled(String executable) async {
+    if (executable.contains('/') || executable.contains(r'\')) {
+      return File(executable).existsSync();
+    }
+    return _probe(Platform.isWindows ? 'where' : 'which', [executable]);
+  }
+
+  /// A probe that hangs counts as unavailable.
+  static const _probeTimeout = Duration(seconds: 10);
+
   Future<bool> _probe(String executable, List<String> args) async {
     try {
-      final result = await _commandExec.run(executable, arguments: args);
+      final result = await _commandExec.run(
+        executable,
+        arguments: args,
+        timeout: _probeTimeout,
+        priority: CommandPriority.background,
+      );
       return result.success;
     } catch (_) {
       return false;
