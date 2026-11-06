@@ -26,6 +26,15 @@ void main() {
       );
     });
 
+    test('treats an empty HOME as unset', () {
+      expect(
+        resolveStatePath(
+          environment: {'HOME': '', 'USERPROFILE': r'C:\Users\me'},
+        ),
+        r'C:\Users\me/.simutil/state.json',
+      );
+    });
+
     test('falls back to USERPROFILE on Windows', () {
       expect(
         resolveStatePath(environment: {'USERPROFILE': r'C:\Users\me'}),

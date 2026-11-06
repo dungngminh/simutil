@@ -8,7 +8,11 @@ import 'dart:io';
 /// test seam.
 String resolveStatePath({Map<String, String>? environment}) {
   final env = environment ?? Platform.environment;
-  final home = env['HOME'] ?? env['USERPROFILE'] ?? '.';
+  String? nonEmpty(String key) => switch (env[key]) {
+    final value? when value.isNotEmpty => value,
+    _ => null,
+  };
+  final home = nonEmpty('HOME') ?? nonEmpty('USERPROFILE') ?? '.';
   return '$home/.simutil/state.json';
 }
 
