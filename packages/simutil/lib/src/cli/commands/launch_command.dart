@@ -81,13 +81,18 @@ class LaunchCommand extends SimutilCommand {
       osHint: osHintFromFlags(argResults!),
     );
 
-    await _services.launchDevice(
-      device,
-      cold: argResults!['cold'] == true,
-      noAudio: argResults!['no-audio'] == true,
-      headless: argResults!['headless'] == true,
-      cameraArgs: cameraArgs,
-    );
+    try {
+      await _services.launchDevice(
+        device,
+        cold: argResults!['cold'] == true,
+        noAudio: argResults!['no-audio'] == true,
+        headless: argResults!['headless'] == true,
+        cameraArgs: cameraArgs,
+      );
+    } on EmulatorLaunchException catch (e) {
+      logger.err('Failed to launch ${device.name} (${device.id}): $e');
+      return 1;
+    }
 
     logger.success('Launched ${device.name} (${device.id})');
     return 0;

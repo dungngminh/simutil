@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.0
+
+- `AndroidDeviceService.launchDevice` returns once the emulator is up
+  instead of when it exits. It used to wait for the emulator to quit and
+  held a `CommandExec` slot the whole time, so a few running emulators
+  stalled every other command. The emulator now starts in its own process
+  group (`ProcessStartMode.detachedWithStdio`) and outlives the caller.
+- `launchDevice` throws an `EmulatorLaunchException` with the emulator's
+  `FATAL` / `ERROR` output when it exits within the launch grace period
+  (e.g. the AVD is already running); failures used to be ignored.
+- `AndroidDeviceService` takes `startProcess` (`EmulatorProcessStarter`)
+  and `launchGracePeriod` test seams.
+
 ## 1.4.0
 
 - `EmulatorGrpcSession` streams and controls an Android emulator over its

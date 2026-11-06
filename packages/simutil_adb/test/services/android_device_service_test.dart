@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_adb/src/android_device_service.dart';
+import 'package:simutil_adb/src/models/emulator_launch_exception.dart';
 import 'package:test/test.dart';
 
 import 'package:simutil_core/testing.dart';
@@ -394,23 +397,74 @@ void main() {
   });
 
   group('launchDevice', () {
-    test('prefixes the avd id with @ and appends extra args', () async {
-      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+    late List<({String executable, List<String> args, ProcessStartMode mode})>
+    starts;
+    late _FakeProcess process;
 
-      await service(
-        exec,
-      ).launchDevice(deviceId: 'Pixel_7', additionalArgs: ['-no-audio']);
+    setUp(() {
+      starts = [];
+      process = _FakeProcess();
+    });
 
-      expect(exec.calls.single.command, emulatorPath);
-      expect(exec.calls.single.arguments, ['@Pixel_7', '-no-audio']);
+    tearDown(() => process.close());
+
+    AndroidDeviceService launcher() => AndroidDeviceService(
+      FakeCommandExec((_, _) => null),
+      androidHomeOverride: sdkDir.path,
+      isWindows: false,
+      launchGracePeriod: const Duration(milliseconds: 50),
+      startProcess: (executable, arguments, {mode = ProcessStartMode.normal}) {
+        starts.add((executable: executable, args: arguments, mode: mode));
+        return Future.value(process);
+      },
+    );
+
+    test('starts the emulator detached, prefixing the avd id with @', () async {
+      await launcher().launchDevice(
+        deviceId: 'Pixel_7',
+        additionalArgs: ['-no-audio'],
+      );
+
+      expect(starts.single.executable, emulatorPath);
+      expect(starts.single.args, ['@Pixel_7', '-no-audio']);
+      expect(starts.single.mode, ProcessStartMode.detachedWithStdio);
+    });
+
+    test('returns while the emulator keeps running', () async {
+      await launcher()
+          .launchDevice(deviceId: 'Pixel_7')
+          .timeout(const Duration(seconds: 2));
+
+      expect(process.stdoutCancelled, isTrue);
+      expect(process.stderrCancelled, isTrue);
+    });
+
+    test('throws the FATAL lines when the emulator exits at once', () async {
+      process
+        ..writeStdout(
+          'INFO         | Android emulator version 37.2.12.0\n'
+          'FATAL        | Running multiple emulators with the same AVD.\n',
+        )
+        ..close();
+
+      await expectLater(
+        launcher().launchDevice(deviceId: 'Pixel_7'),
+        throwsA(
+          isA<EmulatorLaunchException>()
+              .having((e) => e.avd, 'avd', 'Pixel_7')
+              .having(
+                (e) => e.message,
+                'message',
+                'Running multiple emulators with the same AVD.',
+              ),
+        ),
+      );
     });
 
     test('headless adds the no-window flags', () async {
-      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+      await launcher().launchDevice(deviceId: 'Pixel_7', headless: true);
 
-      await service(exec).launchDevice(deviceId: 'Pixel_7', headless: true);
-
-      expect(exec.calls.single.arguments, [
+      expect(starts.single.args, [
         '@Pixel_7',
         ...AndroidDeviceService.headlessArgs,
         ...AndroidDeviceService.headlessGpuArgs,
@@ -418,15 +472,13 @@ void main() {
     });
 
     test('headless keeps the gpu mode the caller passes', () async {
-      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
-
-      await service(exec).launchDevice(
+      await launcher().launchDevice(
         deviceId: 'Pixel_7',
         headless: true,
         additionalArgs: ['-gpu', 'swiftshader_indirect'],
       );
 
-      expect(exec.calls.single.arguments, [
+      expect(starts.single.args, [
         '@Pixel_7',
         ...AndroidDeviceService.headlessArgs,
         '-gpu',
@@ -435,20 +487,44 @@ void main() {
     });
 
     test('headless does not repeat flags the caller passes', () async {
-      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
-
-      await service(exec).launchDevice(
+      await launcher().launchDevice(
         deviceId: 'Pixel_7',
         headless: true,
         additionalArgs: ['-no-audio', '-no-snapshot-load'],
       );
 
-      expect(exec.calls.single.arguments, [
+      expect(starts.single.args, [
         '@Pixel_7',
         ...AndroidDeviceService.headlessArgs,
         ...AndroidDeviceService.headlessGpuArgs,
         '-no-snapshot-load',
       ]);
+    });
+  });
+
+  group('launchError', () {
+    test('strips the level prefix from ERROR and FATAL lines', () {
+      expect(
+        AndroidDeviceService.launchError(
+          'INFO    | booting\nERROR   | bad gpu\nFATAL   | no avd\n',
+        ),
+        'bad gpu\nno avd',
+      );
+    });
+
+    test('falls back to the last lines printed', () {
+      final output = [for (var i = 1; i <= 7; i++) 'line $i'].join('\n');
+      expect(
+        AndroidDeviceService.launchError(output),
+        'line 3\nline 4\nline 5\nline 6\nline 7',
+      );
+    });
+
+    test('has a message for an exit without output', () {
+      expect(
+        AndroidDeviceService.launchError(''),
+        'The emulator exited right after starting',
+      );
     });
   });
 
@@ -628,4 +704,45 @@ List of web cameras connected to the computer:
       isEmpty,
     );
   });
+}
+
+/// A [Process] whose output the test writes and closes.
+class _FakeProcess implements Process {
+  final _stdout = StreamController<List<int>>();
+  final _stderr = StreamController<List<int>>();
+  bool stdoutCancelled = false;
+  bool stderrCancelled = false;
+
+  void writeStdout(String text) => _stdout.add(utf8.encode(text));
+
+  /// Closes both pipes, like an exited process.
+  void close() {
+    if (!_stdout.isClosed) unawaited(_stdout.close());
+    if (!_stderr.isClosed) unawaited(_stderr.close());
+  }
+
+  @override
+  Stream<List<int>> get stdout {
+    _stdout.onCancel = () => stdoutCancelled = true;
+    return _stdout.stream;
+  }
+
+  @override
+  Stream<List<int>> get stderr {
+    _stderr.onCancel = () => stderrCancelled = true;
+    return _stderr.stream;
+  }
+
+  @override
+  final IOSink stdin = IOSink(StreamController<List<int>>().sink);
+
+  @override
+  int get pid => 4242;
+
+  @override
+  Future<int> get exitCode =>
+      throw StateError('exitCode is not available for detached processes');
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) => false;
 }
