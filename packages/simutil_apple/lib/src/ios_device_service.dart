@@ -26,6 +26,14 @@ class IOSDeviceService implements DeviceService {
        _listUsbmuxDevices = listUsbmuxDevices ?? usbmux.listUsbmuxDevices;
 
   final CommandExec _exec;
+
+  /// Listing and probing commands. A stuck CoreSimulatorService or
+  /// CoreDevice (e.g. after an Xcode update) never answers; without a
+  /// timeout every later refresh joined the same never-ending command.
+  static const _listTimeout = Duration(seconds: 30);
+
+  /// `simctl shutdown` / `delete` / `erase`.
+  static const _changeTimeout = Duration(minutes: 2);
   final bool Function(String path) _pathExists;
   final Future<List<Device>?> Function() _listUsbmuxDevices;
 
@@ -42,6 +50,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'list', '--json'],
+        timeout: _listTimeout,
         priority: CommandPriority.background,
       );
       return result.success;
@@ -61,6 +70,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'list', 'devices', '-j'],
+        timeout: _listTimeout,
         priority: CommandPriority.background,
       );
       if (!result.success) return [];
@@ -143,6 +153,7 @@ class IOSDeviceService implements DeviceService {
         uuid: uuid,
         appPath: await _simulatorAppPath(),
       ),
+      timeout: _listTimeout,
       priority: CommandPriority.interactive,
     );
   }
@@ -157,6 +168,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         '/usr/bin/xcode-select',
         arguments: ['--print-path'],
+        timeout: _listTimeout,
       );
       if (!result.success) return null;
       final path = result.stdout.trim();
@@ -216,6 +228,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'shutdown', deviceId],
+        timeout: _changeTimeout,
         priority: CommandPriority.interactive,
       );
       return result.success;
@@ -230,6 +243,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'delete', deviceId],
+        timeout: _changeTimeout,
         priority: CommandPriority.interactive,
       );
       return result.success;
@@ -244,6 +258,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'erase', deviceId],
+        timeout: _changeTimeout,
         priority: CommandPriority.interactive,
       );
       return result.success;
@@ -276,8 +291,11 @@ class IOSDeviceService implements DeviceService {
   }
 
   Future<List<Device>> _listDevicectlDevices() async {
-    final tempDirectory = Directory.systemTemp;
-    final outputFile = File('${tempDirectory.path}/ios_devices.json');
+    // A directory of its own: the TUI, the app and the CLI may list at the
+    // same time, and a shared file name let them read or delete each
+    // other's output.
+    final tempDirectory = Directory.systemTemp.createTempSync('simutil_ios_');
+    final outputFile = File('${tempDirectory.path}/devices.json');
 
     try {
       final devicectl = await _exec.run(
@@ -286,6 +304,7 @@ class IOSDeviceService implements DeviceService {
           outputPath: outputFile.path,
           xcode27: isDeviceHub(await _simulatorAppPath()),
         ),
+        timeout: _listTimeout,
         priority: CommandPriority.background,
       );
 
@@ -299,9 +318,7 @@ class IOSDeviceService implements DeviceService {
       log('IOSDeviceService._listDevicectlDevices error: $e\n$st');
       return [];
     } finally {
-      if (outputFile.existsSync()) {
-        outputFile.deleteSync();
-      }
+      tempDirectory.deleteSync(recursive: true);
     }
   }
 
