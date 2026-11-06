@@ -15,6 +15,9 @@ class ParsedChangelogEntry {
 final _versionHeader = RegExp(r'^## \[(\d[\w.\-]*)\] - (\d{4}-\d{2}-\d{2})');
 final _bulletLine = RegExp(r'^- (.*)$');
 
+/// An indented line continuing the bullet above it.
+final _continuationLine = RegExp(r'^\s+(\S.*)$');
+
 List<ParsedChangelogEntry> parseChangelog(String content) {
   final entries = <ParsedChangelogEntry>[];
   String? version;
@@ -41,6 +44,13 @@ List<ParsedChangelogEntry> parseChangelog(String content) {
     final bullet = _bulletLine.firstMatch(line);
     if (version != null && bullet != null) {
       items.add(bullet.group(1)!);
+      continue;
+    }
+
+    // Wrapped bullets: join their continuation lines with a space.
+    final continuation = _continuationLine.firstMatch(line);
+    if (version != null && continuation != null && items.isNotEmpty) {
+      items.last = '${items.last} ${continuation.group(1)!.trimRight()}';
     }
   }
   addCurrentEntry();

@@ -43,4 +43,27 @@ void main() {
     expect(entries[1].version, '1.1.0');
     expect(entries[1].items, ['Older item.']);
   });
+
+  test('parseChangelog joins wrapped bullet lines', () {
+    const changelog = '''
+## [1.1.0] - 2026-06-01
+
+### Added
+
+- Android emulators and devices show their Android version (e.g.
+  Android 15) in the device list.
+- Next item.
+
+### Fixed
+
+- Last item.
+''';
+
+    expect(parseChangelog(changelog).single.items, [
+      'Android emulators and devices show their Android version (e.g. '
+          'Android 15) in the device list.',
+      'Next item.',
+      'Last item.',
+    ]);
+  });
 }

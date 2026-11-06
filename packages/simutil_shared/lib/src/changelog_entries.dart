@@ -27,10 +27,10 @@ const List<ChangelogEntry> changelogEntries = [
     version: '1.1.0',
     date: '2026-10-14',
     items: [
-      'Android emulators and devices show their Android version (e.g.',
+      'Android emulators and devices show their Android version (e.g. Android 15), like iOS simulators do.',
       '`simutil launch --headless` starts an emulator or simulator without its window.',
-      'ADB tools: pairing with a QR code now works, and pairing with a code connects',
-      'The device list updates as soon as a device boots, shuts down, is plugged in or',
+      'ADB tools: pairing with a QR code now works, and pairing with a code connects the device right away.',
+      'The device list updates as soon as a device boots, shuts down, is plugged in or unplugged, instead of refreshing every 10 seconds.',
     ],
   ),
   ChangelogEntry(
