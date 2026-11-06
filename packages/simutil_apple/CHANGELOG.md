@@ -11,11 +11,15 @@
   own; a fixed `$TMPDIR/ios_devices.json` let the TUI, the app and the CLI
   read or delete each other's output.
 - `listUsbmuxDevices` / `lockdownValues` close the usbmuxd socket when a
-  request times out; it stayed open until usbmuxd answered.
+  request times out; it stayed open until usbmuxd answered. Their
+  `timeout` now bounds the whole call instead of each connection and
+  exchange.
 - `SimulatorRecorder.start` completes once `simctl` reports
   `Recording started` and throws a `StateError` with its error (e.g.
   `Cannot create file`); `stop` returns null when the recording failed or
-  was not finalized instead of the path of a missing or broken file.
+  was not finalized instead of the path of a missing or broken file. A
+  second `start` joins one in progress instead of launching another
+  `simctl`, and `stop` during `start` stops what the start launched.
 
 ## 1.4.0
 

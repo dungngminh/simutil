@@ -27,6 +27,29 @@ void main() {
       expect(await service.isAvailable(pluginWith(command), command), isTrue);
     });
 
+    test('a non-executable file path is unavailable', () async {
+      if (Platform.isWindows) return;
+      final dir = Directory.systemTemp.createTempSync('simutil_plugin_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final script = File('${dir.path}/tool')..writeAsStringSync('#!/bin/sh\n');
+      final command = PluginCommandConfig(
+        id: 'c',
+        label: 'C',
+        command: script.path,
+      );
+
+      expect(await service.isAvailable(pluginWith(command), command), isFalse);
+      await Process.run('chmod', ['+x', script.path]);
+      expect(await service.isAvailable(pluginWith(command), command), isTrue);
+      // A directory is not a command either.
+      final folder = PluginCommandConfig(
+        id: 'd',
+        label: 'D',
+        command: dir.path,
+      );
+      expect(await service.isAvailable(pluginWith(folder), folder), isFalse);
+    });
+
     test('finds a command on PATH without running it', () async {
       final exec = FakeCommandExec(
         (cmd, args) => cmd == 'which' || cmd == 'where'

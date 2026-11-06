@@ -59,9 +59,21 @@ final class _ProcessPluginRunner implements PluginRunner {
   /// `open` reject that flag.
   Future<bool> _isInstalled(String executable) async {
     if (executable.contains('/') || executable.contains(r'\')) {
-      return File(executable).existsSync();
+      return _isExecutableFile(executable);
     }
     return _probe(Platform.isWindows ? 'where' : 'which', [executable]);
+  }
+
+  /// A regular file, executable on POSIX. Async and bounded, so a stalled
+  /// filesystem does not block the UI isolate.
+  static Future<bool> _isExecutableFile(String path) async {
+    try {
+      final stat = await File(path).stat().timeout(_probeTimeout);
+      if (stat.type != FileSystemEntityType.file) return false;
+      return Platform.isWindows || stat.mode & 0x49 != 0; // any x bit
+    } catch (_) {
+      return false;
+    }
   }
 
   /// A probe that hangs counts as unavailable.

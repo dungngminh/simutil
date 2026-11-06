@@ -5,7 +5,9 @@
 - Without an explicit `availability` check, `PluginRunner.isAvailable`
   looks the command up on `PATH` (`which` / `where`) instead of running
   `<command> --version`, which started GUI tools and failed for tools such
-  as `open` that reject the flag. Availability probes time out after 10 s.
+  as `open` that reject the flag. A command given as a path must be an
+  executable regular file (checked asynchronously). Availability probes
+  time out after 10 s.
 
 ## 1.0.0
 
