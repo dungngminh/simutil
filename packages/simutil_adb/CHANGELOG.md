@@ -12,8 +12,16 @@
   (e.g. the AVD is already running), and when the emulator binary cannot
   be started; failures used to be ignored. `EmulatorLaunchException`
   extends `DeviceLaunchException` from `simutil_core` (now `^1.4.0`).
-- `AndroidDeviceService` takes `startProcess` (`EmulatorProcessStarter`)
-  and `launchGracePeriod` test seams.
+- `launchDevice` adds `-gpu host` on macOS for windowed launches too, not
+  only headless ones: with `-gpu auto`, API 37+ AVDs render in software
+  and crash shortly after boot, and switching renderers between windowed
+  and headless launches invalidated the quick-boot snapshot. Launches keep
+  the AVD's own `hw.gpu.mode` when it is not `auto`
+  (`AndroidDeviceService.usesAutoGpu`), and the caller's `-gpu` as before.
+- `AndroidDeviceService.hostGpuArgs` replaces `headlessGpuArgs`, which is
+  deprecated.
+- `AndroidDeviceService` takes `startProcess` (`EmulatorProcessStarter`),
+  `launchGracePeriod` and `isMacOS` test seams.
 
 ## 1.4.0
 

@@ -408,10 +408,24 @@ void main() {
 
     tearDown(() => process.close());
 
-    AndroidDeviceService launcher() => AndroidDeviceService(
+    /// Writes an AVD [name] whose `config.ini` holds [config] lines.
+    void avd(String name, List<String> config) {
+      final dir = Directory('${sdkDir.path}/avd/$name.avd')
+        ..createSync(recursive: true);
+      File('${dir.path}/config.ini').writeAsStringSync(config.join('\n'));
+      File(
+        '${sdkDir.path}/avd/$name.ini',
+      ).writeAsStringSync('path=${dir.path}\n');
+    }
+
+    AndroidDeviceService launcher({
+      bool isMacOS = false,
+    }) => AndroidDeviceService(
       FakeCommandExec((_, _) => null),
       androidHomeOverride: sdkDir.path,
+      environment: {'ANDROID_AVD_HOME': '${sdkDir.path}/avd'},
       isWindows: false,
+      isMacOS: isMacOS,
       launchGracePeriod: const Duration(milliseconds: 50),
       startProcess: (executable, arguments, {mode = ProcessStartMode.normal}) {
         starts.add((executable: executable, args: arguments, mode: mode));
@@ -493,8 +507,58 @@ void main() {
       expect(starts.single.args, [
         '@Pixel_7',
         ...AndroidDeviceService.headlessArgs,
-        ...AndroidDeviceService.headlessGpuArgs,
+        ...AndroidDeviceService.hostGpuArgs,
       ]);
+    });
+
+    test('windowed launches use the host gpu on macOS', () async {
+      await launcher(isMacOS: true).launchDevice(deviceId: 'Pixel_7');
+
+      expect(starts.single.args, [
+        '@Pixel_7',
+        ...AndroidDeviceService.hostGpuArgs,
+      ]);
+    });
+
+    test('windowed launches keep -gpu auto off macOS', () async {
+      await launcher().launchDevice(deviceId: 'Pixel_7');
+
+      expect(starts.single.args, ['@Pixel_7']);
+    });
+
+    test('an explicit hw.gpu.mode = auto still gets the host gpu', () async {
+      avd('Pixel_7', ['hw.gpu.enabled=yes', 'hw.gpu.mode = auto']);
+
+      await launcher(isMacOS: true).launchDevice(deviceId: 'Pixel_7');
+
+      expect(starts.single.args, [
+        '@Pixel_7',
+        ...AndroidDeviceService.hostGpuArgs,
+      ]);
+    });
+
+    test('keeps the gpu mode the AVD sets', () async {
+      avd('Pixel_7', [
+        'hw.gpu.enabled=yes',
+        'hw.gpu.mode=swiftshader_indirect',
+      ]);
+
+      await launcher(
+        isMacOS: true,
+      ).launchDevice(deviceId: 'Pixel_7', headless: true);
+
+      expect(starts.single.args, [
+        '@Pixel_7',
+        ...AndroidDeviceService.headlessArgs,
+      ]);
+    });
+
+    test('adds no gpu mode when the AVD disables the gpu', () async {
+      avd('Pixel_7', ['hw.gpu.enabled=no']);
+
+      await launcher(isMacOS: true).launchDevice(deviceId: 'Pixel_7');
+
+      expect(starts.single.args, ['@Pixel_7']);
     });
 
     test('headless keeps the gpu mode the caller passes', () async {
@@ -522,7 +586,7 @@ void main() {
       expect(starts.single.args, [
         '@Pixel_7',
         ...AndroidDeviceService.headlessArgs,
-        ...AndroidDeviceService.headlessGpuArgs,
+        ...AndroidDeviceService.hostGpuArgs,
         '-no-snapshot-load',
       ]);
     });
