@@ -55,6 +55,23 @@ void main() {
     expect(await services.resolveDevice('emulator-5554'), running);
   });
 
+  test('resolveDevice prefers an id over an AVD of that name', () async {
+    final running = testAndroidEmulator(name: 'Pixel_7');
+    // An AVD that is (oddly) named like the running emulator's serial.
+    final namesake = testAndroidEmulator(
+      id: 'emulator-5554-avd',
+      name: 'emulator-5554',
+      state: DeviceState.shutdown,
+    );
+    services = CliDeviceServices(
+      services: {
+        DeviceOs.android: FakeDeviceService(simulators: [running, namesake]),
+      },
+    );
+
+    expect(await services.resolveDevice('emulator-5554'), running);
+  });
+
   test('resolveDevice does not match a physical device by name', () {
     expect(services.resolveDevice(phone.name), throwsA(isA<UsageException>()));
   });
