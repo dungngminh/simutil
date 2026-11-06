@@ -137,11 +137,12 @@ void main() {
     expect(
       await listUsbmuxDevices(
         socketPath: socketPath,
-        timeout: const Duration(milliseconds: 100),
+        // Long enough to connect on a slow runner; the server never replies.
+        timeout: const Duration(seconds: 1),
       ),
       isNull,
     );
-    await closed.future.timeout(const Duration(seconds: 2));
+    await closed.future.timeout(const Duration(seconds: 5));
   });
 
   test('null when usbmuxd is unreachable', () async {

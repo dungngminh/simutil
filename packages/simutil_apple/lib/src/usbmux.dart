@@ -121,28 +121,32 @@ class UsbmuxDecoder {
   }
 }
 
-/// Opens a connection to usbmuxd at [socketPath].
-Future<Socket> connectUsbmuxd(String socketPath) => Socket.connect(
-  InternetAddress(socketPath, type: InternetAddressType.unix),
-  0,
-);
+/// Opens a connection to usbmuxd at [socketPath]; [timeout] abandons and
+/// cancels the attempt.
+Future<Socket> connectUsbmuxd(String socketPath, {Duration? timeout}) =>
+    Socket.connect(
+      InternetAddress(socketPath, type: InternetAddressType.unix),
+      0,
+      timeout: timeout,
+    );
 
 /// Physical Apple devices usbmuxd knows (USB, or Wi-Fi when paired for
 /// network sync), named and versioned by each device's lockdownd.
 ///
-/// Null when usbmuxd or a device's lockdownd does not answer within
-/// [timeout], so callers can fall back to `devicectl`.
+/// Null when usbmuxd and every device's lockdownd have not answered
+/// within [timeout] in total, so callers can fall back to `devicectl`.
 Future<List<Device>?> listUsbmuxDevices({
   String socketPath = usbmuxdSocket,
   Duration timeout = const Duration(seconds: 5),
 }) async {
   try {
+    final deadline = DateTime.now().add(timeout);
     final devices = <Device>[];
-    for (final props in await _attachedDevices(socketPath, timeout)) {
+    for (final props in await _attachedDevices(socketPath, deadline)) {
       final values = await _lockdownValues(
         socketPath,
         props['DeviceID']! as int,
-        timeout,
+        deadline,
       );
       devices.add(usbmuxDevice(props, values));
     }
@@ -161,16 +165,17 @@ Future<Map<String, Object?>?> lockdownValues(
   Duration timeout = const Duration(seconds: 5),
 }) async {
   try {
+    final deadline = DateTime.now().add(timeout);
     final serial = _serial(udid);
     final props = (await _attachedDevices(
       socketPath,
-      timeout,
+      deadline,
     )).where((p) => _serial('${p['SerialNumber']}') == serial).firstOrNull;
     if (props == null) return null;
     return await _lockdownValues(
       socketPath,
       props['DeviceID']! as int,
-      timeout,
+      deadline,
     );
   } catch (e) {
     log('lockdownValues: $e');
@@ -198,16 +203,25 @@ Device usbmuxDevice(
 String _serial(String udid) => udid.replaceAll('-', '').toUpperCase();
 
 /// Runs [exchange] on a new usbmuxd connection and closes it afterwards,
-/// also when [timeout] passes first: a `.timeout` outside would leave the
-/// socket open until usbmuxd answers.
+/// also when [deadline] passes first: a `.timeout` outside would leave the
+/// socket open until usbmuxd answers. Every step gets only the time left
+/// until [deadline], shared by the whole listing.
 Future<T> _withUsbmuxd<T>(
   String socketPath,
-  Duration timeout,
+  DateTime deadline,
   Future<T> Function(Socket socket) exchange,
 ) async {
-  final socket = await connectUsbmuxd(socketPath).timeout(timeout);
+  Duration left() {
+    final left = deadline.difference(DateTime.now());
+    if (left <= Duration.zero) {
+      throw TimeoutException('usbmuxd did not answer in time');
+    }
+    return left;
+  }
+
+  final socket = await connectUsbmuxd(socketPath, timeout: left());
   try {
-    return await exchange(socket).timeout(timeout);
+    return await exchange(socket).timeout(left());
   } finally {
     socket.destroy();
   }
@@ -217,8 +231,8 @@ Future<T> _withUsbmuxd<T>(
 /// and Wi-Fi is listed twice, and keeps its USB entry.
 Future<List<Map<String, Object?>>> _attachedDevices(
   String socketPath,
-  Duration timeout,
-) => _withUsbmuxd(socketPath, timeout, (socket) async {
+  DateTime deadline,
+) => _withUsbmuxd(socketPath, deadline, (socket) async {
   final reader = _UsbmuxReader(socket)..send(usbmuxRequest('ListDevices'));
   final reply = await reader.next();
   final all = [
@@ -241,8 +255,8 @@ int _rank(Map<String, Object?> props) =>
 Future<Map<String, Object?>> _lockdownValues(
   String socketPath,
   int deviceId,
-  Duration timeout,
-) => _withUsbmuxd(socketPath, timeout, (socket) async {
+  DateTime deadline,
+) => _withUsbmuxd(socketPath, deadline, (socket) async {
   final reader = _UsbmuxReader(socket)
     ..send(
       usbmuxRequest(
