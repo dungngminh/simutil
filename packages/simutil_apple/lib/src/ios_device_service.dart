@@ -294,10 +294,10 @@ class IOSDeviceService implements DeviceService {
     // A directory of its own: the TUI, the app and the CLI may list at the
     // same time, and a shared file name let them read or delete each
     // other's output.
-    final tempDirectory = Directory.systemTemp.createTempSync('simutil_ios_');
-    final outputFile = File('${tempDirectory.path}/devices.json');
-
+    Directory? tempDirectory;
     try {
+      tempDirectory = Directory.systemTemp.createTempSync('simutil_ios_');
+      final outputFile = File('${tempDirectory.path}/devices.json');
       final devicectl = await _exec.run(
         'xcrun',
         arguments: listPhysicalDevicesArguments(
@@ -318,7 +318,12 @@ class IOSDeviceService implements DeviceService {
       log('IOSDeviceService._listDevicectlDevices error: $e\n$st');
       return [];
     } finally {
-      tempDirectory.deleteSync(recursive: true);
+      // Cleanup failing must not replace the result.
+      try {
+        tempDirectory?.deleteSync(recursive: true);
+      } catch (e) {
+        log('IOSDeviceService._listDevicectlDevices cleanup: $e');
+      }
     }
   }
 
