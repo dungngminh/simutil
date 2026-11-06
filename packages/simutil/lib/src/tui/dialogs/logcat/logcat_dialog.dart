@@ -183,7 +183,9 @@ class _LogcatDialogState extends State<LogcatDialog> {
   }
 
   bool _handleKeyEvent(KeyboardEvent event) {
-    if (_filterMode) return false;
+    // Ctrl combinations belong to the app: nocterm also sends SIGINT and
+    // SIGTERM as Ctrl+C and only quits when nobody handles it.
+    if (_filterMode || event.isControlPressed) return false;
 
     switch (event.logicalKey) {
       case LogicalKey.escape:
