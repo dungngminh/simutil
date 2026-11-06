@@ -43,6 +43,22 @@ void main() {
     expect(android.shutdown, [emulator.id]);
   });
 
+  test('resolveDevice finds a running emulator by its AVD name', () async {
+    final running = testAndroidEmulator(name: 'Pixel_7');
+    services = CliDeviceServices(
+      services: {
+        DeviceOs.android: FakeDeviceService(simulators: [running]),
+      },
+    );
+
+    expect(await services.resolveDevice('Pixel_7'), running);
+    expect(await services.resolveDevice('emulator-5554'), running);
+  });
+
+  test('resolveDevice does not match a physical device by name', () {
+    expect(services.resolveDevice(phone.name), throwsA(isA<UsageException>()));
+  });
+
   test('resolveDevice throws UsageException for unknown id', () {
     expect(services.resolveDevice('nope'), throwsA(isA<UsageException>()));
   });

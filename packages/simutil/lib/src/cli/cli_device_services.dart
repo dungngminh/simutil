@@ -44,8 +44,13 @@ class CliDeviceServices {
   }
 
   /// Resolves [id] to a single [Device], using [osHint] when ids collide.
+  ///
+  /// A running Android emulator's id is its serial (`emulator-5554`); it
+  /// also matches its AVD name, the id it had before it was launched.
   Future<Device> resolveDevice(String id, {DeviceOs? osHint}) async {
-    final matches = (await listDevices()).where((d) => d.id == id).toList();
+    final matches = (await listDevices())
+        .where((d) => d.id == id || _isAvd(d, id))
+        .toList();
     if (matches.isEmpty) {
       cliUsage('Device not found: $id');
     }
@@ -84,6 +89,11 @@ class CliDeviceServices {
       headless: headless,
     );
   }
+
+  static bool _isAvd(Device device, String name) =>
+      device.os == DeviceOs.android &&
+      device.type == DeviceType.simulator &&
+      device.name == name;
 
   /// Shuts down [device] when it is a simulator/emulator.
   Future<bool> shutdownDevice(Device device) =>
