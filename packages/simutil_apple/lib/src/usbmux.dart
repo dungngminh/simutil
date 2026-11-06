@@ -138,11 +138,12 @@ Future<List<Device>?> listUsbmuxDevices({
 }) async {
   try {
     final devices = <Device>[];
-    for (final props in await _attachedDevices(socketPath).timeout(timeout)) {
+    for (final props in await _attachedDevices(socketPath, timeout)) {
       final values = await _lockdownValues(
         socketPath,
         props['DeviceID']! as int,
-      ).timeout(timeout);
+        timeout,
+      );
       devices.add(usbmuxDevice(props, values));
     }
     return devices;
@@ -161,14 +162,16 @@ Future<Map<String, Object?>?> lockdownValues(
 }) async {
   try {
     final serial = _serial(udid);
-    final props = (await _attachedDevices(socketPath).timeout(
+    final props = (await _attachedDevices(
+      socketPath,
       timeout,
     )).where((p) => _serial('${p['SerialNumber']}') == serial).firstOrNull;
     if (props == null) return null;
     return await _lockdownValues(
       socketPath,
       props['DeviceID']! as int,
-    ).timeout(timeout);
+      timeout,
+    );
   } catch (e) {
     log('lockdownValues: $e');
     return null;
@@ -194,27 +197,41 @@ Device usbmuxDevice(
 /// Serial numbers compared without the dash newer UDIDs carry.
 String _serial(String udid) => udid.replaceAll('-', '').toUpperCase();
 
-/// usbmuxd `ListDevices` properties, one per device: a device on both USB
-/// and Wi-Fi is listed twice, and keeps its USB entry.
-Future<List<Map<String, Object?>>> _attachedDevices(String socketPath) async {
-  final socket = await connectUsbmuxd(socketPath);
+/// Runs [exchange] on a new usbmuxd connection and closes it afterwards,
+/// also when [timeout] passes first: a `.timeout` outside would leave the
+/// socket open until usbmuxd answers.
+Future<T> _withUsbmuxd<T>(
+  String socketPath,
+  Duration timeout,
+  Future<T> Function(Socket socket) exchange,
+) async {
+  final socket = await connectUsbmuxd(socketPath).timeout(timeout);
   try {
-    final reader = _UsbmuxReader(socket)..send(usbmuxRequest('ListDevices'));
-    final reply = await reader.next();
-    final all = [
-      for (final entry in reply['DeviceList'] as List? ?? const [])
-        if ((entry as Map)['Properties'] case final Map props)
-          props.cast<String, Object?>(),
-    ]..sort((a, b) => _rank(a) - _rank(b));
-    final seen = <String>{};
-    return [
-      for (final props in all)
-        if (seen.add(_serial('${props['SerialNumber']}'))) props,
-    ];
+    return await exchange(socket).timeout(timeout);
   } finally {
     socket.destroy();
   }
 }
+
+/// usbmuxd `ListDevices` properties, one per device: a device on both USB
+/// and Wi-Fi is listed twice, and keeps its USB entry.
+Future<List<Map<String, Object?>>> _attachedDevices(
+  String socketPath,
+  Duration timeout,
+) => _withUsbmuxd(socketPath, timeout, (socket) async {
+  final reader = _UsbmuxReader(socket)..send(usbmuxRequest('ListDevices'));
+  final reply = await reader.next();
+  final all = [
+    for (final entry in reply['DeviceList'] as List? ?? const [])
+      if ((entry as Map)['Properties'] case final Map props)
+        props.cast<String, Object?>(),
+  ]..sort((a, b) => _rank(a) - _rank(b));
+  final seen = <String>{};
+  return [
+    for (final props in all)
+      if (seen.add(_serial('${props['SerialNumber']}'))) props,
+  ];
+});
 
 int _rank(Map<String, Object?> props) =>
     props['ConnectionType'] == 'USB' ? 0 : 1;
@@ -224,36 +241,32 @@ int _rank(Map<String, Object?> props) =>
 Future<Map<String, Object?>> _lockdownValues(
   String socketPath,
   int deviceId,
-) async {
-  final socket = await connectUsbmuxd(socketPath);
-  try {
-    final reader = _UsbmuxReader(socket)
-      ..send(
-        usbmuxRequest(
-          'Connect',
-          fields: {
-            'DeviceID': deviceId,
-            // usbmuxd wants the port in network byte order.
-            'PortNumber': ((_lockdownPort & 0xff) << 8) | (_lockdownPort >> 8),
-          },
-        ),
-      );
-    final result = await reader.next();
-    if (result['Number'] != 0) {
-      throw StateError('usbmuxd Connect failed: ${result['Number']}');
-    }
-    // The socket is now a raw tunnel to lockdownd.
-    reader.send(lockdownRequest({'Label': 'simutil', 'Request': 'GetValue'}));
-    final length = ByteData.sublistView(await reader.read(4)).getUint32(0);
-    final reply = decodePlist(utf8.decode(await reader.read(length)));
-    if (reply['Value'] case final Map values) {
-      return values.cast<String, Object?>();
-    }
-    throw StateError('lockdownd GetValue failed: ${reply['Error']}');
-  } finally {
-    socket.destroy();
+  Duration timeout,
+) => _withUsbmuxd(socketPath, timeout, (socket) async {
+  final reader = _UsbmuxReader(socket)
+    ..send(
+      usbmuxRequest(
+        'Connect',
+        fields: {
+          'DeviceID': deviceId,
+          // usbmuxd wants the port in network byte order.
+          'PortNumber': ((_lockdownPort & 0xff) << 8) | (_lockdownPort >> 8),
+        },
+      ),
+    );
+  final result = await reader.next();
+  if (result['Number'] != 0) {
+    throw StateError('usbmuxd Connect failed: ${result['Number']}');
   }
-}
+  // The socket is now a raw tunnel to lockdownd.
+  reader.send(lockdownRequest({'Label': 'simutil', 'Request': 'GetValue'}));
+  final length = ByteData.sublistView(await reader.read(4)).getUint32(0);
+  final reply = decodePlist(utf8.decode(await reader.read(length)));
+  if (reply['Value'] case final Map values) {
+    return values.cast<String, Object?>();
+  }
+  throw StateError('lockdownd GetValue failed: ${reply['Error']}');
+});
 
 /// Exact-length reads over a usbmuxd socket.
 class _UsbmuxReader {
