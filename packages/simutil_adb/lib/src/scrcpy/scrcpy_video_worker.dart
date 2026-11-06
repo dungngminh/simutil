@@ -109,27 +109,32 @@ class ScrcpyVideoWorker {
   static Future<void> _main((SendPort, int) args) async {
     final (events, port) = args;
     final video = _Video(events);
-    final socket = await _connect(port, video.add);
-    if (socket == null) {
+    final connected = await _connect(port, video.add);
+    if (connected == null) {
       events.send(StateError('scrcpy server did not start'));
       return;
     }
+    final (socket, ended) = connected;
 
     final commands = ReceivePort();
+    var closed = false;
     Future<void> close() async {
+      if (closed) return;
+      closed = true;
       commands.close();
       socket.destroy();
       video.freeNative();
       await video.record(null);
     }
 
+    // The read side ending, not `socket.done`: that only completes for
+    // the write side and misses the server closing the stream.
     unawaited(
-      socket.done.then<void>((_) {}, onError: (Object _) {}).whenComplete(
-        () async {
-          events.send(_ended);
-          await close();
-        },
-      ),
+      ended.then((_) async {
+        if (closed) return;
+        events.send(_ended);
+        await close();
+      }),
     );
     events.send(commands.sendPort);
     await for (final command in commands) {
@@ -154,8 +159,9 @@ class ScrcpyVideoWorker {
   }
 
   /// The forward tunnel accepts connections before the server listens, so
-  /// retry until the dummy byte arrives; later bytes go to [onData].
-  static Future<Socket?> _connect(
+  /// retry until the dummy byte arrives; later bytes go to [onData]. Returns
+  /// the socket and a future that completes when its read side ends.
+  static Future<(Socket, Future<void>)?> _connect(
     int port,
     void Function(List<int>) onData,
   ) async {
@@ -168,21 +174,23 @@ class ScrcpyVideoWorker {
         continue;
       }
       final firstByte = Completer<bool>();
+      final ended = Completer<void>();
+      void end() {
+        if (!firstByte.isCompleted) firstByte.complete(false);
+        if (!ended.isCompleted) ended.complete();
+      }
+
       socket.listen(
         (bytes) {
           if (firstByte.isCompleted) return onData(bytes);
           firstByte.complete(true);
           if (bytes.length > 1) onData(bytes.sublist(1));
         },
-        onDone: () {
-          if (!firstByte.isCompleted) firstByte.complete(false);
-        },
-        onError: (Object _) {
-          if (!firstByte.isCompleted) firstByte.complete(false);
-        },
+        onDone: end,
+        onError: (Object _) => end(),
         cancelOnError: true,
       );
-      if (await firstByte.future) return socket;
+      if (await firstByte.future) return (socket, ended.future);
       socket.destroy();
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }

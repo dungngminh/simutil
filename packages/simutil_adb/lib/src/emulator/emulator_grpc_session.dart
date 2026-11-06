@@ -263,7 +263,11 @@ class _EmulatorGrpcSession implements EmulatorGrpcSession {
     final path = _recordingPath;
     _recordingPath = null;
     if (path == null) return null;
-    await _emu(['screenrecord', 'stop']);
+    try {
+      await _emu(['screenrecord', 'stop']);
+    } catch (_) {
+      // A hung console: convert whatever was written.
+    }
     final converted = await runFfmpeg(_exec, [
       '-y',
       '-loglevel',
@@ -282,9 +286,12 @@ class _EmulatorGrpcSession implements EmulatorGrpcSession {
     return path;
   }
 
+  /// `adb emu` waits on the emulator console, which a hung emulator never
+  /// answers.
   Future<CommandResult> _emu(List<String> args) => _exec.run(
     adbPath,
     arguments: ['-s', serial, 'emu', ...args],
+    timeout: const Duration(seconds: 15),
     priority: CommandPriority.interactive,
   );
 

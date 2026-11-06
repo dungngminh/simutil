@@ -579,6 +579,9 @@ class AndroidDeviceService implements DeviceService {
       final result = await _exec.run(
         adbPath,
         arguments: ['-s', deviceId, 'emu', 'kill'],
+        // `adb emu` talks to the emulator console, which a hung emulator
+        // never answers.
+        timeout: const Duration(seconds: 15),
         priority: CommandPriority.interactive,
       );
       return result.success;

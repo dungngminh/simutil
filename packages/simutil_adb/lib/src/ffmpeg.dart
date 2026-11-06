@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:simutil_core/simutil_core.dart';
@@ -16,6 +17,10 @@ final h264EncoderArgs = Platform.isMacOS
     : const ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23'];
 
 /// Runs ffmpeg with [arguments]; false when it is missing or failed.
+///
+/// Tries the next candidate only when one cannot be started: once an
+/// ffmpeg ran, its failure or timeout is the answer (a second binary would
+/// redo the same conversion).
 Future<bool> runFfmpeg(
   CommandExec exec,
   List<String> arguments, {
@@ -28,9 +33,12 @@ Future<bool> runFfmpeg(
         arguments: arguments,
         timeout: timeout,
       );
-      if (result.success) return true;
-    } catch (_) {
-      continue;
+      return result.success;
+    } catch (e) {
+      // Through an isolate the error arrives as its text.
+      if (e is TimeoutException || '$e'.contains('TimeoutException')) {
+        return false;
+      }
     }
   }
   return false;
