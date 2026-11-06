@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ctrl+C quits SimUtil while the Logcat view is open; it used to only clear the log.
 - The Logcat view shows adb's errors (for example a disconnected device) and when logcat stops, instead of waiting for logs forever.
 - "What's new" shows long entries in full; entries that spanned two lines were cut off.
+- On Windows, SimUtil keeps its state in your user folder instead of creating a `.simutil` folder wherever you run it.
 - Headless Android emulators (`simutil launch --headless`) use your computer's GPU, so they run much faster.
 
 ## [1.2.0] - 2026-10-17
