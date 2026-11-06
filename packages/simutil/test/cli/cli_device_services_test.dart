@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:args/command_runner.dart';
 import 'package:simutil/simutil.dart';
 import 'package:simutil_core/simutil_core.dart';
@@ -70,6 +72,35 @@ void main() {
     );
 
     expect(await services.resolveDevice('emulator-5554'), running);
+  });
+
+  test('resolveDevice applies the OS hint before matching', () async {
+    final avd = testAndroidEmulator(
+      id: 'Shared',
+      name: 'Shared',
+      state: DeviceState.shutdown,
+    );
+    final sim = testIosSimulator(id: 'Pixel_7');
+    final running = testAndroidEmulator(name: 'Pixel_7');
+    services = CliDeviceServices(
+      services: {
+        DeviceOs.android: FakeDeviceService(simulators: [avd, running]),
+        DeviceOs.ios: FakeDeviceService(simulators: [sim]),
+      },
+    );
+
+    // An iOS id match must not hide the Android AVD of that name.
+    expect(
+      await services.resolveDevice('Pixel_7', osHint: DeviceOs.android),
+      running,
+    );
+    // iOS devices are only listed on macOS.
+    if (Platform.isMacOS) {
+      expect(
+        await services.resolveDevice('Pixel_7', osHint: DeviceOs.ios),
+        sim,
+      );
+    }
   });
 
   test('resolveDevice does not match a physical device by name', () {
