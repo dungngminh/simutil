@@ -42,6 +42,7 @@ class _LogcatDialogState extends State<LogcatDialog> {
   final ScrollController _scrollController = ScrollController();
   Process? _process;
   StreamSubscription<String>? _subscription;
+  StreamSubscription<String>? _errorSubscription;
 
   bool _autoScroll = true;
   int _scrollIndex = 0;
@@ -60,6 +61,7 @@ class _LogcatDialogState extends State<LogcatDialog> {
   @override
   void dispose() {
     _subscription?.cancel();
+    _errorSubscription?.cancel();
     _process?.kill();
     _scrollController.dispose();
     _filterController.dispose();
@@ -78,6 +80,18 @@ class _LogcatDialogState extends State<LogcatDialog> {
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen(_onNewLine);
+      // adb's own errors (wrong serial, device gone) and its exit, so the
+      // view does not wait for logs forever.
+      _errorSubscription = process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .where((line) => line.trim().isNotEmpty)
+          .listen((line) => _onNewLine('[adb] $line'));
+      unawaited(
+        process.exitCode.then((code) {
+          if (mounted) _onNewLine('[simutil] adb logcat exited ($code)');
+        }),
+      );
     } catch (e) {
       setState(() {
         _lines.add('Error starting logcat: $e');
