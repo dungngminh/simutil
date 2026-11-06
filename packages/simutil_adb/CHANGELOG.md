@@ -9,7 +9,8 @@
   group (`ProcessStartMode.detachedWithStdio`) and outlives the caller.
 - `launchDevice` throws an `EmulatorLaunchException` with the emulator's
   `FATAL` / `ERROR` output when it exits within the launch grace period
-  (e.g. the AVD is already running); failures used to be ignored.
+  (e.g. the AVD is already running), and when the emulator binary cannot
+  be started; failures used to be ignored.
 - `AndroidDeviceService` takes `startProcess` (`EmulatorProcessStarter`)
   and `launchGracePeriod` test seams.
 

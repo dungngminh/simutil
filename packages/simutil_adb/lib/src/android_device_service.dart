@@ -210,8 +210,8 @@ class AndroidDeviceService implements DeviceService {
   /// The emulator runs in its own process group (Ctrl+C on the caller does
   /// not stop it) and outlives the caller, so it does not go through
   /// [CommandExec], which waits for exit. If it exits within the launch
-  /// grace period (5 s), throws an [EmulatorLaunchException] with its error
-  /// output.
+  /// grace period (5 s), or cannot be started at all, throws an
+  /// [EmulatorLaunchException] with its error output.
   @override
   Future<void> launchDevice({
     required String deviceId,
@@ -226,11 +226,19 @@ class AndroidDeviceService implements DeviceService {
       if (headless && !additionalArgs.contains('-gpu')) ...headlessGpuArgs,
       ...additionalArgs,
     }.toList();
-    final process = await _startProcess(
-      emulatorPath,
-      launchArgs,
-      mode: ProcessStartMode.detachedWithStdio,
-    );
+    final Process process;
+    try {
+      process = await _startProcess(
+        emulatorPath,
+        launchArgs,
+        mode: ProcessStartMode.detachedWithStdio,
+      );
+    } on ProcessException catch (e) {
+      throw EmulatorLaunchException(
+        deviceId,
+        'Could not start ${e.executable}: ${e.message}',
+      );
+    }
     unawaited(process.stdin.close().catchError((_) {}));
 
     // A detached process has no exit code: both pipes closing within the

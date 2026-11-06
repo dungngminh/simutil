@@ -461,6 +461,32 @@ void main() {
       );
     });
 
+    test('throws when the emulator binary cannot be started', () async {
+      final svc = AndroidDeviceService(
+        FakeCommandExec((_, _) => null),
+        androidHomeOverride: sdkDir.path,
+        isWindows: false,
+        startProcess:
+            (executable, arguments, {mode = ProcessStartMode.normal}) =>
+                throw ProcessException(
+                  executable,
+                  arguments,
+                  'Permission denied',
+                ),
+      );
+
+      await expectLater(
+        svc.launchDevice(deviceId: 'Pixel_7'),
+        throwsA(
+          isA<EmulatorLaunchException>().having(
+            (e) => e.message,
+            'message',
+            'Could not start $emulatorPath: Permission denied',
+          ),
+        ),
+      );
+    });
+
     test('headless adds the no-window flags', () async {
       await launcher().launchDevice(deviceId: 'Pixel_7', headless: true);
 
