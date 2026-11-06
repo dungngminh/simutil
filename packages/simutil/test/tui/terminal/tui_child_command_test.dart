@@ -17,6 +17,7 @@ void main() {
   test('reruns a .dart script with the VM', () {
     expectCommand(
       tuiChildCommand(
+        compiled: false,
         script: '/src/bin/simutil.dart',
         executable: dart,
         executableArguments: vmFlags,
@@ -31,6 +32,7 @@ void main() {
         '/pkg/.dart_tool/pub/bin/simutil/simutil.dart-3.13.7.snapshot';
     expectCommand(
       tuiChildCommand(
+        compiled: false,
         script: snapshot,
         executable: dart,
         executableArguments: vmFlags,
@@ -40,15 +42,19 @@ void main() {
     );
   });
 
-  test('restarts a compiled executable as is', () {
-    expectCommand(
-      tuiChildCommand(
-        script: '/usr/local/bin/simutil',
-        executable: '/usr/local/bin/simutil',
-        executableArguments: const [],
-      ),
-      '/proc/self/exe',
-      const [],
-    );
+  test('restarts a compiled executable as is, also via a symlink', () {
+    // Via a symlink or PATH, script is not the resolved executable.
+    for (final script in ['/usr/local/bin/simutil', '/simutil']) {
+      expectCommand(
+        tuiChildCommand(
+          compiled: true,
+          script: script,
+          executable: '/opt/simutil/simutil',
+          executableArguments: const [],
+        ),
+        '/proc/self/exe',
+        const [],
+      );
+    }
   });
 }
