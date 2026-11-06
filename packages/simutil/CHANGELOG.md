@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `simutil ios …` on Linux and Windows says that iOS needs macOS instead of crashing.
 - `simutil shutdown`, `wipe` and the other commands also find a running Android emulator by its AVD name, the name you launched it with.
+- `simutil plugin list --json` prints an empty list instead of nothing when no plugin matches.
 - Headless Android emulators (`simutil launch --headless`) use your computer's GPU, so they run much faster.
 
 ## [1.2.0] - 2026-10-17
