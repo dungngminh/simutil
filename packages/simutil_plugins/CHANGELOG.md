@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1
+
+- Without an explicit `availability` check, `PluginRunner.isAvailable`
+  looks the command up on `PATH` (`which` / `where`) instead of running
+  `<command> --version`, which started GUI tools and failed for tools such
+  as `open` that reject the flag. Availability probes time out after 10 s.
+
 ## 1.0.0
 
 - Initial release, extracted from the `simutil` app.
