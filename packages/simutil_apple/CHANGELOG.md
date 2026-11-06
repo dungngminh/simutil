@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.0
+
+- `IOSDeviceService.launchDevice` throws a `SimulatorLaunchException` with
+  `simctl`'s error when `simctl boot` fails (unknown UDID, missing runtime,
+  …) and when the Simulator app does not open; it used to ignore both and
+  return normally. An already booted simulator still counts as started
+  (`IOSDeviceService.isAlreadyBooted`).
+
 ## 1.4.0
 
 - `IOSDeviceService.getPhysicalDevices` asks usbmuxd (`ListDevices`) and

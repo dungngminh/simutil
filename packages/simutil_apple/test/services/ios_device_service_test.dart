@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:simutil_apple/src/ios_device_service.dart';
+import 'package:simutil_apple/src/models/simulator_launch_exception.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_core/testing.dart';
 import 'package:test/test.dart';
@@ -216,6 +217,108 @@ void main() {
 
       expect(await service.getPhysicalDevices(), isEmpty);
       expect(exec.calls.map((c) => c.arguments.first), contains('devicectl'));
+    });
+  });
+
+  group('launchDevice', () {
+    const udid = 'A3CE2FEC-A918-4096-BBC4-857ACE5B56E8';
+
+    IOSDeviceService service(
+      CommandResult? Function(String command, List<String> args) handler,
+    ) => IOSDeviceService(FakeCommandExec(handler), pathExists: (_) => false);
+
+    test('boots and opens the Simulator app', () async {
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+      await IOSDeviceService(
+        exec,
+        pathExists: (_) => false,
+      ).launchDevice(deviceId: udid);
+
+      expect(exec.calls.first.arguments, ['simctl', 'boot', udid]);
+      expect(exec.calls.last.command, 'open');
+    });
+
+    test('headless only boots', () async {
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+      await IOSDeviceService(
+        exec,
+        pathExists: (_) => false,
+      ).launchDevice(deviceId: udid, headless: true);
+
+      expect(exec.calls.map((c) => c.command), ['xcrun']);
+    });
+
+    test('an already booted simulator counts as started', () async {
+      await service(
+        (command, _) => command == 'xcrun'
+            ? FakeCommandExec.fail(
+                'An error was encountered processing the command '
+                    '(domain=com.apple.CoreSimulator.SimError, code=405):\n'
+                    'Unable to boot device in current state: Booted\n',
+                '',
+                149,
+              )
+            : FakeCommandExec.ok(),
+      ).launchDevice(deviceId: udid);
+    });
+
+    test('throws simctl\'s error when the boot fails', () async {
+      await expectLater(
+        service(
+          (_, _) => FakeCommandExec.fail(
+            'Invalid device or device pair: $udid\n',
+            '',
+            148,
+          ),
+        ).launchDevice(deviceId: udid),
+        throwsA(
+          isA<SimulatorLaunchException>()
+              .having((e) => e.udid, 'udid', udid)
+              .having(
+                (e) => e.message,
+                'message',
+                'Invalid device or device pair: $udid',
+              ),
+        ),
+      );
+    });
+
+    test('throws when the Simulator app does not open', () async {
+      await expectLater(
+        service(
+          (command, _) => command == 'open'
+              ? FakeCommandExec.fail('Unable to find application.')
+              : FakeCommandExec.ok(),
+        ).launchDevice(deviceId: udid),
+        throwsA(
+          isA<SimulatorLaunchException>().having(
+            (e) => e.message,
+            'message',
+            'Booted, but the Simulator app did not open: '
+                'Unable to find application.',
+          ),
+        ),
+      );
+    });
+
+    test('throws when xcrun cannot run', () async {
+      await expectLater(
+        service(
+          (_, _) => throw const ProcessException('xcrun', [], 'not found'),
+        ).launchDevice(deviceId: udid),
+        throwsA(isA<SimulatorLaunchException>()),
+      );
+    });
+
+    test('launchError falls back to stdout, then the exit code', () {
+      expect(
+        IOSDeviceService.launchError(FakeCommandExec.fail('', 'out\n', 3)),
+        'out',
+      );
+      expect(
+        IOSDeviceService.launchError(FakeCommandExec.fail('', '', 3)),
+        'Exited with code 3',
+      );
     });
   });
 

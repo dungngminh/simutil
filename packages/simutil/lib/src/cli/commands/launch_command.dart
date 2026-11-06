@@ -4,6 +4,7 @@ import 'package:simutil/src/cli/cli_device_services.dart';
 import 'package:simutil/src/cli/cli_flags.dart';
 import 'package:simutil/src/cli/commands/simutil_command.dart';
 import 'package:simutil_adb/simutil_adb.dart';
+import 'package:simutil_apple/simutil_apple.dart';
 
 /// Boots an emulator or simulator by device id.
 class LaunchCommand extends SimutilCommand {
@@ -81,13 +82,18 @@ class LaunchCommand extends SimutilCommand {
       osHint: osHintFromFlags(argResults!),
     );
 
-    await _services.launchDevice(
-      device,
-      cold: argResults!['cold'] == true,
-      noAudio: argResults!['no-audio'] == true,
-      headless: argResults!['headless'] == true,
-      cameraArgs: cameraArgs,
-    );
+    try {
+      await _services.launchDevice(
+        device,
+        cold: argResults!['cold'] == true,
+        noAudio: argResults!['no-audio'] == true,
+        headless: argResults!['headless'] == true,
+        cameraArgs: cameraArgs,
+      );
+    } on SimulatorLaunchException catch (e) {
+      logger.err('Failed to launch ${device.name} (${device.id}): $e');
+      return 1;
+    }
 
     logger.success('Launched ${device.name} (${device.id})');
     return 0;
