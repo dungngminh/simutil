@@ -91,23 +91,43 @@ Future<ProcessResult> _runStty(List<String> arguments) {
   return Process.run('stty', [ttyFlag, '/dev/tty', ...arguments]);
 }
 
+/// Leaves the alternate screen, shows the cursor and resets attributes.
+///
+/// `tput` prints the terminal's own sequences; `Process.run` captures them,
+/// so they are written to the terminal here, followed by the xterm ones for
+/// terminals without terminfo entries (repeating them is harmless).
 Future<void> _restoreTerminalScreenState() async {
+  final sequences = StringBuffer();
   final term = Platform.environment['TERM'];
-
   if (term != null && term.isNotEmpty) {
-    await Process.run('tput', ['rmcup']);
-    await Process.run('tput', ['cnorm']);
-    await Process.run('tput', ['sgr0']);
-  }
-
-  try {
-    final tty = File('/dev/tty').openSync(mode: FileMode.writeOnlyAppend);
-    try {
-      tty.writeStringSync('\x1b[?1049l\x1b[?25h\x1b[0m\r');
-    } finally {
-      tty.closeSync();
+    for (final capability in const ['rmcup', 'cnorm', 'sgr0']) {
+      try {
+        final result = await Process.run('tput', [capability]);
+        if (result.exitCode == 0) sequences.write(result.stdout);
+      } catch (_) {}
     }
+  }
+  sequences.write(xtermRestoreSequence);
+  try {
+    writeToTerminal(sequences.toString());
   } catch (_) {}
+}
+
+/// Leaves the alternate screen (`?1049l`), shows the cursor (`?25h`) and
+/// resets attributes.
+const xtermRestoreSequence = '\x1b[?1049l\x1b[?25h\x1b[0m\r';
+
+/// Writes [data] to the controlling terminal at [path].
+///
+/// Opens write-only: append mode seeks to the end, which fails on a tty
+/// with `Illegal seek` (errno 29).
+void writeToTerminal(String data, {String path = '/dev/tty'}) {
+  final tty = File(path).openSync(mode: FileMode.writeOnly);
+  try {
+    tty.writeStringSync(data);
+  } finally {
+    tty.closeSync();
+  }
 }
 
 List<StreamSubscription<ProcessSignal>> _forwardSignalsToChild(
