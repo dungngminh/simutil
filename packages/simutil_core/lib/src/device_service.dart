@@ -24,8 +24,9 @@ abstract class DeviceService {
   /// [headless] starts it without its own window (no Android emulator
   /// window, no Simulator app), for UIs that stream the screen themselves.
   ///
-  /// Throws a [DeviceLaunchException] (or a platform subtype) when the
-  /// device does not start.
+  /// Implementations throw a [DeviceLaunchException] (or their platform
+  /// subtype) when the device does not start, rather than returning
+  /// normally.
   Future<void> launchDevice({
     required String deviceId,
     List<String> additionalArgs = const [],
