@@ -1,4 +1,5 @@
 import 'package:simutil_core/src/models/device.dart';
+import 'package:simutil_core/src/models/device_launch_exception.dart';
 
 /// Discovers, launches, and shuts down devices for one platform.
 abstract class DeviceService {
@@ -22,6 +23,9 @@ abstract class DeviceService {
   ///
   /// [headless] starts it without its own window (no Android emulator
   /// window, no Simulator app), for UIs that stream the screen themselves.
+  ///
+  /// Throws a [DeviceLaunchException] (or a platform subtype) when the
+  /// device does not start.
   Future<void> launchDevice({
     required String deviceId,
     List<String> additionalArgs = const [],
