@@ -10,7 +10,8 @@
 - `launchDevice` throws an `EmulatorLaunchException` with the emulator's
   `FATAL` / `ERROR` output when it exits within the launch grace period
   (e.g. the AVD is already running), and when the emulator binary cannot
-  be started; failures used to be ignored.
+  be started; failures used to be ignored. `EmulatorLaunchException`
+  extends `DeviceLaunchException` from `simutil_core` (now `^1.4.0`).
 - `AndroidDeviceService` takes `startProcess` (`EmulatorProcessStarter`)
   and `launchGracePeriod` test seams.
 

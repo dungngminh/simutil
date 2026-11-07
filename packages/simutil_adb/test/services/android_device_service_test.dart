@@ -451,7 +451,7 @@ void main() {
         launcher().launchDevice(deviceId: 'Pixel_7'),
         throwsA(
           isA<EmulatorLaunchException>()
-              .having((e) => e.avd, 'avd', 'Pixel_7')
+              .having((e) => e.deviceId, 'deviceId', 'Pixel_7')
               .having(
                 (e) => e.message,
                 'message',

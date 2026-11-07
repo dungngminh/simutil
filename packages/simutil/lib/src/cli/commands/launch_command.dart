@@ -4,6 +4,7 @@ import 'package:simutil/src/cli/cli_device_services.dart';
 import 'package:simutil/src/cli/cli_flags.dart';
 import 'package:simutil/src/cli/commands/simutil_command.dart';
 import 'package:simutil_adb/simutil_adb.dart';
+import 'package:simutil_core/simutil_core.dart';
 
 /// Boots an emulator or simulator by device id.
 class LaunchCommand extends SimutilCommand {
@@ -89,7 +90,7 @@ class LaunchCommand extends SimutilCommand {
         headless: argResults!['headless'] == true,
         cameraArgs: cameraArgs,
       );
-    } on EmulatorLaunchException catch (e) {
+    } on DeviceLaunchException catch (e) {
       logger.err('Failed to launch ${device.name} (${device.id}): $e');
       return 1;
     }
