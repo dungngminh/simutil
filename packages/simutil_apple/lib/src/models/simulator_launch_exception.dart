@@ -1,16 +1,10 @@
+import 'package:simutil_core/simutil_core.dart';
+
 /// Thrown by `IOSDeviceService.launchDevice` when `simctl boot` fails (for
 /// example an unknown UDID or a missing runtime) or the Simulator app cannot
-/// be opened.
-class SimulatorLaunchException implements Exception {
-  /// Creates an exception for [udid] with the tool's own [message].
-  const SimulatorLaunchException(this.udid, this.message);
-
-  /// The simulator that failed to start.
-  final String udid;
-
-  /// What `simctl` or `open` reported.
-  final String message;
-
-  @override
-  String toString() => message;
+/// be opened. [deviceId] is the simulator's UDID.
+class SimulatorLaunchException extends DeviceLaunchException {
+  /// Creates an exception for the simulator with UDID [deviceId], with what
+  /// `simctl` or `open` reported as [message].
+  const SimulatorLaunchException(super.deviceId, super.message);
 }

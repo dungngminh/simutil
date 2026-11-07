@@ -273,7 +273,7 @@ void main() {
         ).launchDevice(deviceId: udid),
         throwsA(
           isA<SimulatorLaunchException>()
-              .having((e) => e.udid, 'udid', udid)
+              .having((e) => e.deviceId, 'deviceId', udid)
               .having(
                 (e) => e.message,
                 'message',
@@ -306,7 +306,8 @@ void main() {
         service(
           (_, _) => throw const ProcessException('xcrun', [], 'not found'),
         ).launchDevice(deviceId: udid),
-        throwsA(isA<SimulatorLaunchException>()),
+        // Catchable as the common core type too.
+        throwsA(isA<DeviceLaunchException>()),
       );
     });
 
