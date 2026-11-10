@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-11
+
 ### Added
 
 - Open a stream in its own window: the window button on a stream's header
@@ -15,12 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   main window" returns it to the grid, and closing the window ends the
   stream. Closing the main window while device windows are open only hides
   it (the Dock icon brings it back); SimUtil quits once the last device
-  window closes.
+  window closes. If a window cannot open, the stream stays in the grid and
+  SimUtil says why.
 
 ### Changed
 
-- A stream's title wraps to two lines before it is cut. Settings changed in a device window last until it
-  closes.
+- A stream's title wraps to two lines before it is cut.
+- Settings changed in a device window last until it closes.
 
 ## [0.5.0] - 2026-10-23
 
