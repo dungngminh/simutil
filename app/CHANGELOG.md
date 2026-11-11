@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Streaming an Android emulator right after starting it no longer fails
+  with "The guest has not posted new frames"; the stream waits until the
+  emulator shows its first frame.
+
 ## [0.6.0] - 2026-11-11
 
 ### Added
