@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Starting an Android emulator no longer hangs: `simutil launch` returns as soon as the emulator is up, the TUI shows "launched" right away, and pressing Ctrl+C afterwards no longer closes the emulator.
+- If an Android emulator fails to start (for example because it is already running), SimUtil shows the emulator's error instead of reporting success.
 - Headless Android emulators (`simutil launch --headless`) use your computer's GPU, so they run much faster.
 
 ## [1.2.0] - 2026-10-17
