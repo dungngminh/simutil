@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:args/command_runner.dart';
 import 'package:simutil/simutil.dart';
 import 'package:simutil_core/simutil_core.dart';
@@ -41,6 +43,68 @@ void main() {
   test('shutdownDevice routes to the device OS service', () async {
     expect(await services.shutdownDevice(emulator), isTrue);
     expect(android.shutdown, [emulator.id]);
+  });
+
+  test('resolveDevice finds a running emulator by its AVD name', () async {
+    final running = testAndroidEmulator(name: 'Pixel_7');
+    services = CliDeviceServices(
+      services: {
+        DeviceOs.android: FakeDeviceService(simulators: [running]),
+      },
+    );
+
+    expect(await services.resolveDevice('Pixel_7'), running);
+    expect(await services.resolveDevice('emulator-5554'), running);
+  });
+
+  test('resolveDevice prefers an id over an AVD of that name', () async {
+    final running = testAndroidEmulator(name: 'Pixel_7');
+    // An AVD that is (oddly) named like the running emulator's serial.
+    final namesake = testAndroidEmulator(
+      id: 'emulator-5554-avd',
+      name: 'emulator-5554',
+      state: DeviceState.shutdown,
+    );
+    services = CliDeviceServices(
+      services: {
+        DeviceOs.android: FakeDeviceService(simulators: [running, namesake]),
+      },
+    );
+
+    expect(await services.resolveDevice('emulator-5554'), running);
+  });
+
+  test('resolveDevice applies the OS hint before matching', () async {
+    final avd = testAndroidEmulator(
+      id: 'Shared',
+      name: 'Shared',
+      state: DeviceState.shutdown,
+    );
+    final sim = testIosSimulator(id: 'Pixel_7');
+    final running = testAndroidEmulator(name: 'Pixel_7');
+    services = CliDeviceServices(
+      services: {
+        DeviceOs.android: FakeDeviceService(simulators: [avd, running]),
+        DeviceOs.ios: FakeDeviceService(simulators: [sim]),
+      },
+    );
+
+    // An iOS id match must not hide the Android AVD of that name.
+    expect(
+      await services.resolveDevice('Pixel_7', osHint: DeviceOs.android),
+      running,
+    );
+    // iOS devices are only listed on macOS.
+    if (Platform.isMacOS) {
+      expect(
+        await services.resolveDevice('Pixel_7', osHint: DeviceOs.ios),
+        sim,
+      );
+    }
+  });
+
+  test('resolveDevice does not match a physical device by name', () {
+    expect(services.resolveDevice(phone.name), throwsA(isA<UsageException>()));
   });
 
   test('resolveDevice throws UsageException for unknown id', () {

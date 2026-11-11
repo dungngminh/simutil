@@ -94,11 +94,7 @@ class PluginListCommand extends SimutilCommand {
         ? catalog.plugins
         : catalog.forDevice(device);
 
-    if (plugins.isEmpty) {
-      logger.warn('No plugins found.');
-      return 0;
-    }
-
+    // JSON first: `--json` must print a document, also an empty one.
     if (jsonOutputRequested(argResults!)) {
       writeJsonStdout({
         'count': plugins.length,
@@ -123,6 +119,11 @@ class PluginListCommand extends SimutilCommand {
             )
             .toList(),
       });
+      return 0;
+    }
+
+    if (plugins.isEmpty) {
+      logger.warn('No plugins found.');
       return 0;
     }
 

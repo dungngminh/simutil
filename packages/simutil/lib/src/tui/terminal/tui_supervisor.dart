@@ -19,9 +19,15 @@ Future<void> _runTuiSupervisor() async {
   var childExited = false;
   final signalSubscriptions = <StreamSubscription<ProcessSignal>>[];
   try {
+    final (command, arguments) = tuiChildCommand(
+      compiled: const bool.fromEnvironment('dart.vm.product'),
+      script: Platform.script.toFilePath(),
+      executable: Platform.resolvedExecutable,
+      executableArguments: Platform.executableArguments,
+    );
     final child = await Process.start(
-      _currentExecutableCommand(),
-      _currentExecutableArguments(),
+      command,
+      arguments,
       mode: ProcessStartMode.inheritStdio,
       environment: {...Platform.environment, _tuiChildEnvVar: '1'},
     );
@@ -40,20 +46,21 @@ Future<void> _runTuiSupervisor() async {
   }
 }
 
-String _currentExecutableCommand() {
-  final scriptPath = Platform.script.toFilePath();
-  if (scriptPath.endsWith('.dart')) {
-    return Platform.resolvedExecutable;
-  }
-  return '/proc/self/exe';
-}
-
-List<String> _currentExecutableArguments() {
-  final scriptPath = Platform.script.toFilePath();
-  if (scriptPath.endsWith('.dart')) {
-    return [...Platform.executableArguments, scriptPath];
-  }
-  return const [];
+/// The command that runs this program again as the TUI child.
+///
+/// A [compiled] (AOT) executable restarts as is: its [script] is whatever
+/// path it was started by (a symlink, or not even a real path when found on
+/// `PATH`), and passing it on would start the CLI instead of the TUI. Run by
+/// the Dart VM ([script] is a `.dart` file, or the `.snapshot` that
+/// `dart pub global run` uses), the VM gets its flags and the script again.
+(String, List<String>) tuiChildCommand({
+  required bool compiled,
+  required String script,
+  required String executable,
+  required List<String> executableArguments,
+}) {
+  if (compiled) return ('/proc/self/exe', const []);
+  return (executable, [...executableArguments, script]);
 }
 
 Future<String?> _captureTerminalState() async {
