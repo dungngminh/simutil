@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Running several Android emulators no longer stalls SimUtil: each one
+  used to block a slot for device commands until it was shut down.
+- An Android emulator that fails to start (for example because it is
+  already running) shows its error.
+
 ## [0.6.0] - 2026-11-11
 
 ### Added
@@ -24,13 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A stream's title wraps to two lines before it is cut.
 - Settings changed in a device window last until it closes.
-
-### Fixed
-
-- Running several Android emulators no longer stalls SimUtil: each one
-  used to block a slot for device commands until it was shut down.
-- An Android emulator that fails to start (for example because it is
-  already running) shows its error.
 
 ## [0.5.0] - 2026-10-23
 
