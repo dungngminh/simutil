@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- If an iOS simulator fails to start, SimUtil shows the error instead of reporting success.
 - Headless Android emulators (`simutil launch --headless`) use your computer's GPU, so they run much faster.
 
 ## [1.2.0] - 2026-10-17
