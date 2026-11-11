@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The iOS device list no longer freezes when Xcode's simulator service
+  hangs (for example after an Xcode update).
+- An iOS simulator recording that cannot start no longer shows as
+  recording, and a failed recording is no longer reported as saved.
+
 ## [0.6.0] - 2026-11-11
 
 ### Added
@@ -24,13 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A stream's title wraps to two lines before it is cut.
 - Settings changed in a device window last until it closes.
-
-### Fixed
-
-- The iOS device list no longer freezes when Xcode's simulator service
-  hangs (for example after an Xcode update).
-- An iOS simulator recording that cannot start no longer shows as
-  recording, and a failed recording is no longer reported as saved.
 
 ## [0.5.0] - 2026-10-23
 
