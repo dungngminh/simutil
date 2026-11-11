@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- An iOS simulator that fails to start shows its error instead of
+  starting silently.
+
 ## [0.6.0] - 2026-11-11
 
 ### Added
@@ -24,11 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A stream's title wraps to two lines before it is cut.
 - Settings changed in a device window last until it closes.
-
-### Fixed
-
-- An iOS simulator that fails to start shows its error instead of
-  starting silently.
 
 ## [0.5.0] - 2026-10-23
 
