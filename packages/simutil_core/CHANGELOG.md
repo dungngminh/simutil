@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0
+
+- `DeviceLaunchException`: the common type for a simulator or emulator
+  that does not start (`deviceId`, `message`); platform packages extend
+  it, and `DeviceService.launchDevice` documents throwing it.
+
 ## 1.3.0
 
 - `DeviceAutomation.install(device, path)` installs an app package on a

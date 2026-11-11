@@ -4,25 +4,42 @@ import 'dart:io';
 
 import 'package:simutil_adb/src/adb_device_watch.dart';
 import 'package:simutil_adb/src/models/adb_connect_result.dart';
+import 'package:simutil_adb/src/models/emulator_launch_exception.dart';
 import 'package:simutil_adb/src/models/wireless_pairing_info.dart';
 import 'package:simutil_core/simutil_core.dart';
+
+/// Starts the emulator process for `AndroidDeviceService.launchDevice`;
+/// `Process.start` by default.
+typedef EmulatorProcessStarter =
+    Future<Process> Function(
+      String executable,
+      List<String> arguments, {
+      ProcessStartMode mode,
+    });
 
 /// Android emulators and hardware devices via `adb` and the SDK emulator.
 class AndroidDeviceService implements DeviceService {
   /// Creates a service using [CommandExec] for all shell work.
   ///
   /// [androidHomeOverride] wins over `ANDROID_HOME` / `ANDROID_SDK_ROOT`.
-  /// [environment], [fileExists] and [isWindows] are test seams.
+  /// [environment], [fileExists], [isWindows], [isMacOS], [startProcess]
+  /// and [launchGracePeriod] are test seams.
   AndroidDeviceService(
     this._exec, {
     String? androidHomeOverride,
     Map<String, String>? environment,
     bool Function(String path)? fileExists,
     bool? isWindows,
+    bool? isMacOS,
+    EmulatorProcessStarter? startProcess,
+    Duration launchGracePeriod = const Duration(seconds: 5),
   }) : _androidHomeOverride = androidHomeOverride,
        _environment = environment,
        _fileExists = fileExists,
-       _isWindows = isWindows ?? Platform.isWindows;
+       _isWindows = isWindows ?? Platform.isWindows,
+       _isMacOS = isMacOS ?? Platform.isMacOS,
+       _startProcess = startProcess ?? Process.start,
+       _launchGracePeriod = launchGracePeriod;
 
   static const Duration _deviceListTimeout = Duration(seconds: 15);
   static const Duration _wirelessTimeout = Duration(seconds: 15);
@@ -34,6 +51,9 @@ class AndroidDeviceService implements DeviceService {
   final Map<String, String>? _environment;
   final bool Function(String path)? _fileExists;
   final bool _isWindows;
+  final bool _isMacOS;
+  final EmulatorProcessStarter _startProcess;
+  final Duration _launchGracePeriod;
 
   /// SDK binaries are `adb.exe` / `emulator.exe` on Windows.
   String get _exe => _isWindows ? '.exe' : '';
@@ -187,35 +207,137 @@ class AndroidDeviceService implements DeviceService {
     }
   }
 
+  /// Starts the emulator and returns once it is up, without waiting for it
+  /// to exit.
+  ///
+  /// The emulator runs in its own process group (Ctrl+C on the caller does
+  /// not stop it) and outlives the caller, so it does not go through
+  /// [CommandExec], which waits for exit. If it exits within the launch
+  /// grace period (5 s), or cannot be started at all, throws an
+  /// [EmulatorLaunchException] with its error output.
+  ///
+  /// Adds [hostGpuArgs] when the launch is headless or on macOS, unless the
+  /// caller passes `-gpu` or the AVD sets its own GPU mode (see
+  /// [usesAutoGpu]).
   @override
   Future<void> launchDevice({
     required String deviceId,
     List<String> additionalArgs = const [],
     bool headless = false,
   }) async {
+    final hostGpu =
+        (headless || _isMacOS) &&
+        // The caller's own `-gpu` wins; a set would merge the two values.
+        !additionalArgs.contains('-gpu') &&
+        await usesAutoGpu(deviceId);
     // A set: `-no-audio` may come from both headless and the caller.
     final launchArgs = {
       '@$deviceId',
       if (headless) ...headlessArgs,
-      // The caller's own `-gpu` wins; a set would merge the two values.
-      if (headless && !additionalArgs.contains('-gpu')) ...headlessGpuArgs,
+      if (hostGpu) ...hostGpuArgs,
       ...additionalArgs,
     }.toList();
-    await _exec.run(
-      emulatorPath,
-      arguments: launchArgs,
-      priority: CommandPriority.interactive,
-    );
+    final Process process;
+    try {
+      process = await _startProcess(
+        emulatorPath,
+        launchArgs,
+        mode: ProcessStartMode.detachedWithStdio,
+      );
+    } on ProcessException catch (e) {
+      throw EmulatorLaunchException(
+        deviceId,
+        'Could not start ${e.executable}: ${e.message}',
+      );
+    }
+    unawaited(process.stdin.close().catchError((_) {}));
+
+    // A detached process has no exit code: both pipes closing within the
+    // grace period means the emulator exited.
+    final output = StringBuffer();
+    final closed = [Completer<void>(), Completer<void>()];
+    final subscriptions = [
+      for (final (i, stream) in [process.stdout, process.stderr].indexed)
+        stream
+            .transform(systemEncoding.decoder)
+            .listen(
+              output.write,
+              onError: (_) {},
+              onDone: closed[i].complete,
+              cancelOnError: false,
+            ),
+    ];
+    final exited = await Future.wait([
+      for (final c in closed) c.future,
+    ]).then((_) => true).timeout(_launchGracePeriod, onTimeout: () => false);
+    // Let go of the pipes so this process can exit; the emulator does not
+    // need a reader and keeps running.
+    for (final subscription in subscriptions) {
+      await subscription.cancel();
+    }
+    if (exited) {
+      throw EmulatorLaunchException(deviceId, launchError(output.toString()));
+    }
   }
+
+  /// The error to show for an emulator that exited at launch: its `FATAL` /
+  /// `ERROR` lines without the level prefix, else the last lines it printed.
+  static String launchError(String output) {
+    final lines = output
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+    final errors = [
+      for (final line in lines)
+        if (_launchErrorLine.firstMatch(line) case final m?) m.group(1)!.trim(),
+    ];
+    if (errors.isNotEmpty) return errors.join('\n');
+    if (lines.isEmpty) return 'The emulator exited right after starting';
+    return lines.skip(lines.length > 5 ? lines.length - 5 : 0).join('\n');
+  }
+
+  static final RegExp _launchErrorLine = RegExp(r'^(?:FATAL|ERROR)\s*\|(.*)$');
 
   /// Emulator flags added by `headless`: no window, audio or boot animation,
   /// so many emulators fit at once while something else shows the screen.
   static const headlessArgs = ['-no-window', '-no-audio', '-no-boot-anim'];
 
-  /// GPU flags added by `headless` unless the caller passes `-gpu`: without a
-  /// window `-gpu auto` picks software rendering (lavapipe), which streams
-  /// at ~5 fps; the host GPU streams at ~55.
-  static const headlessGpuArgs = ['-gpu', 'host'];
+  /// GPU flags [launchDevice] adds to headless launches and to every launch
+  /// on macOS. `-gpu auto` picks software rendering without a window
+  /// (lavapipe, ~5 fps instead of ~55 when streamed) and, on macOS, for
+  /// API 37+ AVDs, which then hang and crash shortly after boot. One mode
+  /// for windowed and headless launches also keeps the quick-boot snapshot
+  /// valid: a renderer change forces a cold boot.
+  static const hostGpuArgs = ['-gpu', 'host'];
+
+  /// Former name of [hostGpuArgs].
+  @Deprecated('Use hostGpuArgs')
+  static const headlessGpuArgs = hostGpuArgs;
+
+  /// Whether the AVD [name] leaves the GPU mode to the emulator:
+  /// `hw.gpu.mode` in its `config.ini` is `auto` or missing, and
+  /// `hw.gpu.enabled` is not `no`. Also `true` when the config cannot be
+  /// read. A mode set in Android Studio (e.g. `swiftshader_indirect`) is
+  /// kept.
+  Future<bool> usesAutoGpu(String name) async {
+    final ini = File('$avdHome/$name.ini');
+    try {
+      if (!ini.existsSync()) return true;
+      final config = File('${(await _avdDir(ini, name)).path}/config.ini');
+      if (!config.existsSync()) return true;
+      final values = {
+        for (final line in await config.readAsLines())
+          if (line.split('=') case [final key, final value])
+            key.trim(): value.trim(),
+      };
+      final mode = values['hw.gpu.mode'];
+      return values['hw.gpu.enabled'] != 'no' &&
+          (mode == null || mode == 'auto');
+    } on FileSystemException {
+      return true;
+    }
+  }
 
   /// Runs `adb connect [host]`.
   Future<AdbConnectResult> connectDevice(String host) async {
