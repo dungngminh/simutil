@@ -95,6 +95,9 @@ class _ScrcpySession implements ScrcpySession {
   static const _remoteJar = '/data/local/tmp/scrcpy-server.jar';
 
   final _statusController = StreamController<SessionStatus>.broadcast();
+
+  /// Set once the video worker reports the stream's end.
+  bool _videoEnded = false;
   late final _frames = StreamController<(Uint8List, bool)>.broadcast(
     onListen: () => _video?.forward(true),
     onCancel: () => _video?.forward(false),
@@ -324,6 +327,7 @@ class _ScrcpySession implements ScrcpySession {
     },
     onKeyFrameNeeded: requestKeyFrame,
     onEnded: () {
+      _videoEnded = true;
       if (!_stopped) _emit(const SessionFailed('Stream ended'));
     },
   );
@@ -331,6 +335,9 @@ class _ScrcpySession implements ScrcpySession {
   /// Live only with a control socket, so a view's key-frame request on
   /// subscribing is not lost.
   void _emitLive() {
+    // The video may end before the control socket connects; a later
+    // live status would hide that failure.
+    if (_videoEnded) return;
     final (width, height) = (_width, _height);
     if (width == null || height == null || _controlSocket == null) return;
     _emit(SessionLive(width: width, height: height));
@@ -430,8 +437,11 @@ class _ScrcpySession implements ScrcpySession {
   /// Ends the worker, sockets, server and forward that exist so far; safe
   /// to call again for ones a still-running [start] created after [stop].
   Future<void> _release() async {
-    _video?.stop();
+    final video = _video;
     _video = null;
+    // Wait for the worker to free its socket and native buffer, so no
+    // decoder call happens after stop().
+    await video?.stop().timeout(const Duration(seconds: 2), onTimeout: () {});
     _controlSocket?.destroy();
     _controlSocket = null;
     _server?.kill();
