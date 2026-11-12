@@ -86,7 +86,9 @@ void main() {
       exec: _bootedExec(server.port),
     );
     addTearDown(session.stop);
-    final statuses = session.statusChanges.toList();
+    final ended = session.statusChanges.firstWhere(
+      (s) => s == const SessionFailed('Stream ended'),
+    );
 
     final starting = session.start();
     expect(await connections.moveNext(), isTrue);
@@ -99,12 +101,46 @@ void main() {
     await starting;
 
     await video.close();
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    // Waits for the status itself, not a fixed delay.
+    await ended.timeout(const Duration(seconds: 5));
+    expect(session.status, const SessionFailed('Stream ended'));
     control.destroy();
-    await session.stop();
-
-    expect(await statuses, contains(const SessionFailed('Stream ended')));
   });
+
+  test(
+    'a server that never sends its first byte does not hang start()',
+    () async {
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(server.close);
+      // Accepts the video connection and stays silent.
+      final silent = <Socket>[];
+      server.listen(silent.add);
+      addTearDown(() {
+        for (final s in silent) {
+          s.destroy();
+        }
+      });
+      final session = ScrcpySession(
+        serial: 'emulator-5554',
+        adbPath: 'true',
+        install: const ScrcpyInstall(serverPath: 'server', version: '3.0'),
+        exec: _bootedExec(server.port),
+      );
+      final statuses = session.statusChanges.toList();
+
+      await session.start().timeout(const Duration(seconds: 15));
+
+      expect(
+        (await statuses).last,
+        isA<SessionFailed>().having(
+          (s) => s.message,
+          'message',
+          contains('scrcpy server did not start'),
+        ),
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 30)),
+  );
 
   test('stop() while waiting for the boot ends the wait and starts no '
       'server', () async {

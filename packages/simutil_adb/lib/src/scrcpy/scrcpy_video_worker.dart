@@ -18,8 +18,10 @@ typedef _Decode = int Function(int, Pointer<Uint8>, int);
 class ScrcpyVideoWorker {
   ScrcpyVideoWorker._(this._commands, this._exit);
 
-  /// ~10 s: a cold emulator can take several seconds to start the server.
-  static const _connectAttempts = 100;
+  /// A cold emulator can take several seconds to start the server; the
+  /// whole handshake, including a connection that never sends its first
+  /// byte, gets this long.
+  static const _connectTimeout = Duration(seconds: 10);
 
   final SendPort _commands;
   final Future<void> _exit;
@@ -100,8 +102,12 @@ class ScrcpyVideoWorker {
     return Future.any([reply.first, _exit]).whenComplete(reply.close);
   }
 
-  /// Closes the socket and ends the isolate.
-  void stop() => _commands.send(('stop',));
+  /// Closes the socket and ends the isolate; completes once it has exited
+  /// (socket closed, native buffer freed).
+  Future<void> stop() {
+    _commands.send(('stop',));
+    return _exit;
+  }
 
   static const _keyFrameNeeded = 'keyFrameNeeded';
   static const _ended = 'ended';
@@ -165,10 +171,16 @@ class ScrcpyVideoWorker {
     int port,
     void Function(List<int>) onData,
   ) async {
-    for (var attempt = 0; attempt < _connectAttempts; attempt++) {
+    final deadline = DateTime.now().add(_connectTimeout);
+    Duration left() => deadline.difference(DateTime.now());
+    while (left() > Duration.zero) {
       final Socket socket;
       try {
-        socket = await Socket.connect(InternetAddress.loopbackIPv4, port);
+        socket = await Socket.connect(
+          InternetAddress.loopbackIPv4,
+          port,
+          timeout: left(),
+        );
       } on SocketException {
         await Future<void>.delayed(const Duration(milliseconds: 100));
         continue;
@@ -190,7 +202,10 @@ class ScrcpyVideoWorker {
         onError: (Object _) => end(),
         cancelOnError: true,
       );
-      if (await firstByte.future) return (socket, ended.future);
+      final ok =
+          left() > Duration.zero &&
+          await firstByte.future.timeout(left(), onTimeout: () => false);
+      if (ok) return (socket, ended.future);
       socket.destroy();
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
