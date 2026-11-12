@@ -263,10 +263,13 @@ class _EmulatorGrpcSession implements EmulatorGrpcSession {
     final path = _recordingPath;
     _recordingPath = null;
     if (path == null) return null;
+    // Until the emulator confirms the stop it may still be writing the
+    // file: then report nothing saved and leave the `.webm` as it is.
     try {
-      await _emu(['screenrecord', 'stop']);
+      final stopped = await _emu(['screenrecord', 'stop']);
+      if (!stopped.success || stopped.stdout.contains('KO')) return null;
     } catch (_) {
-      // A hung console: convert whatever was written.
+      return null;
     }
     final converted = await runFfmpeg(_exec, [
       '-y',
