@@ -263,7 +263,14 @@ class _EmulatorGrpcSession implements EmulatorGrpcSession {
     final path = _recordingPath;
     _recordingPath = null;
     if (path == null) return null;
-    await _emu(['screenrecord', 'stop']);
+    // Until the emulator confirms the stop it may still be writing the
+    // file: then report nothing saved and leave the `.webm` as it is.
+    try {
+      final stopped = await _emu(['screenrecord', 'stop']);
+      if (!stopped.success || stopped.stdout.contains('KO')) return null;
+    } catch (_) {
+      return null;
+    }
     final converted = await runFfmpeg(_exec, [
       '-y',
       '-loglevel',
@@ -282,9 +289,12 @@ class _EmulatorGrpcSession implements EmulatorGrpcSession {
     return path;
   }
 
+  /// `adb emu` waits on the emulator console, which a hung emulator never
+  /// answers.
   Future<CommandResult> _emu(List<String> args) => _exec.run(
     adbPath,
     arguments: ['-s', serial, 'emu', ...args],
+    timeout: const Duration(seconds: 15),
     priority: CommandPriority.interactive,
   );
 

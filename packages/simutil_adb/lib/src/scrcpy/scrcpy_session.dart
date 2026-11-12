@@ -95,6 +95,9 @@ class _ScrcpySession implements ScrcpySession {
   static const _remoteJar = '/data/local/tmp/scrcpy-server.jar';
 
   final _statusController = StreamController<SessionStatus>.broadcast();
+
+  /// Set once the video worker reports the stream's end.
+  bool _videoEnded = false;
   late final _frames = StreamController<(Uint8List, bool)>.broadcast(
     onListen: () => _video?.forward(true),
     onCancel: () => _video?.forward(false),
@@ -187,24 +190,49 @@ class _ScrcpySession implements ScrcpySession {
     _emit(const SessionConnecting());
     try {
       await _startServer();
-      await _connect();
+      if (!_stopped) await _connect();
     } catch (e) {
       // Emit before stop(): it closes the status stream.
       _emit(SessionFailed('$e'));
       await stop();
+    } finally {
+      // stop() during the start only released what existed by then.
+      if (_stopped) await _release();
+    }
+  }
+
+  /// Polls `sys.boot_completed` with short commands, so a booting device
+  /// does not hold a [CommandExec] slot for minutes and [stop] ends the
+  /// wait.
+  Future<void> _waitForBoot() async {
+    final deadline = DateTime.now().add(_bootTimeout);
+    while (!_stopped) {
+      final boot = await _adb([
+        'shell',
+        'getprop',
+        'sys.boot_completed',
+      ], timeout: _bootPollTimeout);
+      if (!boot.success) {
+        throw StateError(
+          'device did not finish booting: ${boot.stderr.trim()}',
+        );
+      }
+      if (boot.stdout.trim() == '1') return;
+      if (DateTime.now().isAfter(deadline)) {
+        throw StateError(
+          'device did not finish booting within '
+          '${_bootTimeout.inMinutes} min',
+        );
+      }
+      await Future<void>.delayed(_bootPollInterval);
     }
   }
 
   Future<void> _startServer() async {
     // adb lists an emulator while Android is still booting; the server needs
     // system services (its cleanup thread crashes on a null ActivityManager).
-    final boot = await _adb([
-      'shell',
-      'while [ "\$(getprop sys.boot_completed)" != 1 ]; do sleep 1; done',
-    ], timeout: _bootTimeout);
-    if (!boot.success) {
-      throw StateError('device did not finish booting: ${boot.stderr.trim()}');
-    }
+    await _waitForBoot();
+    if (_stopped) return;
     final push = await _adb(['push', install.serverPath, _remoteJar]);
     if (!push.success) {
       throw StateError('adb push failed: ${push.stderr.trim()}');
@@ -221,6 +249,7 @@ class _ScrcpySession implements ScrcpySession {
     if (!forward.success || _forwardPort == null) {
       throw StateError('adb forward failed: ${forward.stderr.trim()}');
     }
+    if (_stopped) return;
 
     _server = await Process.start(adbPath, [
       '-s',
@@ -280,6 +309,7 @@ class _ScrcpySession implements ScrcpySession {
     _controlSocket =
         await Socket.connect(InternetAddress.loopbackIPv4, _forwardPort!)
           ..setOption(SocketOption.tcpNoDelay, true);
+    if (_stopped) return;
     unawaited(_controlSocket!.drain<void>());
     if (turnScreenOff) _controlSocket!.add(ScrcpyProtocol.displayPower(false));
     _emitLive();
@@ -297,6 +327,7 @@ class _ScrcpySession implements ScrcpySession {
     },
     onKeyFrameNeeded: requestKeyFrame,
     onEnded: () {
+      _videoEnded = true;
       if (!_stopped) _emit(const SessionFailed('Stream ended'));
     },
   );
@@ -304,6 +335,9 @@ class _ScrcpySession implements ScrcpySession {
   /// Live only with a control socket, so a view's key-frame request on
   /// subscribing is not lost.
   void _emitLive() {
+    // The video may end before the control socket connects; a later
+    // live status would hide that failure.
+    if (_videoEnded) return;
     final (width, height) = (_width, _height);
     if (width == null || height == null || _controlSocket == null) return;
     _emit(SessionLive(width: width, height: height));
@@ -395,18 +429,40 @@ class _ScrcpySession implements ScrcpySession {
     await stopRecording();
     _stopped = true;
     _keyFrameTimer?.cancel();
-    _video?.stop();
-    _controlSocket?.destroy();
-    _server?.kill();
-    if (_forwardPort case final port?) {
-      await _adb(['forward', '--remove', 'tcp:$port']);
-    }
+    await _release();
     await _frames.close();
     await _statusController.close();
   }
 
+  /// Ends the worker, sockets, server and forward that exist so far; safe
+  /// to call again for ones a still-running [start] created after [stop].
+  Future<void> _release() async {
+    final video = _video;
+    _video = null;
+    // Wait for the worker to free its socket and native buffer, so no
+    // decoder call happens after stop().
+    await video?.stop().timeout(const Duration(seconds: 2), onTimeout: () {});
+    _controlSocket?.destroy();
+    _controlSocket = null;
+    _server?.kill();
+    _server = null;
+    final port = _forwardPort;
+    _forwardPort = null;
+    if (port != null) {
+      try {
+        await _adb(['forward', '--remove', 'tcp:$port']);
+      } catch (_) {}
+    }
+  }
+
   /// A cold boot can take minutes after adb first sees the emulator.
   static const _bootTimeout = Duration(minutes: 3);
+
+  /// One `getprop` while waiting for the boot.
+  static const _bootPollTimeout = Duration(seconds: 10);
+
+  /// Pause between boot checks.
+  static const _bootPollInterval = Duration(seconds: 1);
 
   Future<CommandResult> _adb(
     List<String> args, {

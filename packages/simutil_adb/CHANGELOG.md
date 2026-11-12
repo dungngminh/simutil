@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.4.1
+
+- `ScrcpySession` waits for `sys.boot_completed` with short `getprop`
+  polls instead of one `adb shell` loop, so a booting device no longer
+  holds a `CommandExec` slot for up to 3 min, and `stop()` ends the wait.
+- `ScrcpySession.stop()` during `start()` no longer leaves the scrcpy
+  server, its `adb shell` process or the `adb forward` behind: what the
+  start creates after `stop()` is released when it returns.
+- `ScrcpySession` reports `Stream ended` when the server closes the video
+  socket; the worker watched `socket.done`, which only completes for the
+  write side. A stream that ends while the control socket connects stays
+  failed instead of turning live, and `stop()` waits for the video
+  worker to exit. The video handshake gives up after 10 s in total, also
+  when a connection never sends its first byte.
+- `watchAndroidDevices` kills an `adb track-devices` process whose
+  subscription was cancelled while it was still starting.
+- `AndroidDeviceService.shutdownSimulator` and the `adb emu` calls of
+  `EmulatorGrpcSession` time out after 15 s instead of waiting forever on
+  a hung emulator's console. When `screenrecord stop` fails or times out,
+  `EmulatorGrpcSession.stopRecording` returns null and leaves the `.webm`
+  alone instead of converting a file the emulator may still be writing.
+- `runFfmpeg` tries the next ffmpeg candidate only when one cannot be
+  started, not again after a failed or timed-out conversion.
+
 ## 1.4.0
 
 - `EmulatorGrpcSession` streams and controls an Android emulator over its

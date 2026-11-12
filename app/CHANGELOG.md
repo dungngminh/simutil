@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Closing the stream of an Android device that is still booting no longer
+  leaves the streaming server running on it.
+- A stream shows that it ended when the device stops sending video,
+  instead of freezing on the last frame.
+- Shutting down or recording a frozen Android emulator no longer hangs.
+- A failed video conversion after a recording is no longer run a second
+  time.
+
 ## [0.6.0] - 2026-11-11
 
 ### Added
