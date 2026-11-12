@@ -13,6 +13,7 @@ import 'package:simutil_app/src/recording/screenshot.dart';
 import 'package:simutil_app/src/stream/device_keyboard.dart';
 import 'package:simutil_app/src/stream/ios/ios_device_session.dart';
 import 'package:simutil_app/src/ui/recording_toast.dart';
+import 'package:simutil_app/src/ui/shared/device_recording.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/settings/recordings_dir.dart';
@@ -350,7 +351,7 @@ List<TileAction> _tileActions(
         priority: 5,
         color: entry.recording ? t.danger : null,
         onPressed: live
-            ? () => streams.toggleRecording(device.id, recordingsDirectory())
+            ? () => toggleDeviceRecording(context, streams, device.id)
             : null,
       ),
     TileAction(

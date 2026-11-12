@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The iOS device list no longer freezes when Xcode's simulator service
   hangs (for example after an Xcode update).
-- An iOS simulator recording that cannot start no longer shows as
-  recording, and a failed recording is no longer reported as saved.
+- Starting a device recording that fails (for example an iOS simulator
+  that cannot write the file) shows the error instead of nothing, and a
+  failed recording is no longer reported as saved.
 
 ## [0.6.0] - 2026-11-11
 
