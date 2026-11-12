@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:simutil_core/simutil_core.dart';
+import 'package:simutil_core/testing.dart';
 import 'package:simutil_plugins/simutil_plugins.dart';
 import 'package:test/test.dart';
 
@@ -19,10 +21,68 @@ void main() {
   );
 
   group('isAvailable', () {
-    test('probes "<command> --version" when no availability check', () async {
+    test('checks that the command exists when no availability check', () async {
       final command = PluginCommandConfig(id: 'c', label: 'C', command: dart);
 
       expect(await service.isAvailable(pluginWith(command), command), isTrue);
+    });
+
+    test('a non-executable file path is unavailable', () async {
+      if (Platform.isWindows) return;
+      final dir = Directory.systemTemp.createTempSync('simutil_plugin_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final script = File('${dir.path}/tool')..writeAsStringSync('#!/bin/sh\n');
+      final command = PluginCommandConfig(
+        id: 'c',
+        label: 'C',
+        command: script.path,
+      );
+
+      expect(await service.isAvailable(pluginWith(command), command), isFalse);
+      await Process.run('chmod', ['+x', script.path]);
+      expect(await service.isAvailable(pluginWith(command), command), isTrue);
+      // A directory is not a command either.
+      final folder = PluginCommandConfig(
+        id: 'd',
+        label: 'D',
+        command: dir.path,
+      );
+      expect(await service.isAvailable(pluginWith(folder), folder), isFalse);
+    });
+
+    test('finds a command on PATH without running it', () async {
+      final exec = FakeCommandExec(
+        (cmd, args) => cmd == 'which' || cmd == 'where'
+            ? FakeCommandExec.ok('/usr/bin/open\n')
+            : FakeCommandExec.fail('unknown option --version'),
+      );
+      const command = PluginCommandConfig(id: 'c', label: 'C', command: 'open');
+
+      expect(
+        await PluginRunner(exec).isAvailable(pluginWith(command), command),
+        isTrue,
+      );
+      expect(exec.calls.single.arguments, ['open']);
+      expect(exec.calls.single.timeout, isNotNull);
+    });
+
+    test('a hanging availability check counts as unavailable', () async {
+      final command = PluginCommandConfig(
+        id: 'c',
+        label: 'C',
+        command: 'tool',
+        availability: PluginAvailabilityCheck(
+          command: 'tool',
+          args: const ['--check'],
+        ),
+      );
+      final exec = FakeCommandExec((_, _) => throw TimeoutException('hang'));
+
+      expect(
+        await PluginRunner(exec).isAvailable(pluginWith(command), command),
+        isFalse,
+      );
+      expect(exec.calls.single.timeout, isNotNull);
     });
 
     test('uses an explicit availability check when provided', () async {

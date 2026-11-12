@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:simutil_core/src/isolate_runner.dart';
@@ -45,6 +46,36 @@ void main() {
       await runner.dispose();
     },
   );
+
+  test('a timeout arrives as a TimeoutException with its duration', () async {
+    final runner = IsolateRunner();
+    await runner.init();
+    addTearDown(runner.dispose);
+
+    await expectLater(
+      runner.execute('sleep', const [
+        '5',
+      ], timeout: const Duration(milliseconds: 200)),
+      throwsA(
+        isA<TimeoutException>().having(
+          (e) => e.duration,
+          'duration',
+          const Duration(milliseconds: 200),
+        ),
+      ),
+    );
+  }, testOn: '!windows');
+
+  test('a missing executable arrives as a ProcessException', () async {
+    final runner = IsolateRunner();
+    await runner.init();
+    addTearDown(runner.dispose);
+
+    await expectLater(
+      runner.execute('simutil-no-such-tool', const []),
+      throwsA(isA<ProcessException>()),
+    );
+  });
 
   test('pending requests error out when disposed', () async {
     final runner = IsolateRunner();

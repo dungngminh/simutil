@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1
+
+- `CommandExec.isolate` (`IsolateRunner`) fails a timed-out command with a
+  `TimeoutException` (with its `duration`) and a command that cannot start
+  with a `ProcessException`, as `CommandExec.run` documents. Both used to
+  arrive as a plain `Exception` with the text, so `on TimeoutException`
+  handlers never ran.
+
 ## 1.3.0
 
 - `DeviceAutomation.install(device, path)` installs an app package on a

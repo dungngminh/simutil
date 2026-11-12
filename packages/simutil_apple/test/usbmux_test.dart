@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -116,6 +117,32 @@ void main() {
       expect(values?['ProductType'], 'iPhone15,2');
       expect(await lockdownValues('other', socketPath: socketPath), isNull);
     });
+  });
+
+  test('closes the connection when usbmuxd does not answer in time', () async {
+    final dir = await Directory.systemTemp.createTemp('usbmux');
+    final socketPath = '${dir.path}/usbmuxd';
+    final server = await ServerSocket.bind(
+      InternetAddress(socketPath, type: InternetAddressType.unix),
+      0,
+    );
+    addTearDown(() async {
+      await server.close();
+      await dir.delete(recursive: true);
+    });
+    // A usbmuxd that accepts and never replies.
+    final closed = Completer<void>();
+    server.listen((client) => client.listen((_) {}, onDone: closed.complete));
+
+    expect(
+      await listUsbmuxDevices(
+        socketPath: socketPath,
+        // Long enough to connect on a slow runner; the server never replies.
+        timeout: const Duration(seconds: 1),
+      ),
+      isNull,
+    );
+    await closed.future.timeout(const Duration(seconds: 5));
   });
 
   test('null when usbmuxd is unreachable', () async {

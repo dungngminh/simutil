@@ -139,10 +139,13 @@ this order:
 
 1. The command's own `availability` (if set).
 2. The plugin's `availability` (if set).
-3. Fallback: `<command> --version`.
+3. Fallback: the command must exist, without running it. A path (containing
+   `/` or `\`) must be an executable file; a plain name is looked up on `PATH`
+   with `which` (`where` on Windows).
 
-A probe passes when the process exits with code `0`. If it fails, SimUtil shows
-a "not found" message in the status bar instead of running.
+An `availability` probe passes when the process exits with code `0` within
+10 seconds. If a check fails, SimUtil shows a "not found" message in the status
+bar instead of running.
 
 ```yaml
 availability:

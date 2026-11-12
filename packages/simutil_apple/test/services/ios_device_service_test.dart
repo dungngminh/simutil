@@ -219,6 +219,43 @@ void main() {
     });
   });
 
+  group('command timeouts', () {
+    test('listing simulators has a timeout', () async {
+      if (!Platform.isMacOS) return;
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok('{}'));
+      await IOSDeviceService(exec).getSimulators();
+
+      expect(exec.calls.single.timeout, isNotNull);
+    });
+
+    test('devicectl writes to its own temp dir and removes it', () async {
+      if (!Platform.isMacOS) return;
+      String? outputPath;
+      final exec = FakeCommandExec((_, args) {
+        if (args.first != 'devicectl') return null;
+        outputPath = args[args.indexOf('-j') + 1];
+        File(outputPath!).writeAsStringSync('{"result": {"devices": []}}');
+        return FakeCommandExec.ok();
+      });
+      final service = IOSDeviceService(
+        exec,
+        pathExists: (_) => false,
+        listUsbmuxDevices: () async => null,
+      );
+
+      expect(await service.getPhysicalDevices(), isEmpty);
+      expect(outputPath, isNot(endsWith('/ios_devices.json')));
+      expect(File(outputPath!).parent.existsSync(), isFalse);
+      expect(
+        exec.calls
+            .where((c) => c.arguments.first == 'devicectl')
+            .single
+            .timeout,
+        isNotNull,
+      );
+    });
+  });
+
   group('resolveSimulatorAppPath', () {
     const developerPath = '/Applications/Xcode.app/Contents/Developer';
     const deviceHub =

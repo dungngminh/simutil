@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The iOS device list no longer freezes when Xcode's simulator service hangs (for example after an Xcode update); SimUtil gives up after 30 seconds and tries again on the next refresh.
+- Plugins for tools such as `open` show as installed; they used to show as missing.
 - Headless Android emulators (`simutil launch --headless`) use your computer's GPU, so they run much faster.
 
 ## [1.2.0] - 2026-10-17

@@ -81,7 +81,9 @@ Entry points in [packages/simutil/lib/src/tui/app/simutil_tui_app.dart](../../pa
 ## Behavioural rules (must stay in sync with docs/plugins.md)
 
 - **Availability order:** `command.availability` → `plugin.availability` →
-  fallback `<command> --version`. Pass = exit code `0`.
+  fallback: the command exists, without running it (a path must be an
+  executable file; a plain name is found by `which` / `where`). An
+  `availability` probe passes with exit code `0` within 10 s.
 - **Filtering:** a command shows when (`platforms` empty or contains device OS)
   **and** (`requiresRunning` false or device running). A plugin shows when it has
   ≥1 such command. `null` device fails any platform/running constraint.
