@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Starting an Android emulator no longer hangs: `simutil launch` returns as soon as the emulator is up, the TUI shows "launched" right away, and pressing Ctrl+C afterwards no longer closes the emulator.
+- If an Android emulator fails to start (for example because it is already running), SimUtil shows the emulator's error instead of reporting success.
 - `simutil ios …` on Linux and Windows says that iOS needs macOS instead of crashing.
 - `simutil shutdown`, `wipe` and the other commands also find a running Android emulator by its AVD name, the name you launched it with.
 - `simutil plugin list --json` prints an empty list instead of nothing when no plugin matches.
