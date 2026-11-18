@@ -42,7 +42,7 @@ jobs:
             artifact: simutil-linux-x64
           - os: macos-15-intel
             artifact: simutil-macos-x64
-          - os: macos-14
+          - os: macos-15
             artifact: simutil-macos-arm64
           - os: windows-latest
             artifact: simutil-windows-x64
