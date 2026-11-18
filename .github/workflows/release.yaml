@@ -22,7 +22,7 @@ jobs:
           - os: macos-15-intel
             target: macos-x64
             artifact: simutil-macos-x64
-          - os: macos-14
+          - os: macos-15
             target: macos-arm64
             artifact: simutil-macos-arm64
           - os: windows-latest
@@ -70,7 +70,7 @@ jobs:
             target: macos-x64
             archive: simutil-macos-x64.tar.gz
             binary: simutil-macos-x64
-          - os: macos-14
+          - os: macos-15
             target: macos-arm64
             archive: simutil-macos-arm64.tar.gz
             binary: simutil-macos-arm64

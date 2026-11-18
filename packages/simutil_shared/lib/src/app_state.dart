@@ -2,8 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 
 /// Returns the default path to `~/.simutil/state.json`.
-String resolveStatePath() {
-  final home = Platform.environment['HOME'] ?? '.';
+///
+/// Windows shells usually have no `HOME`, so `USERPROFILE` comes next;
+/// otherwise the file landed in the current directory. [environment] is a
+/// test seam.
+String resolveStatePath({Map<String, String>? environment}) {
+  final env = environment ?? Platform.environment;
+  String? nonEmpty(String key) => switch (env[key]) {
+    final value? when value.isNotEmpty => value,
+    _ => null,
+  };
+  final home = nonEmpty('HOME') ?? nonEmpty('USERPROFILE') ?? '.';
   return '$home/.simutil/state.json';
 }
 
