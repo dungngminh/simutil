@@ -136,31 +136,55 @@ class _EmulatorGrpcSession implements EmulatorGrpcSession {
 
   /// Reads the display size from a full-size screenshot (an oversized
   /// request is capped at the display); 0x0 until the display is on.
+  ///
+  /// adb reports an emulator before Android draws its first frame; until
+  /// then the emulator answers with an error ("The guest has not posted
+  /// new frames") instead of an empty image. Both mean "not yet": keep
+  /// asking until [_bootTimeout], then report the last error.
   Future<void> _readDisplay() async {
     final deadline = DateTime.now().add(_bootTimeout);
+    GrpcError? lastError;
     while (!_stopped) {
-      final image = await _client.getScreenshot(
-        ImageFormat(
-          format: ImageFormat_ImgFormat.RGB888,
-          width: 1 << 16,
-          height: 1 << 16,
-        ),
-        options: CallOptions(timeout: const Duration(seconds: 10)),
-      );
-      final format = image.format;
-      if (format.width > 0 && format.height > 0) {
-        _rotation = format.rotation.rotation;
-        final swap = _sideways(_rotation);
-        _width = swap ? format.height : format.width;
-        _height = swap ? format.width : format.height;
-        return;
+      try {
+        final image = await _client.getScreenshot(
+          ImageFormat(
+            format: ImageFormat_ImgFormat.RGB888,
+            width: 1 << 16,
+            height: 1 << 16,
+          ),
+          options: CallOptions(timeout: const Duration(seconds: 10)),
+        );
+        final format = image.format;
+        if (format.width > 0 && format.height > 0) {
+          _rotation = format.rotation.rotation;
+          final swap = _sideways(_rotation);
+          _width = swap ? format.height : format.width;
+          _height = swap ? format.width : format.height;
+          return;
+        }
+      } on GrpcError catch (e) {
+        if (!_retryable(e)) rethrow;
+        lastError = e;
       }
       if (DateTime.now().isAfter(deadline)) {
-        throw StateError('emulator display did not turn on');
+        throw lastError ?? StateError('emulator display did not turn on');
       }
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(_displayPollInterval);
     }
   }
+
+  /// Pause between display checks while the emulator boots.
+  static const _displayPollInterval = Duration(milliseconds: 500);
+
+  /// Errors that waiting can fix; a wrong token or an unsupported call
+  /// cannot.
+  static bool _retryable(GrpcError e) => switch (e.code) {
+    StatusCode.unauthenticated ||
+    StatusCode.permissionDenied ||
+    StatusCode.unimplemented ||
+    StatusCode.invalidArgument => false,
+    _ => true,
+  };
 
   static bool _sideways(Rotation_SkinRotation rotation) =>
       rotation == Rotation_SkinRotation.LANDSCAPE ||

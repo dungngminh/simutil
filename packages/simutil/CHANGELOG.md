@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "What's new" shows long entries in full; entries that spanned two lines were cut off.
 - On Windows, SimUtil keeps its state in your user folder instead of creating a `.simutil` folder wherever you run it.
 - On Linux, the terminal UI starts again when SimUtil was installed with `dart pub global activate`.
+- On Linux, the cursor shows again after you quit SimUtil (it stayed hidden, for example over SSH).
 - Headless Android emulators (`simutil launch --headless`) use your computer's GPU, so they run much faster.
 
 ## [1.2.0] - 2026-10-17
