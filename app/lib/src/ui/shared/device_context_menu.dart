@@ -11,10 +11,10 @@ import 'package:simutil_app/src/devices/slim_mode_cubit.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
-import 'package:simutil_app/src/settings/recordings_dir.dart';
 import 'package:simutil_app/src/stream/ios/sim_camera.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/ui/shared/device_actions.dart';
+import 'package:simutil_app/src/ui/shared/device_recording.dart';
 import 'package:simutil_app/src/ui/shared/native_menu.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:tray_manager/tray_manager.dart' as native;
@@ -131,7 +131,7 @@ List<native.MenuItem> _actionItems(BuildContext context, Device device) {
               )))
         menuItem(
           session.isRecording ? 'Stop recording' : 'Record',
-          () => streams.toggleRecording(device.id, recordingsDirectory()),
+          () => toggleDeviceRecording(context, streams, device.id),
         ),
       menuItem('Close stream', () => streams.closeStream(device.id)),
       if (session.status case SessionLive(inputBlocked: true))

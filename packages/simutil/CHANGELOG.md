@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The iOS device list no longer freezes when Xcode's simulator service hangs (for example after an Xcode update); SimUtil gives up after 30 seconds and tries again on the next refresh.
+- Plugins for tools such as `open` show as installed; they used to show as missing.
 - If an iOS simulator fails to start, SimUtil shows the error instead of reporting success.
 - Starting an Android emulator no longer hangs: `simutil launch` returns as soon as the emulator is up, the TUI shows "launched" right away, and pressing Ctrl+C afterwards no longer closes the emulator.
 - If an Android emulator fails to start (for example because it is already running), SimUtil shows the emulator's error instead of reporting success.

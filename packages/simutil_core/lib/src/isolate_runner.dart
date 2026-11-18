@@ -45,6 +45,10 @@ class IsolateRunner {
         completer.complete(message);
       } else if (message is IsolateResponse) {
         _handleResponse(message);
+      } else if (message case (final int id, final Exception error)) {
+        // Timeouts and failed starts keep their type across the isolate,
+        // as `CommandExec.run` documents.
+        _pending.remove(id)?.completeError(error);
       }
     });
 
@@ -180,6 +184,7 @@ class IsolateRunner {
                   process.kill(ProcessSignal.sigkill);
                   throw TimeoutException(
                     'Command timed out after ${timeout.inSeconds} seconds',
+                    timeout,
                   );
                 },
               );
@@ -194,6 +199,10 @@ class IsolateRunner {
             exitCode: exitCode,
           ),
         );
+      } on TimeoutException catch (e) {
+        mainSendPort.send((message.id, e));
+      } on ProcessException catch (e) {
+        mainSendPort.send((message.id, e));
       } catch (e) {
         mainSendPort.send(IsolateResponse(id: message.id, error: e.toString()));
       }
