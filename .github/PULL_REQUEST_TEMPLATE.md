@@ -22,3 +22,14 @@
 - [ ] 🗑️ Chore
 - [ ] 📦 Build configuration change
 - [ ] ✅ Test
+
+## Evidence
+
+<!---
+  Attach a screen recording that shows the change working (drag the video
+  file into this box; GitHub supports .mp4 / .mov up to 100 MB).
+  For UI or behavior changes, show before and after when it helps.
+  Not applicable (docs, CI, refactor with no visible change)? Write "N/A".
+-->
+
+- [ ] 🎥 Video recording attached (or N/A)
