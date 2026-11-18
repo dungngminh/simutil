@@ -19,6 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The iOS device list no longer freezes when Xcode's simulator service hangs (for example after an Xcode update); SimUtil gives up after 30 seconds and tries again on the next refresh.
 - Plugins for tools such as `open` show as installed; they used to show as missing.
+- If an iOS simulator fails to start, SimUtil shows the error instead of reporting success.
+- Starting an Android emulator no longer hangs: `simutil launch` returns as soon as the emulator is up, the TUI shows "launched" right away, and pressing Ctrl+C afterwards no longer closes the emulator.
+- If an Android emulator fails to start (for example because it is already running), SimUtil shows the emulator's error instead of reporting success.
+- On a Mac, Android emulators started with a window use your GPU too: emulators with API 37 or newer no longer crash shortly after starting, and switching between window and headless no longer forces a slow cold boot. A GPU mode set for the emulator in Android Studio is kept.
+- `simutil ios …` on Linux and Windows says that iOS needs macOS instead of crashing.
+- `simutil shutdown`, `wipe` and the other commands also find a running Android emulator by its AVD name, the name you launched it with.
+- `simutil plugin list --json` prints an empty list instead of nothing when no plugin matches.
+- Ctrl+C quits SimUtil while the Logcat view is open; it used to only clear the log.
+- The Logcat view shows adb's errors (for example a disconnected device) and when logcat stops, instead of waiting for logs forever.
+- "What's new" shows long entries in full; entries that spanned two lines were cut off.
+- On Windows, SimUtil keeps its state in your user folder instead of creating a `.simutil` folder wherever you run it.
+- On Linux, the terminal UI starts again when SimUtil was installed with `dart pub global activate`.
+- On Linux, the cursor shows again after you quit SimUtil (it stayed hidden, for example over SSH).
 - Headless Android emulators (`simutil launch --headless`) use your computer's GPU, so they run much faster.
 
 ## [1.2.0] - 2026-10-17

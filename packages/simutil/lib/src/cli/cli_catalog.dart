@@ -79,7 +79,7 @@ List<CliCommandSpec> simutilCliCatalog({required String version}) => [
     ],
     examples: [
       'simutil launch Pixel_7_Pro_big_Android_15',
-      'simutil start emulator-5554 -a',
+      'simutil start <avd> -a',
       'simutil launch <avd> -c --no-audio',
       'simutil launch <udid> --headless',
       'simutil launch <avd> --camera-back image:qr.png --camera-front webcam0',

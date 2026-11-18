@@ -1,7 +1,13 @@
 # Changelog
 
-## 1.4.1
+## 1.5.0
 
+- `IOSDeviceService.launchDevice` throws a `SimulatorLaunchException`
+  with `simctl`'s error when `simctl boot` fails (unknown UDID, missing
+  runtime, …) and when the Simulator app does not open; it used to ignore
+  both and return normally. `SimulatorLaunchException` extends
+  `DeviceLaunchException` from `simutil_core` (now `^1.4.0`). An already booted simulator still counts as started
+  (`IOSDeviceService.isAlreadyBooted`).
 - `IOSDeviceService` gives its `simctl list`, `devicectl list`,
   `xcode-select` and `open` calls a 30 s timeout, and `simctl shutdown` /
   `delete` / `erase` 2 min. A stuck CoreSimulatorService or CoreDevice

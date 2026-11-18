@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:args/command_runner.dart';
 import 'package:simutil/src/cli/cli_device_services.dart';
 import 'package:simutil/src/cli/cli_flags.dart';
 import 'package:simutil/src/cli/commands/device_list_command.dart';
@@ -113,9 +114,9 @@ class AndroidDeviceListCommand extends DeviceListCommand {
 
 /// Parent for Apple-specific CLI commands (macOS).
 class IosCommand extends SimutilCommand {
-  /// Creates the `ios` command group.
-  IosCommand({super.logger, CliDeviceServices? services}) {
-    if (!Platform.isMacOS) return;
+  /// Creates the `ios` command group; [isMacOS] is a test seam.
+  IosCommand({super.logger, CliDeviceServices? services, bool? isMacOS}) {
+    if (!(isMacOS ?? Platform.isMacOS)) return;
     final resolved = services ?? CliDeviceServices();
     addSubcommand(IosSimulatorCommand(logger: logger, services: resolved));
     addSubcommand(IosDeviceCommand(logger: logger, services: resolved));
@@ -126,6 +127,12 @@ class IosCommand extends SimutilCommand {
 
   @override
   String get description => 'Apple simulators and hardware (macOS)';
+
+  /// Only reached off macOS, where the group has no subcommands: without
+  /// it, args reports a missing `run()` with a stack trace.
+  @override
+  Future<int> run() async =>
+      throw UsageException('iOS simulators and devices need macOS.', usage);
 }
 
 /// `simutil ios simulator …`

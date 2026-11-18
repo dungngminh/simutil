@@ -1,7 +1,10 @@
 # Changelog
 
-## 1.3.1
+## 1.4.0
 
+- `DeviceLaunchException`: the common type for a simulator or emulator
+  that does not start (`deviceId`, `message`); platform packages extend
+  it, and `DeviceService.launchDevice` documents throwing it.
 - `CommandExec.isolate` (`IsolateRunner`) fails a timed-out command with a
   `TimeoutException` (with its `duration`) and a command that cannot start
   with a `ProcessException`, as `CommandExec.run` documents. Both used to
