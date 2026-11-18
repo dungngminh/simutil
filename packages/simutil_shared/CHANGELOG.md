@@ -2,6 +2,9 @@
 
 ## 1.1.0
 
+- `resolveStatePath` falls back to `USERPROFILE` when `HOME` is unset (the
+  usual case in Windows shells) instead of the current directory, and
+  takes an optional `environment`.
 - **Breaking:** removed `ServiceLocator`. Each app now wires its own services
   (the TUI keeps a locator in `simutil`, the desktop app uses `get_it`).
 - Dropped the `simutil_adb` and `simutil_apple` dependencies.

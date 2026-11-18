@@ -19,9 +19,15 @@ Future<void> _runTuiSupervisor() async {
   var childExited = false;
   final signalSubscriptions = <StreamSubscription<ProcessSignal>>[];
   try {
+    final (command, arguments) = tuiChildCommand(
+      compiled: const bool.fromEnvironment('dart.vm.product'),
+      script: Platform.script.toFilePath(),
+      executable: Platform.resolvedExecutable,
+      executableArguments: Platform.executableArguments,
+    );
     final child = await Process.start(
-      _currentExecutableCommand(),
-      _currentExecutableArguments(),
+      command,
+      arguments,
       mode: ProcessStartMode.inheritStdio,
       environment: {...Platform.environment, _tuiChildEnvVar: '1'},
     );
@@ -40,20 +46,21 @@ Future<void> _runTuiSupervisor() async {
   }
 }
 
-String _currentExecutableCommand() {
-  final scriptPath = Platform.script.toFilePath();
-  if (scriptPath.endsWith('.dart')) {
-    return Platform.resolvedExecutable;
-  }
-  return '/proc/self/exe';
-}
-
-List<String> _currentExecutableArguments() {
-  final scriptPath = Platform.script.toFilePath();
-  if (scriptPath.endsWith('.dart')) {
-    return [...Platform.executableArguments, scriptPath];
-  }
-  return const [];
+/// The command that runs this program again as the TUI child.
+///
+/// A [compiled] (AOT) executable restarts as is: its [script] is whatever
+/// path it was started by (a symlink, or not even a real path when found on
+/// `PATH`), and passing it on would start the CLI instead of the TUI. Run by
+/// the Dart VM ([script] is a `.dart` file, or the `.snapshot` that
+/// `dart pub global run` uses), the VM gets its flags and the script again.
+(String, List<String>) tuiChildCommand({
+  required bool compiled,
+  required String script,
+  required String executable,
+  required List<String> executableArguments,
+}) {
+  if (compiled) return ('/proc/self/exe', const []);
+  return (executable, [...executableArguments, script]);
 }
 
 Future<String?> _captureTerminalState() async {
@@ -91,23 +98,43 @@ Future<ProcessResult> _runStty(List<String> arguments) {
   return Process.run('stty', [ttyFlag, '/dev/tty', ...arguments]);
 }
 
+/// Leaves the alternate screen, shows the cursor and resets attributes.
+///
+/// `tput` prints the terminal's own sequences; `Process.run` captures them,
+/// so they are written to the terminal here, followed by the xterm ones for
+/// terminals without terminfo entries (repeating them is harmless).
 Future<void> _restoreTerminalScreenState() async {
+  final sequences = StringBuffer();
   final term = Platform.environment['TERM'];
-
   if (term != null && term.isNotEmpty) {
-    await Process.run('tput', ['rmcup']);
-    await Process.run('tput', ['cnorm']);
-    await Process.run('tput', ['sgr0']);
-  }
-
-  try {
-    final tty = File('/dev/tty').openSync(mode: FileMode.writeOnlyAppend);
-    try {
-      tty.writeStringSync('\x1b[?1049l\x1b[?25h\x1b[0m\r');
-    } finally {
-      tty.closeSync();
+    for (final capability in const ['rmcup', 'cnorm', 'sgr0']) {
+      try {
+        final result = await Process.run('tput', [capability]);
+        if (result.exitCode == 0) sequences.write(result.stdout);
+      } catch (_) {}
     }
+  }
+  sequences.write(xtermRestoreSequence);
+  try {
+    writeToTerminal(sequences.toString());
   } catch (_) {}
+}
+
+/// Leaves the alternate screen (`?1049l`), shows the cursor (`?25h`) and
+/// resets attributes.
+const xtermRestoreSequence = '\x1b[?1049l\x1b[?25h\x1b[0m\r';
+
+/// Writes [data] to the controlling terminal at [path].
+///
+/// Opens write-only: append mode seeks to the end, which fails on a tty
+/// with `Illegal seek` (errno 29).
+void writeToTerminal(String data, {String path = '/dev/tty'}) {
+  final tty = File(path).openSync(mode: FileMode.writeOnly);
+  try {
+    tty.writeStringSync(data);
+  } finally {
+    tty.closeSync();
+  }
 }
 
 List<StreamSubscription<ProcessSignal>> _forwardSignalsToChild(

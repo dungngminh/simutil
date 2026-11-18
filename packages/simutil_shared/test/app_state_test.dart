@@ -18,6 +18,31 @@ void main() {
 
   AppStateService service() => AppStateService(stateFilePath: statePath);
 
+  group('resolveStatePath', () {
+    test('uses HOME', () {
+      expect(
+        resolveStatePath(environment: {'HOME': '/home/me'}),
+        '/home/me/.simutil/state.json',
+      );
+    });
+
+    test('treats an empty HOME as unset', () {
+      expect(
+        resolveStatePath(
+          environment: {'HOME': '', 'USERPROFILE': r'C:\Users\me'},
+        ),
+        r'C:\Users\me/.simutil/state.json',
+      );
+    });
+
+    test('falls back to USERPROFILE on Windows', () {
+      expect(
+        resolveStatePath(environment: {'USERPROFILE': r'C:\Users\me'}),
+        r'C:\Users\me/.simutil/state.json',
+      );
+    });
+  });
+
   test('load returns default state when the file is missing', () async {
     final state = await service().load();
 
