@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   used to block a slot for device commands until it was shut down.
 - An Android emulator that fails to start (for example because it is
   already running) shows its error.
+- Android emulators started with a window use your Mac's GPU, like
+  headless ones: emulators with API 37 or newer no longer crash shortly
+  after starting, and switching between window and headless no longer
+  forces a slow cold boot. A GPU mode set in Android Studio is kept.
 - Streaming an Android emulator right after starting it no longer fails
   with "The guest has not posted new frames"; the stream waits until the
   emulator shows its first frame.
