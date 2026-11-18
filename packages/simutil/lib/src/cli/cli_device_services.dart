@@ -44,18 +44,28 @@ class CliDeviceServices {
   }
 
   /// Resolves [id] to a single [Device], using [osHint] when ids collide.
+  ///
+  /// A running Android emulator's id is its serial (`emulator-5554`); it
+  /// also matches its AVD name, the id it had before it was launched. An id
+  /// match wins, so an AVD named like another emulator's serial does not
+  /// make the serial ambiguous. [osHint] narrows the devices before either
+  /// match.
   Future<Device> resolveDevice(String id, {DeviceOs? osHint}) async {
-    final matches = (await listDevices()).where((d) => d.id == id).toList();
+    final all = await listDevices();
+    final devices = osHint == null
+        ? all
+        : all.where((d) => d.os == osHint).toList();
+    final byId = devices.where((d) => d.id == id).toList();
+    final matches = byId.isNotEmpty
+        ? byId
+        : devices.where((d) => _isAvd(d, id)).toList();
     if (matches.isEmpty) {
-      cliUsage('Device not found: $id');
-    }
-    if (osHint != null) {
-      final filtered = matches.where((d) => d.os == osHint).toList();
-      if (filtered.isEmpty) {
+      if (osHint != null && all.any((d) => d.id == id)) {
         cliUsage('No ${osHint.name} device with id "$id"');
       }
-      return filtered.first;
+      cliUsage('Device not found: $id');
     }
+    if (osHint != null) return matches.first;
     if (matches.length > 1) {
       cliUsage('Ambiguous device id "$id". Use -a/--android or -i/--ios.');
     }
@@ -84,6 +94,11 @@ class CliDeviceServices {
       headless: headless,
     );
   }
+
+  static bool _isAvd(Device device, String name) =>
+      device.os == DeviceOs.android &&
+      device.type == DeviceType.simulator &&
+      device.name == name;
 
   /// Shuts down [device] when it is a simulator/emulator.
   Future<bool> shutdownDevice(Device device) =>
