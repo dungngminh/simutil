@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
+import 'package:platform/platform.dart';
 import 'package:simutil/src/cli/cli_device_services.dart';
 import 'package:simutil/src/cli/cli_flags.dart';
 import 'package:simutil/src/cli/commands/device_list_command.dart';
@@ -114,9 +113,13 @@ class AndroidDeviceListCommand extends DeviceListCommand {
 
 /// Parent for Apple-specific CLI commands (macOS).
 class IosCommand extends SimutilCommand {
-  /// Creates the `ios` command group; [isMacOS] is a test seam.
-  IosCommand({super.logger, CliDeviceServices? services, bool? isMacOS}) {
-    if (!(isMacOS ?? Platform.isMacOS)) return;
+  /// Creates the `ios` command group; [platform] is a test seam.
+  IosCommand({
+    super.logger,
+    CliDeviceServices? services,
+    Platform platform = const LocalPlatform(),
+  }) {
+    if (!platform.isMacOS) return;
     final resolved = services ?? CliDeviceServices();
     addSubcommand(IosSimulatorCommand(logger: logger, services: resolved));
     addSubcommand(IosDeviceCommand(logger: logger, services: resolved));
