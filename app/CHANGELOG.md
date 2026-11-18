@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An iOS simulator that fails to start shows its error instead of
+  starting silently.
 - Running several Android emulators no longer stalls SimUtil: each one
   used to block a slot for device commands until it was shut down.
 - An Android emulator that fails to start (for example because it is

@@ -15,6 +15,7 @@
 library;
 
 export 'src/ios_device_service.dart';
+export 'src/models/simulator_launch_exception.dart';
 export 'src/simulator_app_converter.dart';
 export 'src/simulator_recorder.dart';
 export 'src/slim/simulator_slimmer.dart';

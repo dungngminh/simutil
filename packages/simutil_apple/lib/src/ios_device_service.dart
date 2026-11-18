@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:simutil_apple/src/apple_device_watch.dart';
 import 'package:simutil_apple/src/usbmux.dart' as usbmux;
+import 'package:simutil_apple/src/models/simulator_launch_exception.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// Apple simulators (`simctl`) and physical devices (usbmuxd + lockdownd,
@@ -106,14 +107,75 @@ class IOSDeviceService implements DeviceService {
     return devices;
   }
 
+  /// Boots the simulator [deviceId] and, unless [headless], opens the
+  /// Simulator app on it. An already booted simulator counts as started.
+  ///
+  /// Throws a [SimulatorLaunchException] with `simctl`'s or `open`'s error
+  /// when either fails.
   @override
   Future<void> launchDevice({
     required String deviceId,
     List<String> additionalArgs = const [],
     bool headless = false,
   }) async {
-    await bootSimulator(deviceId);
-    if (!headless) await openSimulatorApp(deviceId);
+    final boot = await _runForLaunch(deviceId, 'xcrun', [
+      'simctl',
+      'boot',
+      deviceId,
+    ]);
+    if (!boot.success && !isAlreadyBooted(boot)) {
+      throw SimulatorLaunchException(deviceId, launchError(boot));
+    }
+    if (headless) return;
+    final open = await _runForLaunch(
+      deviceId,
+      'open',
+      openSimulatorArguments(
+        uuid: deviceId,
+        appPath: await _simulatorAppPath(),
+      ),
+    );
+    if (!open.success) {
+      throw SimulatorLaunchException(
+        deviceId,
+        'Booted, but the Simulator app did not open: ${launchError(open)}',
+      );
+    }
+  }
+
+  Future<CommandResult> _runForLaunch(
+    String udid,
+    String command,
+    List<String> arguments,
+  ) async {
+    try {
+      return await _exec.run(
+        command,
+        arguments: arguments,
+        priority: CommandPriority.interactive,
+      );
+    } catch (e) {
+      throw SimulatorLaunchException(udid, 'Could not run $command: $e');
+    }
+  }
+
+  /// Whether a failed `simctl boot` only means the simulator already runs
+  /// (`Unable to boot device in current state: Booted`, exit 149).
+  static bool isAlreadyBooted(CommandResult boot) =>
+      boot.stderr.contains('current state: Booted');
+
+  /// The last line a failed command printed to stderr, else to stdout
+  /// (`simctl` puts its error domain on the line before the message), else
+  /// its exit code.
+  static String launchError(CommandResult result) {
+    String? lastLine(String output) => output
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .lastOrNull;
+    return lastLine(result.stderr) ??
+        lastLine(result.stdout) ??
+        'Exited with code ${result.exitCode}';
   }
 
   /// Boots the simulator [udid] via `simctl boot`.
