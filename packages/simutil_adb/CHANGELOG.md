@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.1
+
+- `EmulatorGrpcSession.start` keeps waiting (up to 3 min, as for an empty
+  display) when the emulator answers the display check with a gRPC error
+  such as `The guest has not posted new frames`, which it does while
+  Android boots; the session failed at once. Errors that waiting cannot
+  fix (unauthenticated, permission denied, unimplemented, invalid
+  argument) still fail right away.
+
 ## 1.4.0
 
 - `EmulatorGrpcSession` streams and controls an Android emulator over its

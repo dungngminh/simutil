@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Starting a device recording that fails (for example an iOS simulator
   that cannot write the file) shows the error instead of nothing, and a
   failed recording is no longer reported as saved.
+- Streaming an Android emulator right after starting it no longer fails
+  with "The guest has not posted new frames"; the stream waits until the
+  emulator shows its first frame.
 
 ## [0.6.0] - 2026-11-11
 
