@@ -98,6 +98,9 @@ class _ScrcpySession implements ScrcpySession {
 
   /// Set once the video worker reports the stream's end.
   bool _videoEnded = false;
+
+  /// Completes on [stop], cancelling a video handshake still in progress.
+  final _stopRequested = Completer<void>();
   late final _frames = StreamController<(Uint8List, bool)>.broadcast(
     onListen: () => _video?.forward(true),
     onCancel: () => _video?.forward(false),
@@ -328,8 +331,14 @@ class _ScrcpySession implements ScrcpySession {
     onKeyFrameNeeded: requestKeyFrame,
     onEnded: () {
       _videoEnded = true;
-      if (!_stopped) _emit(const SessionFailed('Stream ended'));
+      if (_stopped) return;
+      final wasLive = _status is SessionLive;
+      _emit(const SessionFailed('Stream ended'));
+      // Only a failed live stream gets closed by its owner; one that never
+      // went live would keep its server and forward until then.
+      if (!wasLive) unawaited(stop());
     },
+    cancel: _stopRequested.future,
   );
 
   /// Live only with a control socket, so a view's key-frame request on
@@ -426,6 +435,7 @@ class _ScrcpySession implements ScrcpySession {
   @override
   Future<void> stop() async {
     if (_stopped) return;
+    if (!_stopRequested.isCompleted) _stopRequested.complete();
     await stopRecording();
     _stopped = true;
     _keyFrameTimer?.cancel();

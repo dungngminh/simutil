@@ -142,6 +142,66 @@ void main() {
     timeout: const Timeout(Duration(seconds: 30)),
   );
 
+  test('a stream that ends before it is live releases the forward', () async {
+    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(server.close);
+    // Sends the dummy byte, then closes before any session header.
+    server.listen((client) {
+      client
+        ..add([0])
+        ..close();
+    });
+    final exec = _bootedExec(server.port);
+    final session = ScrcpySession(
+      serial: 'emulator-5554',
+      adbPath: 'true',
+      install: const ScrcpyInstall(serverPath: 'server', version: '3.0'),
+      exec: exec,
+    );
+    final ended = session.statusChanges.firstWhere(
+      (s) => s == const SessionFailed('Stream ended'),
+    );
+
+    await session.start();
+    await ended.timeout(const Duration(seconds: 5));
+    // Released without anyone calling stop().
+    for (var i = 0; i < 50; i++) {
+      if (exec.calls.any((c) => c.arguments.contains('--remove'))) break;
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(
+      exec.calls.where((c) => c.arguments.contains('--remove')),
+      hasLength(1),
+    );
+  });
+
+  test('stop() cancels a video handshake that never completes', () async {
+    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(server.close);
+    // Accepts and stays silent: the handshake would wait for its timeout.
+    final silent = <Socket>[];
+    server.listen(silent.add);
+    addTearDown(() {
+      for (final s in silent) {
+        s.destroy();
+      }
+    });
+    final session = ScrcpySession(
+      serial: 'emulator-5554',
+      adbPath: 'true',
+      install: const ScrcpyInstall(serverPath: 'server', version: '3.0'),
+      exec: _bootedExec(server.port),
+    );
+
+    final starting = session.start();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final clock = Stopwatch()..start();
+    await session.stop();
+    await starting.timeout(const Duration(seconds: 3));
+    // Well under the 10 s handshake timeout.
+    expect(clock.elapsed, lessThan(const Duration(seconds: 3)));
+  });
+
   test('stop() while waiting for the boot ends the wait and starts no '
       'server', () async {
     final exec = FakeCommandExec(

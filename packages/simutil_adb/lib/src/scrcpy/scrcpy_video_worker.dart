@@ -32,12 +32,15 @@ class ScrcpyVideoWorker {
   /// [onSize] gets each session header, [onFrame] every access unit (key
   /// frames prefixed with SPS/PPS) while [forward] is on, [onKeyFrameNeeded]
   /// an attached decoder dropping frames, and [onEnded] the socket closing.
+  /// When [cancel] completes before the handshake does, the worker is
+  /// killed (its socket goes with it) and this throws.
   static Future<ScrcpyVideoWorker> connect(
     int port, {
     required void Function(int width, int height) onSize,
     required void Function(Uint8List frame, bool keyFrame) onFrame,
     required void Function() onKeyFrameNeeded,
     required void Function() onEnded,
+    Future<void>? cancel,
   }) async {
     final events = ReceivePort();
     final exit = ReceivePort();
@@ -73,12 +76,19 @@ class ScrcpyVideoWorker {
           onEnded();
       }
     });
-    await Isolate.spawn(
+    final isolate = await Isolate.spawn(
       _main,
       (events.sendPort, port),
       onExit: exit.sendPort,
       onError: events.sendPort,
       debugName: 'scrcpy video',
+    );
+    unawaited(
+      cancel?.then((_) {
+        if (commands.isCompleted) return;
+        fail(StateError('scrcpy video connection cancelled'));
+        isolate.kill(priority: Isolate.immediate);
+      }),
     );
     return ScrcpyVideoWorker._(await commands.future, exited.future);
   }
