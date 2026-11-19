@@ -75,6 +75,8 @@ void main() {
       slim: slim,
       slimOnLaunch: () => slimOnLaunch,
       loadIos: true,
+      // The fake never boots: don't wait for it.
+      launchTimeout: Duration.zero,
     );
     await devices.refresh();
     created = [];

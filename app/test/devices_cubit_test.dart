@@ -1,7 +1,38 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_core/testing.dart';
+
+/// Reads its list when a load starts and answers once [gate] opens, like
+/// adb answering for the state it saw when asked.
+class _SlowService extends FakeDeviceService {
+  _SlowService({super.simulators});
+
+  Completer<void>? gate;
+  int loads = 0;
+
+  @override
+  Future<List<Device>> getSimulators() async {
+    loads++;
+    final seen = simulators;
+    if (gate case final gate?) await gate.future;
+    return seen;
+  }
+}
+
+/// A launch that fails, as a refused `emulator` start does.
+class _FailingLaunch extends FakeDeviceService {
+  _FailingLaunch({super.simulators});
+
+  @override
+  Future<void> launchDevice({
+    required String deviceId,
+    List<String> additionalArgs = const [],
+    bool headless = false,
+  }) async => throw StateError('AVD is already running');
+}
 
 void main() {
   Device emulator(String id, DeviceState state) => Device.android(
@@ -39,6 +70,9 @@ void main() {
 
   test('shutdown announces progress as a notice, not as state', () async {
     final cubit = DevicesCubit(
+      // The fake never changes state: don't wait for it.
+      launchTimeout: Duration.zero,
+      stopTimeout: Duration.zero,
       android: FakeDeviceService(),
       ios: FakeDeviceService(),
       loadIos: false,
@@ -58,6 +92,9 @@ void main() {
   test('launch boots only stopped emulators', () async {
     final android = FakeDeviceService();
     final cubit = DevicesCubit(
+      // The fake never changes state: don't wait for it.
+      launchTimeout: Duration.zero,
+      stopTimeout: Duration.zero,
       android: android,
       ios: FakeDeviceService(),
       loadIos: false,
@@ -73,6 +110,9 @@ void main() {
   test('launch passes Android launch options', () async {
     final android = FakeDeviceService();
     final cubit = DevicesCubit(
+      // The fake never changes state: don't wait for it.
+      launchTimeout: Duration.zero,
+      stopTimeout: Duration.zero,
       android: android,
       ios: FakeDeviceService(),
       loadIos: false,
@@ -100,6 +140,9 @@ void main() {
       ],
     );
     final cubit = DevicesCubit(
+      // The fake never changes state: don't wait for it.
+      launchTimeout: Duration.zero,
+      stopTimeout: Duration.zero,
       android: android,
       ios: FakeDeviceService(),
       loadIos: false,
@@ -196,7 +239,7 @@ void main() {
   });
 
   test('refresh is single-flight', () async {
-    final android = FakeDeviceService(
+    final android = _SlowService(
       simulators: [emulator('pixel', DeviceState.shutdown)],
     );
     final cubit = DevicesCubit(
@@ -206,9 +249,13 @@ void main() {
     );
 
     final first = cubit.refresh(silent: true);
+    // Calls during a reload share one more reload after it, never more.
     final second = cubit.refresh();
-    expect(identical(first, second), isTrue);
+    final third = cubit.refresh(silent: true);
+    expect(identical(second, third), isTrue);
     await first;
+    await second;
+    expect(android.loads, 2);
     expect(cubit.stateValue.loading, isFalse);
     expect(cubit.stateValue.androidEmulators.single.id, 'pixel');
     await cubit.close();
@@ -229,6 +276,121 @@ void main() {
       ..emitDeviceChange();
     await Future<void>.delayed(const Duration(milliseconds: 400));
     expect(cubit.stateValue.androidEmulators.single.id, 'pixel');
+    await cubit.close();
+  });
+  test('a change reported during a reload reloads again', () async {
+    final android = _SlowService(
+      simulators: [emulator('Pixel', DeviceState.shutdown)],
+    )..gate = Completer();
+    final cubit = DevicesCubit(android: android, ios: FakeDeviceService());
+
+    // A reload is running and has read the list before the boot.
+    final first = cubit.refresh(silent: true);
+    await Future<void>.delayed(Duration.zero);
+    // adb reports the boot meanwhile.
+    android.simulators = [
+      Device.android(
+        id: 'emulator-5554',
+        name: 'Pixel',
+        state: DeviceState.booted,
+        type: DeviceType.simulator,
+      ),
+    ];
+    final second = cubit.refresh(silent: true);
+    final gate = android.gate!;
+    android.gate = null;
+    gate.complete();
+    await first;
+    await second;
+
+    expect(cubit.stateValue.androidEmulators.single.state, DeviceState.booted);
+    expect(android.loads, 2);
+    await cubit.close();
+  });
+
+  test('launch stays busy until the emulator shows as booted', () async {
+    final android = FakeDeviceService(
+      simulators: [emulator('Pixel', DeviceState.shutdown)],
+    );
+    final cubit = DevicesCubit(
+      android: android,
+      ios: FakeDeviceService(),
+      pollInterval: const Duration(milliseconds: 50),
+    );
+
+    final launching = cubit.launch(emulator('Pixel', DeviceState.shutdown));
+    // Past the old fixed settle delay: still starting, so no Start button.
+    await Future<void>.delayed(const Duration(milliseconds: 2500));
+    expect(cubit.stateValue.busy, contains('Pixel'));
+
+    android.simulators = [
+      Device.android(
+        id: 'emulator-5554',
+        name: 'Pixel',
+        state: DeviceState.booted,
+        type: DeviceType.simulator,
+      ),
+    ];
+    await launching.timeout(const Duration(seconds: 5));
+
+    expect(cubit.stateValue.busy, isEmpty);
+    expect(cubit.stateValue.androidEmulators.single.state, DeviceState.booted);
+    await cubit.close();
+  });
+
+  test('a failed launch stops waiting for the boot', () async {
+    final cubit = DevicesCubit(
+      android: _FailingLaunch(
+        simulators: [emulator('Pixel', DeviceState.shutdown)],
+      ),
+      ios: FakeDeviceService(),
+      pollInterval: const Duration(milliseconds: 50),
+    );
+    final errors = <String>[];
+    cubit.notices
+        .where((n) => n.kind == DeviceNoticeKind.error)
+        .listen((n) => errors.add(n.text));
+
+    await cubit
+        .launch(emulator('Pixel', DeviceState.shutdown))
+        .timeout(const Duration(seconds: 5));
+
+    expect(cubit.stateValue.busy, isEmpty);
+    expect(errors.single, contains('AVD is already running'));
+    await cubit.close();
+  });
+
+  test('shutdown stays busy until the emulator is gone', () async {
+    final android = FakeDeviceService(
+      simulators: [
+        Device.android(
+          id: 'emulator-5554',
+          name: 'Pixel',
+          state: DeviceState.booted,
+          type: DeviceType.simulator,
+        ),
+      ],
+    );
+    final cubit = DevicesCubit(
+      android: android,
+      ios: FakeDeviceService(),
+      pollInterval: const Duration(milliseconds: 50),
+    );
+    await cubit.refresh();
+
+    final stopping = cubit.shutdown(android.simulators.single);
+    // Past the old fixed settle delay: the emulator still runs.
+    await Future<void>.delayed(const Duration(milliseconds: 2500));
+    expect(cubit.stateValue.busy, contains('emulator-5554'));
+
+    android.simulators = [emulator('Pixel', DeviceState.shutdown)];
+    await stopping.timeout(const Duration(seconds: 5));
+
+    expect(cubit.stateValue.busy, isEmpty);
+    expect(
+      cubit.stateValue.androidEmulators.single.state,
+      DeviceState.shutdown,
+    );
     await cubit.close();
   });
 }

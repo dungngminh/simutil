@@ -31,8 +31,12 @@ class DevicesCubit extends CubitSignal<DevicesState> {
     bool Function()? slimOnLaunch,
     bool? loadIos,
     Duration pollInterval = const Duration(seconds: 1),
+    Duration launchTimeout = const Duration(minutes: 2),
+    Duration stopTimeout = const Duration(seconds: 30),
     Future<bool> Function()? cameraAccess,
   }) : _android = android,
+       _launchTimeout = launchTimeout,
+       _stopTimeout = stopTimeout,
        _cameraAccess = cameraAccess ?? _requestCameraAccess,
        _slimOnLaunch = slimOnLaunch,
        _pollInterval = pollInterval,
@@ -43,8 +47,12 @@ class DevicesCubit extends CubitSignal<DevicesState> {
 
   static const _loadTimeout = Duration(seconds: 20);
 
-  /// How long [restart] waits for the old process to exit.
-  static const _stopTimeout = Duration(seconds: 30);
+  /// How long [shutdown] and [restart] wait for the process to exit.
+  final Duration _stopTimeout;
+
+  /// How long [launch] waits for the device to list as booted; a cold boot
+  /// can take a while before adb sees the emulator.
+  final Duration _launchTimeout;
 
   final DeviceService _android;
   final DeviceService _ios;
@@ -56,7 +64,7 @@ class DevicesCubit extends CubitSignal<DevicesState> {
   /// Whether simulators are written slim before they boot (Slim mode).
   final bool Function()? _slimOnLaunch;
 
-  /// Gap between [restart]'s shutdown checks.
+  /// Gap between the state checks of [launch], [shutdown] and [restart].
   final Duration _pollInterval;
   final bool _loadIos;
   DeviceChangeWatcher? _watcher;
@@ -77,15 +85,26 @@ class DevicesCubit extends CubitSignal<DevicesState> {
   }
 
   Future<void>? _refreshing;
+  Future<void>? _refreshAgain;
 
-  /// Reloads every list; [silent] keeps the loading flag off. Single-flight:
-  /// a call while a reload runs joins it instead of stacking another one
-  /// (polls must never pile up behind slow adb / simctl).
+  /// Reloads every list; [silent] keeps the loading flag off. A call while a
+  /// reload runs queues one more reload after it, shared by every caller
+  /// meanwhile: the running one may have read its lists before the change
+  /// that triggered this call (e.g. adb reporting a booted emulator), and
+  /// joining it would lose that change until the next fallback reload.
+  /// Reloads never pile up beyond that one.
   Future<void> refresh({bool silent = false}) {
     if (!silent && !stateValue.loading) {
       emit(stateValue.copyWith(loading: true));
     }
-    return _refreshing ??= _reload().whenComplete(() => _refreshing = null);
+    final running = _refreshing;
+    if (running == null) {
+      return _refreshing = _reload().whenComplete(() => _refreshing = null);
+    }
+    return _refreshAgain ??= running.then((_) {
+      _refreshAgain = null;
+      return refresh(silent: true);
+    });
   }
 
   Future<void> _reload() async {
@@ -151,6 +170,7 @@ class DevicesCubit extends CubitSignal<DevicesState> {
       );
       camera = const [];
     }
+    var failed = false;
     final launching = _serviceFor(device).launchDevice(
       deviceId: device.id,
       headless: headless,
@@ -161,11 +181,21 @@ class DevicesCubit extends CubitSignal<DevicesState> {
       ],
     );
     unawaited(
-      launching.catchError(
-        (Object e) => _setMessage('Failed to start ${device.name}: $e'),
-      ),
+      launching.catchError((Object e) {
+        failed = true;
+        _setMessage('Failed to start ${device.name}: $e');
+      }),
     );
-    await _settle(device.id);
+    // Busy (a spinner, not Start) until the device lists as booted: an
+    // emulator takes seconds before adb reports it.
+    await _waitForState(
+      device,
+      DeviceState.booted,
+      timeout: _launchTimeout,
+      abort: () => failed,
+    );
+    _setBusy(device.id, false);
+    await refresh(silent: true);
   }
 
   /// Shuts an emulator/simulator down.
@@ -173,8 +203,15 @@ class DevicesCubit extends CubitSignal<DevicesState> {
     if (device.type.isPhysical) return;
     _setBusy(device.id, true, 'Stopping ${device.name}…');
     final ok = await _serviceFor(device).shutdownSimulator(deviceId: device.id);
-    if (!ok) _setMessage('Failed to stop ${device.name}');
-    await _settle(device.id);
+    if (ok) {
+      // The emulator takes a moment to exit after `emu kill`; until then it
+      // still lists as booted.
+      await _waitForState(device, DeviceState.shutdown, timeout: _stopTimeout);
+    } else {
+      _setMessage('Failed to stop ${device.name}');
+    }
+    _setBusy(device.id, false);
+    await refresh(silent: true);
   }
 
   /// Shuts a running emulator/simulator down, waits for it to stop, then
@@ -190,7 +227,11 @@ class DevicesCubit extends CubitSignal<DevicesState> {
     _setBusy(device.id, true, 'Restarting ${device.name}…');
     final service = _serviceFor(device);
     final stopped = await service.shutdownSimulator(deviceId: device.id)
-        ? await _waitForShutdown(service, device)
+        ? await _waitForState(
+            device,
+            DeviceState.shutdown,
+            timeout: _stopTimeout,
+          )
         : null;
     _setBusy(device.id, false);
     if (stopped == null) {
@@ -206,11 +247,20 @@ class DevicesCubit extends CubitSignal<DevicesState> {
     );
   }
 
-  /// Polls until [device] is listed as shut down; an Android emulator comes
-  /// back under its AVD name instead of its serial.
-  Future<Device?> _waitForShutdown(DeviceService service, Device device) async {
-    final deadline = DateTime.now().add(_stopTimeout);
-    while (!isClosed && DateTime.now().isBefore(deadline)) {
+  /// Polls until [device] lists in state [want] and returns it, or null
+  /// after [timeout] or once [abort] returns true. An Android emulator
+  /// lists under its serial while it runs and under its AVD name when it
+  /// is off, so it is matched by name.
+  Future<Device?> _waitForState(
+    Device device,
+    DeviceState want, {
+    required Duration timeout,
+    bool Function()? abort,
+  }) async {
+    final service = _serviceFor(device);
+    final deadline = DateTime.now().add(timeout);
+    // Checks at least once, also with a zero timeout.
+    while (!isClosed && !(abort?.call() ?? false)) {
       final match = (await _load(service.getSimulators))
           .where(
             (d) => device.os == DeviceOs.android
@@ -218,7 +268,8 @@ class DevicesCubit extends CubitSignal<DevicesState> {
                 : d.id == device.id,
           )
           .firstOrNull;
-      if (match?.state == DeviceState.shutdown) return match;
+      if (match?.state == want) return match;
+      if (!DateTime.now().isBefore(deadline)) return null;
       await Future<void>.delayed(_pollInterval);
     }
     return null;
