@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.1
+
+- `EmulatorGrpcSession.stopRecording` throws a `StateError` when the
+  emulator does not confirm `screenrecord stop` (adb fails, times out or
+  answers `KO`), and keeps the recording active so the caller can retry;
+  it returned null and dropped the recording, although the emulator could
+  still be recording. `stop()` still ends the session in that case.
+- `ScrcpySession` releases its server, control socket and `adb forward`
+  when the video stream ends before the session went live; only a failed
+  live session gets closed by its owner.
+- `ScrcpySession.stop()` cancels a video handshake still in progress
+  instead of waiting for its 10 s timeout.
+
 ## 1.5.0
 
 - `AndroidDeviceService.launchDevice` returns once the emulator is up
