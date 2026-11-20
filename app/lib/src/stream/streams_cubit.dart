@@ -203,6 +203,7 @@ class StreamsCubit extends CubitSignal<StreamsState> {
   /// Closes [deviceId]'s tile and stops its session (or drops its queued start).
   Future<void> closeStream(String deviceId) async {
     _queued.remove(deviceId);
+    _missingSince.remove(deviceId);
     _setEntries([
       for (final e in stateValue.entries)
         if (e.device.id != deviceId) e,

@@ -89,12 +89,13 @@ class DevicesCubit extends CubitSignal<DevicesState> {
   }
 
   Future<void> _reload() async {
+    final state = stateValue;
     final results = await Future.wait([
-      _load(_android.getSimulators),
-      _load(_android.getPhysicalDevices),
+      _reloadList(0, _android.getSimulators, state.androidEmulators),
+      _reloadList(1, _android.getPhysicalDevices, state.androidDevices),
       if (_loadIos) ...[
-        _load(_ios.getSimulators),
-        _load(_ios.getPhysicalDevices),
+        _reloadList(2, _ios.getSimulators, state.iosSimulators),
+        _reloadList(3, _ios.getPhysicalDevices, state.iosDevices),
       ],
     ]);
     final iosSimulators = _loadIos ? results[2] : const <Device>[];
@@ -308,6 +309,26 @@ class DevicesCubit extends CubitSignal<DevicesState> {
   }
 
   void _setMessage(String message) => notify(message, error: true);
+
+  /// Lists ([_reload] slots) whose last load failed.
+  final _failedLists = <int>{};
+
+  /// Loads one list for [_reload]. A single failed load (a slow simctl or
+  /// adb restart) keeps [previous]: an empty list would read as every
+  /// device gone, and open streams would close. Failing again empties it.
+  Future<List<Device>> _reloadList(
+    int slot,
+    Future<List<Device>> Function() loader,
+    List<Device> previous,
+  ) async {
+    try {
+      final list = await loader().timeout(_loadTimeout);
+      _failedLists.remove(slot);
+      return list;
+    } catch (_) {
+      return _failedLists.add(slot) ? previous : const [];
+    }
+  }
 
   Future<List<Device>> _load(Future<List<Device>> Function() loader) async {
     try {

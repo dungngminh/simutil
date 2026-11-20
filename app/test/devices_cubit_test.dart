@@ -37,6 +37,28 @@ void main() {
     await cubit.close();
   });
 
+  test('one failed load keeps the list, a second one empties it', () async {
+    final ios = _FlakyListService(simulators: [testIosSimulator()]);
+    final cubit = DevicesCubit(
+      android: FakeDeviceService(),
+      ios: ios,
+      loadIos: true,
+    );
+    await cubit.refresh();
+
+    ios.failing = true;
+    await cubit.refresh();
+    expect(cubit.stateValue.iosSimulators, [testIosSimulator()]);
+
+    await cubit.refresh();
+    expect(cubit.stateValue.iosSimulators, isEmpty);
+
+    ios.failing = false;
+    await cubit.refresh();
+    expect(cubit.stateValue.iosSimulators, [testIosSimulator()]);
+    await cubit.close();
+  });
+
   test('shutdown announces progress as a notice, not as state', () async {
     final cubit = DevicesCubit(
       android: FakeDeviceService(),
@@ -239,4 +261,17 @@ class _FailingDeviceService extends FakeDeviceService {
 
   @override
   Future<bool> wipeData({required String deviceId}) async => false;
+}
+
+/// Throws from [getSimulators] while [failing], like a hung `simctl list`.
+class _FlakyListService extends FakeDeviceService {
+  _FlakyListService({super.simulators});
+
+  var failing = false;
+
+  @override
+  Future<List<Device>> getSimulators() async {
+    if (failing) throw StateError('simctl timed out');
+    return super.getSimulators();
+  }
 }
