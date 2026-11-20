@@ -200,7 +200,8 @@ final class DeviceStreamPlugin: NSObject, FlutterPlugin {
     // ponytail: rides this channel since it already owns camera access; an
     // emulator's webcam runs under SimUtil's Camera permission.
     if call.method == "camera_access" {
-      Task { result(await AVCaptureDevice.requestAccess(for: .video)) }
+      // FlutterResult must be called on the main thread.
+      Task { @MainActor in result(await AVCaptureDevice.requestAccess(for: .video)) }
       return
     }
     let args = call.arguments as? [String: Any] ?? [:]

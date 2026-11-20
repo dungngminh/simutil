@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1
+
+- macOS: after a VideoToolbox decode error (for example after sleep or a
+  GPU switch) the session is rebuilt and `decode` returns true once, so the
+  caller requests a key frame, instead of the picture freezing until the
+  source sends one on its own. A failing frame no longer counts twice
+  against the backlog.
+
 ## 0.2.0
 
 - `SharedFrameTexture` (macOS) shows packed RGB888 frames that another
