@@ -38,29 +38,96 @@ final _last = (
   dark: <String, bool?>{},
 );
 
+/// Whether [_last] holds an answer for the webcams.
+var _webcamsKnown = false;
+
 /// [load]'s value when it arrives within [_menuBudget], else [fallback];
-/// [remember] gets it whenever it arrives.
+/// [remember] gets it whenever it arrives. When [known] (an earlier answer,
+/// e.g. from [prefetchDeviceMenu]), [fallback] is used at once and [load]
+/// only refreshes it.
 Future<T> _quick<T>(
   Future<T> load,
   T fallback,
-  void Function(T value) remember,
-) {
+  void Function(T value) remember, {
+  required bool known,
+}) {
   final remembered = load.then((value) {
     remember(value);
     return value;
   });
+  if (known) {
+    remembered.ignore();
+    return Future.value(fallback);
+  }
   return remembered
       .timeout(_menuBudget, onTimeout: () => fallback)
       .catchError((Object _) => fallback);
 }
 
-Future<List<({String id, String name})>> _quickWebcams() => _quick(
-  _listWebcams(),
-  _last.webcams,
-  (value) => _last.webcams
-    ..clear()
-    ..addAll(value),
+Future<List<({String id, String name})>> _quickWebcams() =>
+    _quick(_listWebcams(), _last.webcams, (value) {
+      _webcamsKnown = true;
+      _last.webcams
+        ..clear()
+        ..addAll(value);
+    }, known: _webcamsKnown);
+
+Future<_SimCameraState?> _quickSimCamera(Device device) =>
+    _quick<_SimCameraState?>(
+      _simCameraState(device),
+      _last.simCamera[device.id],
+      (value) => _last.simCamera[device.id] = value!,
+      known: _last.simCamera.containsKey(device.id),
+    );
+
+Future<bool?> _quickDark(Device device) => _quick(
+  getIt<DeviceAppearance>().isDark(device),
+  _last.dark[device.id],
+  (value) => _last.dark[device.id] = value,
+  known: _last.dark.containsKey(device.id),
 );
+
+/// When each device's menu state was last prefetched.
+final _prefetched = <String, DateTime>{};
+
+/// Loads what [device]'s context menu shows ahead of a right click (on
+/// hover), at most every 10 s per device, so the menu opens at once with
+/// fresh values.
+void prefetchDeviceMenu(Device device) {
+  if (device.state != DeviceState.booted) return;
+  final now = DateTime.now();
+  final last = _prefetched[device.id];
+  if (last != null && now.difference(last) < const Duration(seconds: 10)) {
+    return;
+  }
+  _prefetched[device.id] = now;
+  void remember<T>(Future<T> load, void Function(T value) store) =>
+      load.then(store).ignore();
+  if (device.os == DeviceOs.android && !device.type.isPhysical) {
+    remember(_listWebcams(), (value) {
+      _webcamsKnown = true;
+      _last.webcams
+        ..clear()
+        ..addAll(value);
+    });
+  }
+  if (_hasSimCamera(device)) {
+    remember(
+      _simCameraState(device),
+      (value) => _last.simCamera[device.id] = value,
+    );
+  }
+  remember(
+    getIt<DeviceAppearance>().isDark(device),
+    (value) => _last.dark[device.id] = value,
+  );
+}
+
+bool _hasSimCamera(Device device) =>
+    Platform.isMacOS &&
+    device.os == DeviceOs.ios &&
+    !device.type.isPhysical &&
+    device.state == DeviceState.booted;
 
 /// What an iOS simulator's Camera submenu shows: the host webcams, the
 /// running feed and the apps that can be launched with it.
@@ -111,29 +178,16 @@ Future<void> showCameraMenu(BuildContext context, Device device) async {
 /// per-device settings.
 Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
   final emulator = device.os == DeviceOs.android && !device.type.isPhysical;
-  final hasSimCamera =
-      Platform.isMacOS &&
-      device.os == DeviceOs.ios &&
-      !device.type.isPhysical &&
-      device.state == DeviceState.booted;
-  // In parallel, each within the menu budget.
+  // In parallel, each within the menu budget (none when known already).
   final (webcams, simCamera, dark) = await (
     emulator
         ? _quickWebcams()
         : Future.value(const <({String id, String name})>[]),
-    hasSimCamera
-        ? _quick<_SimCameraState?>(
-            _simCameraState(device),
-            _last.simCamera[device.id],
-            (value) => _last.simCamera[device.id] = value!,
-          )
+    _hasSimCamera(device)
+        ? _quickSimCamera(device)
         : Future<_SimCameraState?>.value(),
     // Null when the device cannot tell (or switch): no menu entry then.
-    _quick(
-      getIt<DeviceAppearance>().isDark(device),
-      _last.dark[device.id],
-      (value) => _last.dark[device.id] = value,
-    ),
+    _quickDark(device),
   ).wait;
   if (!context.mounted) return;
   final settingsCubit = context.read<DeviceSettingsCubit>();
