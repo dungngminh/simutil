@@ -245,6 +245,9 @@ class GridRecorderCubit extends CubitSignal<bool> {
 
   /// Finishes the file; returns its path.
   Future<String?> stop() async {
+    // Stopped (or closed) while starting: let the start finish, then stop
+    // what it started instead of leaving it running.
+    await _starting?.then<void>((_) {}, onError: (Object _) {});
     if (!stateValue) return null;
     _timer?.cancel();
     _timer = null;

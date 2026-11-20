@@ -51,4 +51,42 @@ void main() {
     // The native ScreenCaptureKit path; elsewhere it pipes into ffmpeg.
     skip: !Platform.isMacOS,
   );
+
+  testWidgets('a stop while starting waits and stops that recording', (
+    tester,
+  ) async {
+    final lock = RecordingLock();
+    final cubit = GridRecorderCubit(recordingLock: lock);
+    final gate = Completer<void>();
+    final calls = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      call,
+    ) async {
+      calls.add(call.method);
+      if (call.method == 'start') await gate.future;
+      return null;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: cubit.boundaryKey,
+        child: const SizedBox(width: 100, height: 100),
+      ),
+    );
+
+    final starting = cubit.start('/tmp/grid.mp4');
+    final stopping = cubit.stop();
+    gate.complete();
+    await starting;
+    await stopping;
+
+    expect(calls, ['start', 'stop']);
+    expect(cubit.isRecording, isFalse);
+    expect(lock.holder, isNull);
+  }, skip: !Platform.isMacOS);
 }
