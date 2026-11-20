@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Choosing Slim twice while the simulator reboots no longer reboots it a
+  second time.
+- A stream tile no longer stays lifted when its stream closes while it is
+  being dragged.
+- When a device cannot open in its own window, the error is shown.
 - The iOS device list no longer freezes when Xcode's simulator service
   hangs (for example after an Xcode update).
 - Starting a device recording that fails (for example an iOS simulator
