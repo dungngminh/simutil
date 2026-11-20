@@ -420,18 +420,18 @@ List<TileAction> _tileActions(
         onPressed: entry.recording
             ? null
             : () async {
+                // Read before closing: this tile is gone afterwards, so its
+                // context could no longer show the error.
+                final devices = context.read<DevicesCubit>();
                 await streams.closeStream(device.id);
                 try {
                   await getIt<DeviceWindows>().open(device);
                 } catch (e) {
                   // No window: stream it in the grid again.
                   unawaited(streams.open(device, here: true));
-                  if (!context.mounted) return;
-                  showNotice(
-                    context,
-                    'Could not open ${device.name} in its own window',
-                    subtitle: '$e',
-                    tone: NoticeTone.error,
+                  devices.notify(
+                    'Could not open ${device.name} in its own window: $e',
+                    error: true,
                   );
                 }
               },
