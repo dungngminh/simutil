@@ -73,10 +73,30 @@ class McpServer {
 
   Future<void> start() async {
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
-    _server!.listen(_handle);
+    _server!.listen(_handleSafely);
   }
 
   Future<void> stop() async => _server?.close(force: true);
+
+  /// Every request gets an answer: an unexpected error (or the client
+  /// going away) must not leave the connection open with no reply.
+  Future<void> _handleSafely(HttpRequest request) async {
+    try {
+      await _handle(request);
+    } catch (e) {
+      log?.call('Request failed: $e', error: true);
+      final response = request.response;
+      try {
+        response.statusCode = HttpStatus.internalServerError;
+        await _json(response, _error(null, -32603, 'Internal error'));
+      } catch (_) {
+        // Headers already sent or the client is gone.
+        try {
+          await response.close();
+        } catch (_) {}
+      }
+    }
+  }
 
   Future<void> _handle(HttpRequest request) async {
     final response = request.response;
@@ -135,7 +155,10 @@ class McpServer {
       final Map<Object?, Object?> params => params['_meta'],
       _ => null,
     };
-    return meta is Map ? meta['${_meta}protocolVersion'] as String? : null;
+    return switch (meta) {
+      {'${_meta}protocolVersion': final String version} => version,
+      _ => null,
+    };
   }
 
   /// A 2026-07-28 request: (HTTP status, JSON-RPC reply or null for 202).
@@ -145,8 +168,11 @@ class McpServer {
   ) async {
     final id = message['id'];
     final method = message['method'];
-    final params = (message['params'] as Map?)?.cast<String, Object?>() ?? {};
     if (id == null) return (HttpStatus.accepted, null);
+    final params = _object(message['params']);
+    if (params == null) {
+      return (HttpStatus.badRequest, _error(id, -32602, 'Invalid params'));
+    }
 
     final version = _requestedVersion(message)!;
     if (version != latestVersion) {
@@ -249,8 +275,9 @@ class McpServer {
     if (message is! Map) return _error(null, -32600, 'Invalid request');
     final id = message['id'];
     final method = message['method'];
-    final params = (message['params'] as Map?)?.cast<String, Object?>() ?? {};
     if (id == null) return null;
+    final params = _object(message['params']);
+    if (params == null) return _error(id, -32602, 'Invalid params');
     switch (method) {
       case 'initialize':
         final requested = params['protocolVersion'];
@@ -285,7 +312,8 @@ class McpServer {
     final name = params['name'];
     final tool = tools.where((t) => t.name == name).firstOrNull;
     if (tool == null) return _error(id, -32602, 'Unknown tool $name');
-    final args = (params['arguments'] as Map?)?.cast<String, Object?>() ?? {};
+    final args = _object(params['arguments']);
+    if (args == null) return _error(id, -32602, 'Invalid arguments');
     final clock = Stopwatch()..start();
     log?.call('→ $name ${jsonEncode(args)}');
     try {
@@ -302,6 +330,13 @@ class McpServer {
       });
     }
   }
+
+  /// A JSON object field: empty when absent, null when not an object.
+  static Map<String, Object?>? _object(Object? value) => switch (value) {
+    null => {},
+    final Map<Object?, Object?> map => map.cast<String, Object?>(),
+    _ => null,
+  };
 
   /// A 2026-07-28 result: `resultType` plus the server identity.
   static Map<String, Object?> _complete(
