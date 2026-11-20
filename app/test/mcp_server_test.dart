@@ -59,6 +59,52 @@ void main() {
     expect(jsonEncode(call), contains('"text":"hi"'));
   });
 
+  test('wrongly typed fields get an error instead of no reply', () async {
+    Future<Object?> error(Object body) async {
+      final (_, reply) = await post(body).timeout(const Duration(seconds: 5));
+      return ((reply! as Map)['error'] as Map)['code'];
+    }
+
+    expect(
+      await error({'jsonrpc': '2.0', 'id': 1, 'method': 'x', 'params': 'oops'}),
+      -32602,
+    );
+    expect(
+      await error({
+        'jsonrpc': '2.0',
+        'id': 2,
+        'method': 'tools/call',
+        'params': {'name': 'echo', 'arguments': 'oops'},
+      }),
+      -32602,
+    );
+    // Not a string: not a 2026-07-28 request, so handled as legacy.
+    final (_, legacy) = await post({
+      'jsonrpc': '2.0',
+      'id': 3,
+      'method': 'tools/list',
+      'params': {
+        '_meta': {'io.modelcontextprotocol/protocolVersion': 1},
+      },
+    }).timeout(const Duration(seconds: 5));
+    expect((legacy! as Map)['result'], isNotNull);
+
+    // One bad entry does not cost the others their reply.
+    final (_, batch) = await post([
+      {
+        'jsonrpc': '2.0',
+        'id': 4,
+        'method': 'ping',
+        'params': [1],
+      },
+      {'jsonrpc': '2.0', 'id': 5, 'method': 'ping'},
+    ]).timeout(const Duration(seconds: 5));
+    expect(batch, [
+      containsPair('error', containsPair('code', -32602)),
+      containsPair('result', <String, Object?>{}),
+    ]);
+  });
+
   test('notifications get 202, foreign origins 403', () async {
     final (status, _) = await post({
       'jsonrpc': '2.0',
