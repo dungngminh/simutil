@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The scenario editor no longer breaks when typing at the very start of
+  the text, and its suggestions can be picked with the mouse.
+- A right or middle click on a stream no longer taps the device, and taps
+  on the iPhone's Dynamic Island reach the simulator.
+- Characters typed with Option (macOS) or AltGr (Windows), such as `@` on
+  a German keyboard, reach the device.
 - The iOS device list no longer freezes when Xcode's simulator service
   hangs (for example after an Xcode update).
 - Starting a device recording that fails (for example an iOS simulator
