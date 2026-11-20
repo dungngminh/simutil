@@ -4,6 +4,7 @@ import 'package:simutil_shared/src/app_settings.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_plugins/simutil_plugins.dart';
 import 'package:yaml/yaml.dart';
+import 'package:simutil_shared/src/atomic_write.dart';
 
 /// Loads and persists user settings from `~/.simutil/settings.yaml`.
 abstract interface class SettingsService {
@@ -56,7 +57,8 @@ final class _FileSettingsService implements SettingsService {
     await _ensureSettings();
     final file = File(_settingsPath);
     final content = await file.readAsString();
-    await file.writeAsString(
+    await writeAtomically(
+      file,
       mergeSettingsScalars(
         content,
         themeName: settings.themeName,
@@ -95,7 +97,8 @@ final class _FileSettingsService implements SettingsService {
     if (_themeKey.hasMatch(content) && _deviceKey.hasMatch(content)) return;
 
     final current = _parse(content);
-    await file.writeAsString(
+    await writeAtomically(
+      file,
       mergeSettingsScalars(
         content,
         themeName: current.themeName,
@@ -158,6 +161,15 @@ String mergeSettingsScalars(
   if (deviceAt >= 0) lines[deviceAt] = deviceLine;
 
   if (themeAt < 0 && deviceAt < 0) {
+    // A file that starts its YAML document with `---` (after comments):
+    // keys above it would make a second document and break the whole file.
+    final start = lines.indexWhere(
+      (l) => l.trim().isNotEmpty && !l.trimLeft().startsWith('#'),
+    );
+    if (start >= 0 && lines[start].trimRight() == '---') {
+      lines.insertAll(start + 1, [themeLine, deviceLine]);
+      return lines.join('\n');
+    }
     final separator = lines.isEmpty ? [''] : ['', ''];
     return [
           ..._settingsHeader,

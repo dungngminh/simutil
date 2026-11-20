@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:simutil_shared/src/atomic_write.dart';
 
 /// Returns the default path to `~/.simutil/state.json`.
 ///
@@ -74,12 +75,16 @@ final class _FileAppStateService implements AppStateService {
     try {
       final decoded = jsonDecode(await File(_statePath).readAsString());
       if (decoded is! Map<String, dynamic>) return const AppState();
+      // Field by field: one of the wrong type must not drop the others
+      // (a lost lastSeenVersion shows the welcome dialog again).
+      String? text(String key) => switch (decoded[key]) {
+        final String value => value,
+        _ => null,
+      };
       return AppState(
-        lastSeenVersion: decoded['lastSeenVersion'] as String?,
-        lastUpdateCheck: DateTime.tryParse(
-          decoded['lastUpdateCheck'] as String? ?? '',
-        ),
-        latestKnownVersion: decoded['latestKnownVersion'] as String?,
+        lastSeenVersion: text('lastSeenVersion'),
+        lastUpdateCheck: DateTime.tryParse(text('lastUpdateCheck') ?? ''),
+        latestKnownVersion: text('latestKnownVersion'),
       );
     } catch (_) {
       return const AppState();
@@ -90,7 +95,8 @@ final class _FileAppStateService implements AppStateService {
   Future<void> save(AppState state) async {
     final file = File(_statePath);
     await file.parent.create(recursive: true);
-    await file.writeAsString(
+    await writeAtomically(
+      file,
       jsonEncode({
         'lastSeenVersion': state.lastSeenVersion,
         'lastUpdateCheck': state.lastUpdateCheck?.toIso8601String(),

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A `settings.yaml` that starts with `---` no longer gets broken on start, which used to drop the settings and every plugin.
 - The iOS device list no longer freezes when Xcode's simulator service hangs (for example after an Xcode update); SimUtil gives up after 30 seconds and tries again on the next refresh.
 - Plugins for tools such as `open` show as installed; they used to show as missing.
 - If an iOS simulator fails to start, SimUtil shows the error instead of reporting success.
