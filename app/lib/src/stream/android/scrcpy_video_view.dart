@@ -40,8 +40,10 @@ class _ScrcpyVideoViewState extends State<ScrcpyVideoView> {
     setFrameCounter(session, decoder.framesShown);
     // ponytail: platform-message fallback until Linux/Windows hand out
     // decodeFunction too.
-    if (await H264Decoder.decodeFunction case final decode?) {
-      if (!mounted) return;
+    final decode = await H264Decoder.decodeFunction;
+    // Disposed meanwhile: dispose() found nothing to detach or cancel.
+    if (!mounted) return;
+    if (decode != null) {
       session.attachDecoder(decode, decoder.textureId);
       _attached = true;
     } else {
