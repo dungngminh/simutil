@@ -207,13 +207,7 @@ class _Screen extends StatelessWidget {
       );
     }
     if (chrome.drawIsland) {
-      // Drawn over the screen; taps on it still reach the simulator.
-      screen = Stack(
-        children: [
-          screen,
-          const IgnorePointer(child: _DynamicIsland()),
-        ],
-      );
+      screen = Stack(children: [screen, const _DynamicIsland()]);
     }
     final radius = chrome.screenRadius;
     if (radius <= 0) return screen;
@@ -235,14 +229,17 @@ class _DynamicIsland extends StatelessWidget {
     top: 11.33,
     left: 0,
     right: 0,
-    child: Center(
-      child: SizedBox(
-        width: 126,
-        height: 37.33,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: Color(0xFF000000),
-            borderRadius: BorderRadius.all(Radius.circular(18.67)),
+    // Drawn over the screen; taps on it still reach the simulator.
+    child: IgnorePointer(
+      child: Center(
+        child: SizedBox(
+          width: 126,
+          height: 37.33,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Color(0xFF000000),
+              borderRadius: BorderRadius.all(Radius.circular(18.67)),
+            ),
           ),
         ),
       ),
