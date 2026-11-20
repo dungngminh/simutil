@@ -27,17 +27,19 @@ final _keys = <LogicalKeyboardKey, (int, String, String)>{
 
 /// Forwards a host key press to [session]: special keys as key codes,
 /// anything printable as text. Returns false for keys left to the app
-/// (shortcuts with Cmd / Ctrl / Alt, key-ups, modifiers alone).
+/// (shortcuts with Cmd / Ctrl, key-ups, modifiers alone).
 /// ponytail: no Ctrl/Cmd combos (copy, select all); add with meta states.
 bool sendKeyToDevice(DeviceSession session, KeyEvent event) {
   if (event is KeyUpEvent) return false;
   final keyboard = HardwareKeyboard.instance;
-  if (keyboard.isMetaPressed ||
-      keyboard.isControlPressed ||
-      keyboard.isAltPressed) {
+  // Option (macOS) and AltGr (Windows reports Ctrl+Alt) type characters
+  // such as @ [ ] { } | ~ on many layouts: send what they type, but leave
+  // special keys with a modifier to the app.
+  final alt = keyboard.isAltPressed;
+  if (keyboard.isMetaPressed || (keyboard.isControlPressed && !alt)) {
     return false;
   }
-  final special = _keys[event.logicalKey];
+  final special = alt ? null : _keys[event.logicalKey];
   final text = special == null ? _printable(event.character) : null;
   if (special == null && text == null) return false;
   switch (session) {
