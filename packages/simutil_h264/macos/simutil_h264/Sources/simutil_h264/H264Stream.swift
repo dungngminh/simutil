@@ -14,9 +14,12 @@ final class H264Stream: NSObject {
   static let maxBacklog = 6
 
   private let queue = DispatchQueue(label: "simutil.h264", qos: .userInteractive)
-  /// Guards `latest`, `fresh`, `shown`, `decoded` and `backlog`; held only
-  /// for swaps.
+  /// Guards `latest`, `fresh`, `shown`, `decoded`, `backlog` and
+  /// `failed`; held only for swaps.
   private let lock = NSLock()
+  /// Set when a frame failed to decode: delta frames after it have nothing
+  /// to build on, so the caller drops them and asks for a key frame.
+  private var failed = false
   private var latest: CVPixelBuffer?
   private var fresh = false
   private var shown = 0
@@ -29,6 +32,9 @@ final class H264Stream: NSObject {
   /// frame) never counts as falling behind.
   private var armed = false
   // Decode queue only.
+  /// The session failed (e.g. after sleep or a GPU switch); rebuilt for the
+  /// next frame.
+  private var broken = false
   private var session: VTDecompressionSession?
   private var format: CMVideoFormatDescription?
   private var sps: Data?
@@ -64,7 +70,13 @@ final class H264Stream: NSObject {
     lock.lock()
     let queued = backlog
     let done = decoded
+    let decodeFailed = failed
+    failed = false
     lock.unlock()
+    if decodeFailed && !Self.isKeyFrame(data) {
+      waitingForKey = true
+      return true
+    }
     if done > 0 && (queued < Self.maxBacklog || done > 60) { armed = true }
     let busy = armed && queued >= Self.maxBacklog
     if waitingForKey || busy {
@@ -122,14 +134,22 @@ final class H264Stream: NSObject {
         sliceBytes += 4 + range.count
       }
     }
+    if broken {
+      invalidate()
+      broken = false
+    }
     if session == nil { createSession() }
     guard let session, let format, slices > 0,
       let sample = Self.sample(data, nals: nals, size: sliceBytes, format: format)
     else { return false }
+    // Synchronous decode: the output may run before this returns, also on
+    // an error that the return value reports again.
+    var output = false
     let status = VTDecompressionSessionDecodeFrame(
       session, sampleBuffer: sample, flags: [],
       infoFlagsOut: nil
     ) { [weak self] status, _, image, _, _ in
+      output = true
       guard let self else { return }
       if status == noErr, let image {
         self.lock.lock()
@@ -138,14 +158,24 @@ final class H264Stream: NSObject {
         self.decoded += 1
         self.lock.unlock()
         self.onFrame?()
+      } else {
+        self.markFailed()
       }
       self.finished()
     }
     if status != noErr {
-      if status == kVTInvalidSessionErr { invalidate() }
-      return false
+      markFailed()
+      return output
     }
     return true
+  }
+
+  /// Decode queue: rebuild the session and wait for a key frame.
+  private func markFailed() {
+    broken = true
+    lock.lock()
+    failed = true
+    lock.unlock()
   }
 
   private func createSession() {
