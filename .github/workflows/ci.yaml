@@ -32,6 +32,22 @@ jobs:
       - name: Test workspace
         run: dart run melos run test --no-select
 
+  flutter-test:
+    name: Flutter tests
+    # The desktop app's tests (updater, recording, streams, MCP) are written
+    # against macOS, its main platform; `melos run test` skips them.
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-dart
+        with:
+          run-codegen: 'false'
+
+      - name: Test Flutter packages
+        run: dart run melos run test:flutter --no-select
+
   build:
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

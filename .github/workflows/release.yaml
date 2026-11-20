@@ -124,6 +124,9 @@ jobs:
       - name: Create Draft GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          # Publishing (by hand, after a look) fires `release: released`,
+          # which deploys Homebrew; without this it went out at once.
+          draft: true
           body_path: notes.md
           token: ${{ secrets.GH_PAT }}
           files: |
