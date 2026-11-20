@@ -57,8 +57,20 @@ class AppAutomation implements DeviceAutomation {
         (a.top - b.top).abs() < 0.002 &&
         (a.right - b.right).abs() < 0.002 &&
         (a.bottom - b.bottom).abs() < 0.002;
-    UiElement? match(List<UiElement> all, UiElement like) =>
-        all.where((e) => e.label == like.label && e.id == like.id).firstOrNull;
+    // Labels repeat (two "Delete" buttons, or none at all on an element
+    // found by its value): follow the one nearest to where it last was.
+    double distance(UiElement a, UiElement b) =>
+        (a.centerX - b.centerX).abs() + (a.centerY - b.centerY).abs();
+    UiElement? match(List<UiElement> all, UiElement like) {
+      UiElement? best;
+      for (final e in all) {
+        if (e.label != like.label || e.id != like.id || e.role != like.role) {
+          continue;
+        }
+        if (best == null || distance(e, like) < distance(best, like)) best = e;
+      }
+      return best;
+    }
 
     final clock = Stopwatch()..start();
     var last = element;
