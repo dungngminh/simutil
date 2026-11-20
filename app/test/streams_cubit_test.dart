@@ -39,6 +39,32 @@ class _FakeSession implements DeviceSession {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Records like a real session: [isRecording] turns false as soon as a
+/// stop begins, and the stop finishes when [stopGate] opens.
+class _RecordingSession extends _FakeSession {
+  _RecordingSession(super.deviceId);
+
+  int starts = 0;
+  bool _recording = false;
+  Completer<void>? stopGate;
+
+  @override
+  bool get isRecording => _recording;
+
+  @override
+  Future<void> startRecording(String path) async {
+    starts++;
+    _recording = true;
+  }
+
+  @override
+  Future<String?> stopRecording() async {
+    _recording = false;
+    await stopGate?.future;
+    return '/tmp/saved.mp4';
+  }
+}
+
 void main() {
   Device sim(DeviceState state) => Device.ios(
     id: 'UDID',
@@ -129,6 +155,60 @@ void main() {
       expect(session.stopped, isTrue);
     },
   );
+
+  group('recording', () {
+    late _RecordingSession session;
+    late List<String> saved;
+    late StreamsCubit cubit;
+
+    setUp(() async {
+      session = _RecordingSession('UDID')..gate.complete();
+      saved = [];
+      cubit = StreamsCubit((_) async => session, onSaved: saved.add);
+      await cubit.open(sim(DeviceState.booted));
+      await cubit.toggleRecording('UDID', '/tmp');
+    });
+
+    test('a second click while it saves does not start a new one', () async {
+      session.stopGate = Completer();
+      final first = cubit.toggleRecording('UDID', '/tmp');
+      final second = cubit.toggleRecording('UDID', '/tmp');
+      session.stopGate!.complete();
+
+      expect(await first, '/tmp/saved.mp4');
+      expect(await second, '/tmp/saved.mp4');
+      expect(session.starts, 1);
+      expect(session.isRecording, isFalse);
+      expect(saved, ['/tmp/saved.mp4']);
+      expect(cubit.stateValue.entries.single.recordingSince, isNull);
+    });
+
+    test('closing a recording tile saves and announces it', () async {
+      await cubit.closeStream('UDID');
+
+      expect(saved, ['/tmp/saved.mp4']);
+      expect(session.stopped, isTrue);
+      expect(cubit.stateValue.isOpen('UDID'), isFalse);
+    });
+  });
+
+  test('a session created while closing is stopped, not kept', () async {
+    final created = Completer<void>();
+    final session = _FakeSession('UDID');
+    final cubit = StreamsCubit((_) async {
+      await created.future;
+      return session;
+    });
+    final opening = cubit.open(sim(DeviceState.booted));
+    await Future<void>.delayed(Duration.zero);
+
+    final closing = cubit.close();
+    created.complete();
+    await opening;
+    await closing;
+    expect(session.stopped, isTrue);
+    expect(session.started, isFalse);
+  });
 
   group('open queue', () {
     Device android(String id) => Device.android(
