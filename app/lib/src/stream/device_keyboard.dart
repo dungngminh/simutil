@@ -42,6 +42,12 @@ bool sendKeyToDevice(DeviceSession session, KeyEvent event) {
   final special = alt ? null : _keys[event.logicalKey];
   final text = special == null ? _printable(event.character) : null;
   if (special == null && text == null) return false;
+  // The emulator's gRPC input and the iOS simulator type ASCII only: leave
+  // other characters (€ with Option…) to the app instead of dropping them.
+  final asciiOnly = session is EmulatorGrpcSession || session is IosSimSession;
+  if (asciiOnly && text != null && text.codeUnits.any((c) => c >= 0x80)) {
+    return false;
+  }
   switch (session) {
     case final ScrcpySession s:
       special != null ? s.pressKey(special.$1) : s.typeText(text!);

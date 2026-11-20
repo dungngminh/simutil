@@ -68,6 +68,11 @@ void main() {
 
   test('Android emulator: text as text, special keys as W3C key values', () {
     final s = _Emulator();
+    // Its input types ASCII only: the event stays with the app.
+    expect(
+      sendKeyToDevice(s, _down(LogicalKeyboardKey.keyE, character: '€')),
+      isFalse,
+    );
     sendKeyToDevice(s, _down(LogicalKeyboardKey.keyA, character: 'a'));
     sendKeyToDevice(s, _down(LogicalKeyboardKey.enter));
     sendKeyToDevice(s, _down(LogicalKeyboardKey.arrowUp, character: ''));
