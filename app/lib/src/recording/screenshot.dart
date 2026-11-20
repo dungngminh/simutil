@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:simutil_app/src/stream/ios/ios_device_session.dart';
 import 'package:simutil_core/simutil_core.dart';
+import 'package:simutil_app/src/recording/capture_file.dart';
 
 /// PNG of [device]'s screen at full resolution; a USB iOS device must be
 /// streaming.
@@ -64,8 +65,7 @@ Future<String> saveScreenshot(
   String name,
   List<int> png,
 ) async {
-  final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-  final file = File('$directory/simutil-$name-$stamp.png');
+  final file = File(captureFilePath(directory, name, 'png'));
   await file.writeAsBytes(png);
   return file.path;
 }

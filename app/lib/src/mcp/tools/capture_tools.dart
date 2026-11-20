@@ -4,6 +4,7 @@ import 'package:simutil_app/src/mcp/tools/tool_context.dart';
 import 'package:simutil_app/src/recording/grid_record_quality.dart';
 import 'package:simutil_app/src/recording/screenshot.dart';
 import 'package:simutil_app/src/settings/recordings_dir.dart';
+import 'package:simutil_app/src/recording/capture_file.dart';
 
 /// Screenshots and device / grid recordings.
 List<McpTool> captureTools(ToolContext c) => [
@@ -55,9 +56,8 @@ List<McpTool> captureTools(ToolContext c) => [
       final quality =
           GridRecordQuality.available.asNameMap()[args['quality']] ??
           c.view.stateValue.gridQuality;
-      final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
       await c.grid.start(
-        '${recordingsDirectory()}/simutil-grid-$stamp.mp4',
+        captureFilePath(recordingsDirectory(), 'grid', 'mp4'),
         quality: quality,
       );
       return c.text('Recording grid (${quality.summary})');
