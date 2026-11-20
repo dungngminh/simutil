@@ -24,7 +24,8 @@ abstract interface class DesktopSettingsStore {
       _FileDesktopSettingsStore;
 
   /// Reads the file. A missing or unreadable file leaves every section
-  /// empty, so cubits start from their defaults.
+  /// empty, so cubits start from their defaults; an unreadable one is
+  /// copied to `<path>.bak` first, since the next save replaces it.
   Future<void> load();
 
   /// The stored value of [key], `null` when absent.
@@ -48,11 +49,27 @@ final class _FileDesktopSettingsStore implements DesktopSettingsStore {
 
   @override
   Future<void> load() async {
+    final file = File(_path);
     try {
-      final decoded = jsonDecode(await File(_path).readAsString());
-      _data = decoded is Map<String, Object?> ? decoded : {};
-    } catch (_) {
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is Map<String, Object?>) {
+        _data = decoded;
+        return;
+      }
+    } on PathNotFoundException {
       _data = {};
+      return;
+    } catch (_) {
+      // Unreadable or not JSON (e.g. hand-edited): handled below.
+    }
+    _data = {};
+    // The next write saves only its own section and would drop the rest.
+    if (readOnly) return;
+    try {
+      await file.copy('$_path.bak');
+      debugPrint('Settings unreadable; kept a copy at $_path.bak');
+    } catch (e) {
+      debugPrint('Settings unreadable and not backed up: $e');
     }
   }
 

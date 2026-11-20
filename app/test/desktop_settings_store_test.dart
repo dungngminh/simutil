@@ -71,6 +71,26 @@ void main() {
     });
   });
 
+  test('an unreadable file is backed up before the next save', () async {
+    const broken = '{"view": {"layout": "grid"}, "devices": {},}';
+    File(path)
+      ..createSync(recursive: true)
+      ..writeAsStringSync(broken);
+    final store = await open();
+    store.write('slim', {'enabled': true});
+    await store.flush();
+
+    expect(File('$path.bak').readAsStringSync(), broken);
+    expect(File(path).readAsStringSync(), contains('slim'));
+  });
+
+  test('a missing file leaves no backup', () async {
+    final store = await open();
+    store.write('slim', {'enabled': true});
+    await store.flush();
+    expect(File('$path.bak').existsSync(), isFalse);
+  });
+
   test('view and device settings survive a restart', () async {
     final store = await open();
     final device = Device.android(
