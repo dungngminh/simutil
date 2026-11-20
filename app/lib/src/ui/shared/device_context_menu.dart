@@ -47,16 +47,52 @@ final _revisions = <String, int>{};
 
 int _revision(String deviceId) => _revisions[deviceId] ?? 0;
 
-/// [store], unless [deviceId] changed after this call.
-void Function(T value) _ifCurrent<T>(
+/// Reads in flight per kind and device, with the revision they started at.
+final _reads = <String, ({int revision, Future<Object?> future})>{};
+
+/// [load]s what [kind] shows for [deviceId] and passes it to [store] unless
+/// the device changed meanwhile. A read already in flight is shared while
+/// nothing changed. After a change, a new read first waits for the older
+/// one to settle: the command queue hands identical background commands
+/// the running one's result, which would be the state before the change.
+Future<T> _read<T>(
+  String kind,
   String deviceId,
+  Future<T> Function() load,
   void Function(T value) store,
 ) {
+  final key = '$kind\u0000$deviceId';
   final revision = _revision(deviceId);
-  return (value) {
-    if (_revision(deviceId) == revision) store(value);
-  };
+  final pending = _reads[key];
+  if (pending != null && pending.revision == revision) {
+    return pending.future as Future<T>;
+  }
+  final settled = pending?.future.then((_) {}, onError: (Object _) {});
+  final future = (settled ?? Future<void>.value()).then((_) => load());
+  _reads[key] = (revision: revision, future: future);
+  future
+      .then((value) {
+        if (_revision(deviceId) == revision) store(value);
+      }, onError: (Object _) {})
+      .whenComplete(() {
+        if (identical(_reads[key]?.future, future)) _reads.remove(key);
+      });
+  return future;
 }
+
+Future<_SimCameraState> _readSimCamera(Device device) => _read(
+  'simCamera',
+  device.id,
+  () => _simCameraState(device),
+  (value) => _last.simCamera[device.id] = value,
+);
+
+Future<bool?> _readDark(Device device) => _read(
+  'dark',
+  device.id,
+  () => getIt<DeviceAppearance>().isDark(device),
+  (value) => _last.dark[device.id] = value,
+);
 
 /// After a successful change on [deviceId]: older reads are dropped, and
 /// [forget] clears what the change made stale.
@@ -98,16 +134,16 @@ Future<List<({String id, String name})>> _quickWebcams() =>
 
 Future<_SimCameraState?> _quickSimCamera(Device device) =>
     _quick<_SimCameraState?>(
-      _simCameraState(device),
+      _readSimCamera(device),
       _last.simCamera[device.id],
-      _ifCurrent(device.id, (value) => _last.simCamera[device.id] = value!),
+      (_) {},
       known: _last.simCamera.containsKey(device.id),
     );
 
 Future<bool?> _quickDark(Device device) => _quick(
-  getIt<DeviceAppearance>().isDark(device),
+  _readDark(device),
   _last.dark[device.id],
-  _ifCurrent(device.id, (value) => _last.dark[device.id] = value),
+  (_) {},
   known: _last.dark.containsKey(device.id),
 );
 
@@ -135,19 +171,8 @@ void prefetchDeviceMenu(Device device) {
         ..addAll(value);
     });
   }
-  if (_hasSimCamera(device)) {
-    remember(
-      _simCameraState(device),
-      _ifCurrent<_SimCameraState>(
-        device.id,
-        (value) => _last.simCamera[device.id] = value,
-      ),
-    );
-  }
-  remember(
-    getIt<DeviceAppearance>().isDark(device),
-    _ifCurrent<bool?>(device.id, (value) => _last.dark[device.id] = value),
-  );
+  if (_hasSimCamera(device)) _readSimCamera(device).ignore();
+  _readDark(device).ignore();
 }
 
 bool _hasSimCamera(Device device) =>
@@ -183,7 +208,7 @@ Future<List<({String id, String name})>> _listWebcams() =>
 /// away; an iOS simulator's feed switches live.
 Future<void> showCameraMenu(BuildContext context, Device device) async {
   if (device.os == DeviceOs.ios) {
-    final state = await _simCameraState(device);
+    final state = await _readSimCamera(device);
     if (!context.mounted) return;
     showNativeMenu(() => [_simCameraItems(context, device, state)]);
     return;
