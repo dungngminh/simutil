@@ -139,14 +139,23 @@ class _SimulatorSlimControl implements SlimControl {
 /// Closes cubits and stops the shell-command isolate.
 Future<void> disposeDependencies() => getIt.reset();
 
-/// Releases streams (device windows' too) and recordings, then closes the
-/// window and quits.
-Future<void> quitApp() async {
+Future<void>? _released;
+
+/// Releases streams (device windows' too), recordings and the processes
+/// behind them (adb, scrcpy, ffmpeg…), once; they would outlive the app.
+Future<void> releaseApp() => _released ??= () async {
   try {
     await getIt<DeviceWindows>().closeAll();
     await disposeDependencies();
   } catch (e, s) {
     debugPrint('Dispose on quit failed: $e\n$s');
+  }
+}();
+
+/// [releaseApp], then closes the window and quits.
+Future<void> quitApp() async {
+  try {
+    await releaseApp();
   } finally {
     await windowManager.destroy();
   }
