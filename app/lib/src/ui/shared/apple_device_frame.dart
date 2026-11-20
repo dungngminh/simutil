@@ -207,7 +207,13 @@ class _Screen extends StatelessWidget {
       );
     }
     if (chrome.drawIsland) {
-      screen = Stack(children: [screen, const _DynamicIsland()]);
+      // Drawn over the screen; taps on it still reach the simulator.
+      screen = Stack(
+        children: [
+          screen,
+          const IgnorePointer(child: _DynamicIsland()),
+        ],
+      );
     }
     final radius = chrome.screenRadius;
     if (radius <= 0) return screen;
