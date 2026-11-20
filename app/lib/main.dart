@@ -95,6 +95,9 @@ Future<void> main(List<String> args) async {
       log: (line, {error = false}) =>
           debugLog.add(DebugSource.mcp, line, error: error),
     ),
+    // Registered last, so quitting stops it first: no agent request may
+    // open a stream while the cubits close.
+    dispose: (server) => server.stop(),
   );
   try {
     await mcp.start();
