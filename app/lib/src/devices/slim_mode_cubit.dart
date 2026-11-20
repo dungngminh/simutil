@@ -50,18 +50,28 @@ class SlimModeCubit extends CubitSignal<SlimModeState> {
     _store?.write(_key, {'enabled': change.nextState.enabled});
   }
 
+  /// Simulators whose slim state is changing. The slimmed list only
+  /// updates after the reboot, so a second click (or the mode switch)
+  /// meanwhile would reboot the simulator again.
+  final _changing = <String>{};
+
   /// Slims or restores one simulator, keeping its stream.
   Future<void> setSlim(Device device, {required bool on}) async {
     if (device.os != DeviceOs.ios || device.type.isPhysical) return;
     if (_devices.stateValue.slimmed.contains(device.id) == on) return;
-    final reopen = _streams.stateValue.isOpen(device.id);
-    if (reopen) await _streams.closeStream(device.id);
-    await _devices.setSlim(device, on: on);
-    if (!reopen) return;
-    // After the reboot, so the old boot is not reopened.
-    _streams
-      ..openWhenBooted(device)
-      ..onDevices(_devices.stateValue.all);
+    if (!_changing.add(device.id)) return;
+    try {
+      final reopen = _streams.stateValue.isOpen(device.id);
+      if (reopen) await _streams.closeStream(device.id);
+      await _devices.setSlim(device, on: on);
+      if (!reopen) return;
+      // After the reboot, so the old boot is not reopened.
+      _streams
+        ..openWhenBooted(device)
+        ..onDevices(_devices.stateValue.all);
+    } finally {
+      _changing.remove(device.id);
+    }
   }
 
   /// Switches the mode and moves every streamed simulator to it, one

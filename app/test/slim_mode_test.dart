@@ -119,6 +119,15 @@ void main() {
     },
   );
 
+  test('a second slim while the first reboots does nothing', () async {
+    await streams.open(_sim('a'));
+    final first = mode.setSlim(_sim('a'), on: true);
+    final second = mode.setSlim(_sim('a'), on: true);
+    await Future.wait([first, second]);
+
+    expect(slim.calls, [('a', true)]);
+  });
+
   test('launch writes slim first only in Slim mode', () async {
     await devices.launch(_sim('c', DeviceState.shutdown));
     expect(slim.calls, isEmpty);
