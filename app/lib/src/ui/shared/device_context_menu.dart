@@ -16,6 +16,7 @@ import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/ui/shared/device_actions.dart';
 import 'package:simutil_app/src/ui/shared/device_recording.dart';
 import 'package:simutil_app/src/ui/shared/native_menu.dart';
+import 'package:simutil_app/src/devices/device_appearance.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:tray_manager/tray_manager.dart' as native;
 
@@ -83,6 +84,8 @@ Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
           device.state == DeviceState.booted
       ? await _simCameraState(device)
       : null;
+  // Null when the device cannot tell (or switch): no menu entry then.
+  final dark = await getIt<DeviceAppearance>().isDark(device);
   if (!context.mounted) return;
   final settingsCubit = context.read<DeviceSettingsCubit>();
   void set(DeviceSettings Function(DeviceSettings) change) =>
@@ -93,6 +96,7 @@ Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
     () => [
       _actionItems(context, device),
       if (!busy) _deviceItems(context, device),
+      if (!busy && dark != null) [_darkModeItem(context, device, dark)],
       if (!device.type.isPhysical) _launchItems(context, device, set),
       if (emulator)
         [
@@ -165,6 +169,19 @@ List<native.MenuItem> _deviceItems(BuildContext context, Device device) {
         await devices.refresh(silent: true);
       }),
   ];
+}
+
+/// Switches [device] between light and dark mode ([dark] is its current
+/// mode); a failure shows as a notice.
+native.MenuItem _darkModeItem(BuildContext context, Device device, bool dark) {
+  final devices = context.read<DevicesCubit>();
+  return menuCheck('Dark mode', dark, () async {
+    try {
+      await getIt<DeviceAppearance>().setDark(device, dark: !dark);
+    } catch (e) {
+      devices.notify('$e', error: true);
+    }
+  });
 }
 
 /// Headless for every start, and one-off launch modes for a shut-down

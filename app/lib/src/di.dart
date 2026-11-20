@@ -16,6 +16,7 @@ import 'package:simutil_app/src/stream/touch_marks.dart';
 import 'package:simutil_app/src/update/app_installer.dart';
 import 'package:simutil_app/src/update/app_update_cubit.dart';
 import 'package:simutil_app/src/windows/device_windows.dart';
+import 'package:simutil_app/src/devices/device_appearance.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
@@ -56,6 +57,12 @@ Future<void> configureDependencies({bool deviceWindow = false}) async {
     )
     ..registerSingleton<IOSDeviceService>(IOSDeviceService(exec))
     ..registerSingleton<IosAutomation>(IosAutomation(exec))
+    ..registerSingleton<DeviceAppearance>(
+      DeviceAppearance(
+        exec,
+        adbPath: () => getIt<AndroidDeviceService>().adbPath,
+      ),
+    )
     ..registerSingleton<XcodeCacheService>(XcodeCacheService(exec))
     ..registerLazySingleton<DevicesCubit>(
       () => DevicesCubit(

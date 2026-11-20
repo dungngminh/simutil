@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Dark mode switch in a running device's context menu, for Android
+  emulators and phones and iOS simulators.
+
 ### Fixed
 
 - The iOS device list no longer freezes when Xcode's simulator service
