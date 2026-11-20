@@ -4,6 +4,7 @@ import 'package:bloc_signals/bloc_signals.dart';
 import 'package:flutter/foundation.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:window_manager/window_manager.dart';
@@ -68,6 +69,11 @@ Future<void> main(List<String> args) async {
   windowManager.addListener(quitOnClose);
   onWindowsChanged.listen((_) => quitOnClose.onWindowsChanged());
   await windowManager.setPreventClose(true);
+  // Cmd+Q, the app menu or the Dock quit without closing the window: the
+  // macOS app delegate asks for the release before it terminates.
+  _quitChannel.setMethodCallHandler((call) async {
+    if (call.method == 'release') await releaseApp();
+  });
 
   // Shared by the MCP tools and the scenario editor.
   final tools = getIt.registerSingleton(
@@ -122,6 +128,9 @@ Future<void> main(List<String> args) async {
 
   runApp(const SimutilApp());
 }
+
+/// Matches `quitChannel` in `macos/Runner/AppDelegate.swift`.
+const _quitChannel = MethodChannel('simutil/quit');
 
 /// Runs [quit] when the main window is closed, or hides it while device
 /// [windows] are open and quits once the last of them closes. The Dock icon
