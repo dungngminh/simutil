@@ -17,6 +17,11 @@ void main() {
     expect(s.items.single.insert, 'swipe: ');
   });
 
+  test('the very start of the text does not throw', () {
+    expect(scenarioSuggestions('steps:\n', 0), isNull);
+    expect(scenarioSuggestions('s', 1)?.start, 0);
+  });
+
   test('options on indented lines, keys at the top level', () {
     expect(labels('steps:\n  - tap: a\n    re'), ['repeat']);
     expect(labels('steps:\n  - launch: a\n    cl'), ['clear_state']);
