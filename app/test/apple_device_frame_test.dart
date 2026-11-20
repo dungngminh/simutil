@@ -169,6 +169,41 @@ void main() {
       expect(pressed, [DeviceButton.volumeUp, DeviceButton.lock]);
     });
   });
+
+  testWidgets('taps on the Dynamic Island reach the screen', (tester) async {
+    _largeView(tester);
+    var taps = 0;
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Center(
+          child: SizedBox(
+            width: 445,
+            child: AppleDeviceFrame(
+              chrome: const AppleChrome(
+                body: Size(434, 888),
+                screen: Size(390, 844),
+                outerRadius: 68,
+                drawIsland: true,
+              ),
+              maxHeight: 2000,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => taps++,
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+
+    // The island: centered, near the top of the screen.
+    final screen = tester.getRect(find.byType(GestureDetector));
+    await tester.tapAt(Offset(screen.center.dx, screen.top + 15));
+    expect(taps, 1);
+  });
 }
 
 /// A 1x1 transparent PNG.

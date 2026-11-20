@@ -46,7 +46,8 @@ ScenarioSuggestions? scenarioSuggestions(
   List<String> devices = const [],
 }) {
   if (offset < 0 || offset > text.length) return null;
-  final lineStart = text.lastIndexOf('\n', offset - 1) + 1;
+  // lastIndexOf throws for a negative start (cursor at the very start).
+  final lineStart = offset == 0 ? 0 : text.lastIndexOf('\n', offset - 1) + 1;
   final before = text.substring(lineStart, offset);
   if (before.contains('#')) return null;
 

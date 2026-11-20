@@ -225,7 +225,8 @@ class _ScenarioCodeEditorState extends State<ScenarioCodeEditor> {
   /// ponytail: monospace, no soft wrap (as the gutter assumes).
   Offset _caret(TextStyle style, int offset) {
     final text = widget.controller.text;
-    final lineStart = text.lastIndexOf('\n', offset - 1) + 1;
+    // lastIndexOf throws for a negative start (cursor at the very start).
+    final lineStart = offset == 0 ? 0 : text.lastIndexOf('\n', offset - 1) + 1;
     final line = '\n'.allMatches(text.substring(0, lineStart)).length;
     final charWidth = (TextPainter(
       text: TextSpan(text: 'M', style: style),
@@ -261,41 +262,45 @@ class _SuggestionPopup extends StatelessWidget {
     return Positioned(
       left: at.dx,
       top: at.dy + lineExtent + 2,
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 140, maxHeight: 180),
-        decoration: BoxDecoration(
-          color: t.panel,
-          borderRadius: BorderRadius.circular(SimuTokens.radiusSmall),
-          border: Border.all(color: t.border),
-          boxShadow: const [
-            BoxShadow(color: Color(0x40000000), blurRadius: 10),
-          ],
-        ),
-        child: SingleChildScrollView(
-          child: IntrinsicWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final (i, label) in items.indexed)
-                  GestureDetector(
-                    onTap: () => onPick(i),
-                    child: Container(
-                      color: i == picked ? t.hover : null,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      child: Text(
-                        label,
-                        style: t.mono.copyWith(
-                          fontSize: 12,
-                          color: i == picked ? t.text : t.textMuted,
+      // Part of the text field for focus: a click here would otherwise
+      // unfocus it, which hides the popup before the click lands.
+      child: TextFieldTapRegion(
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 140, maxHeight: 180),
+          decoration: BoxDecoration(
+            color: t.panel,
+            borderRadius: BorderRadius.circular(SimuTokens.radiusSmall),
+            border: Border.all(color: t.border),
+            boxShadow: const [
+              BoxShadow(color: Color(0x40000000), blurRadius: 10),
+            ],
+          ),
+          child: SingleChildScrollView(
+            child: IntrinsicWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final (i, label) in items.indexed)
+                    GestureDetector(
+                      onTap: () => onPick(i),
+                      child: Container(
+                        color: i == picked ? t.hover : null,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        child: Text(
+                          label,
+                          style: t.mono.copyWith(
+                            fontSize: 12,
+                            color: i == picked ? t.text : t.textMuted,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
