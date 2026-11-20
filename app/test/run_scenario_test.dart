@@ -301,6 +301,49 @@ void main() {
     expect(row['error'], contains('No element "nope"'));
   });
 
+  test('a device named twice runs once', () async {
+    final result = await run({
+      'devices': ['pixel', 'pixel'],
+      'steps': [
+        {'action': 'wait', 'ms': 1},
+      ],
+    });
+    expect(result['devices'], hasLength(1));
+  });
+
+  test(
+    'wrongly typed devices and step numbers are rejected up front',
+    () async {
+      for (final args in [
+        {
+          'devices': [8],
+          'steps': tapSteps,
+        },
+        {
+          'devices': ['pixel'],
+          'steps': [
+            {
+              'action': 'swipe',
+              'x1': 0,
+              'y1': 0,
+              'x2': 1,
+              'y2': 1,
+              'duration_ms': 5.5,
+            },
+          ],
+        },
+        {
+          'devices': ['pixel'],
+          'steps': [
+            {'action': 'assert_visible', 'label': 'Ok', 'timeout_ms': '5000'},
+          ],
+        },
+      ]) {
+        await expectLater(run(args), throwsArgumentError, reason: '$args');
+      }
+    },
+  );
+
   test('bad repeat and empty launch are rejected up front', () async {
     for (final step in [
       {'action': 'wait', 'ms': 1, 'repeat': 0},

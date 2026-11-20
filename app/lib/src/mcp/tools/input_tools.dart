@@ -352,9 +352,10 @@ List<McpTool> inputTools(ToolContext c) => [
   }
   final devices = ids == null
       ? [for (final e in c.streams.stateValue.entries) e.device]
-      : [
+      // A device named twice (by name and id) would run twice at once.
+      : {
           for (final id in ids as List) c.find({'device': id}),
-        ];
+        }.toList();
   if (devices.isEmpty) {
     throw ArgumentError('No devices: pass devices or stream some first');
   }
@@ -754,6 +755,12 @@ Future<void> _drag(
 
 /// Checks a scenario step up front so a typo fails before any device moves.
 void _validateStep(Map<String, Object?> step) {
+  for (final key in ['timeout_ms', 'index', 'duration_ms']) {
+    final v = step[key];
+    if (v != null && v is! int) {
+      throw ArgumentError('$key must be an integer, got $v');
+    }
+  }
   for (final key in ['if_visible', 'if_not_visible']) {
     final v = step[key];
     if (v != null && (v is! String || v.trim().isEmpty)) {
@@ -777,12 +784,6 @@ void _validateStep(Map<String, Object?> step) {
       if (label != null) {
         if (label is! String || label.trim().isEmpty) {
           throw ArgumentError('label must be a non-empty string');
-        }
-        for (final key in ['timeout_ms', 'index']) {
-          final v = step[key];
-          if (v != null && v is! int) {
-            throw ArgumentError('$key must be an integer');
-          }
         }
       } else {
         _coord(step, 'x');
