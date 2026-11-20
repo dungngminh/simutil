@@ -101,7 +101,9 @@ class DevicesCubit extends CubitSignal<DevicesState> {
     if (running == null) {
       return _refreshing = _reload().whenComplete(() => _refreshing = null);
     }
-    return _refreshAgain ??= running.then((_) {
+    // Runs after a failed reload too (its caller gets the error), or the
+    // queued one would stay stuck on that failure.
+    return _refreshAgain ??= running.catchError((Object _) {}).then((_) {
       _refreshAgain = null;
       return refresh(silent: true);
     });

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
@@ -32,6 +33,21 @@ class _FailingLaunch extends FakeDeviceService {
     List<String> additionalArgs = const [],
     bool headless = false,
   }) async => throw StateError('AVD is already running');
+}
+
+/// Fails its first read, as an unreadable `disabled.plist` does.
+class _FlakySlim implements SlimControl {
+  var _failed = false;
+
+  @override
+  Future<bool> isSlim(String udid) async {
+    if (_failed) return false;
+    _failed = true;
+    throw const FileSystemException('disabled.plist unreadable');
+  }
+
+  @override
+  Future<void> setSlim(String udid, {required bool slim}) async {}
 }
 
 void main() {
@@ -305,6 +321,30 @@ void main() {
 
     expect(cubit.stateValue.androidEmulators.single.state, DeviceState.booted);
     expect(android.loads, 2);
+    await cubit.close();
+  });
+
+  test('a reload queued behind a failing one still runs', () async {
+    final ios = _SlowService(simulators: [testIosSimulator()])
+      ..gate = Completer();
+    final cubit = DevicesCubit(
+      android: FakeDeviceService(),
+      ios: ios,
+      slim: _FlakySlim(),
+      loadIos: true,
+    );
+
+    final first = cubit.refresh(silent: true);
+    await Future<void>.delayed(Duration.zero);
+    final second = cubit.refresh(silent: true);
+    final gate = ios.gate!;
+    ios.gate = null;
+    gate.complete();
+
+    await expectLater(first, throwsA(isA<FileSystemException>()));
+    await second;
+    expect(ios.loads, 2);
+    expect(cubit.stateValue.iosSimulators, [testIosSimulator()]);
     await cubit.close();
   });
 
