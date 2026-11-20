@@ -32,6 +32,25 @@ void main() {
     expect(File(settingsPath).existsSync(), isTrue);
   });
 
+  test('a file starting with --- stays one YAML document', () async {
+    File(settingsPath)
+      ..createSync(recursive: true)
+      ..writeAsStringSync(
+        '# mine\n---\nplugins:\n  - name: Foo\n    command: foo\n',
+      );
+
+    final settings = await service().load();
+    final content = File(settingsPath).readAsStringSync();
+
+    expect(settings.themeName, 'dark');
+    expect(content, startsWith('# mine\n---\ntheme: dark\n'));
+    // Still one document: the plugins section parses.
+    expect(
+      PluginCatalog.parse(content).warnings,
+      isNot(contains(startsWith('Invalid YAML'))),
+    );
+  });
+
   test('load parses theme and last_selected_device_id', () async {
     File(settingsPath)
       ..createSync(recursive: true)

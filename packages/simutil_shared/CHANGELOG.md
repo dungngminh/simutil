@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.1
+
+- `SettingsService` adds missing `theme:` / `last_selected_device_id:` keys
+  after a leading `---` instead of above it, which made `settings.yaml` two
+  YAML documents (settings and plugins then failed to load).
+- `SettingsService` and `AppStateService` write their files atomically
+  (temporary file, then rename), so a TUI and a CLI command running at once
+  never read an empty file.
+- `AppStateService.load` reads each field on its own: one of the wrong type
+  no longer drops the others.
+
 ## 1.1.0
 
 - `resolveStatePath` falls back to `USERPROFILE` when `HOME` is unset (the

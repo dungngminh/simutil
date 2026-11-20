@@ -49,6 +49,19 @@ void main() {
     expect(state.lastSeenVersion, isNull);
   });
 
+  test('a field of the wrong type keeps the others', () async {
+    File(statePath)
+      ..createSync(recursive: true)
+      ..writeAsStringSync(
+        '{"lastSeenVersion": "1.2.0", "latestKnownVersion": 3}',
+      );
+
+    final state = await service().load();
+
+    expect(state.lastSeenVersion, '1.2.0');
+    expect(state.latestKnownVersion, isNull);
+  });
+
   test('save then load round-trips lastSeenVersion', () async {
     await service().save(const AppState(lastSeenVersion: '0.6.1'));
 
