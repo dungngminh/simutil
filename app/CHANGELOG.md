@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Scenarios: a device listed twice (by name and by id) runs once, a
+  device or a step number of the wrong type is reported before the run
+  starts, and the Run button shows that error instead of doing nothing.
 - The iOS device list no longer freezes when Xcode's simulator service
   hangs (for example after an Xcode update).
 - Starting a device recording that fails (for example an iOS simulator

@@ -63,7 +63,14 @@ class ToolContext {
 
   /// The device named by `args['device']` (id or name).
   Device find(Map<String, Object?> args) {
-    final id = args['device'] as String? ?? '';
+    final id = switch (args['device']) {
+      null => '',
+      final String id => id,
+      // e.g. `devices: [8]` in a scenario's YAML.
+      final other => throw ArgumentError(
+        'device must be an id or name, got $other',
+      ),
+    };
     for (final d in devices.stateValue.all) {
       if (d.id == id || d.name == id) return d;
     }
