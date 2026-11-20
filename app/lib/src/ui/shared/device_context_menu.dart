@@ -41,6 +41,30 @@ final _last = (
 /// Whether [_last] holds an answer for the webcams.
 var _webcamsKnown = false;
 
+/// Per device, how many successful changes (dark mode, camera) were made:
+/// a read started before one must not overwrite what it changed.
+final _revisions = <String, int>{};
+
+int _revision(String deviceId) => _revisions[deviceId] ?? 0;
+
+/// [store], unless [deviceId] changed after this call.
+void Function(T value) _ifCurrent<T>(
+  String deviceId,
+  void Function(T value) store,
+) {
+  final revision = _revision(deviceId);
+  return (value) {
+    if (_revision(deviceId) == revision) store(value);
+  };
+}
+
+/// After a successful change on [deviceId]: older reads are dropped, and
+/// [forget] clears what the change made stale.
+void _changed(String deviceId, {void Function()? forget}) {
+  _revisions[deviceId] = _revision(deviceId) + 1;
+  forget?.call();
+}
+
 /// [load]'s value when it arrives within [_menuBudget], else [fallback];
 /// [remember] gets it whenever it arrives. When [known] (an earlier answer,
 /// e.g. from [prefetchDeviceMenu]), [fallback] is used at once and [load]
@@ -76,14 +100,14 @@ Future<_SimCameraState?> _quickSimCamera(Device device) =>
     _quick<_SimCameraState?>(
       _simCameraState(device),
       _last.simCamera[device.id],
-      (value) => _last.simCamera[device.id] = value!,
+      _ifCurrent(device.id, (value) => _last.simCamera[device.id] = value!),
       known: _last.simCamera.containsKey(device.id),
     );
 
 Future<bool?> _quickDark(Device device) => _quick(
   getIt<DeviceAppearance>().isDark(device),
   _last.dark[device.id],
-  (value) => _last.dark[device.id] = value,
+  _ifCurrent(device.id, (value) => _last.dark[device.id] = value),
   known: _last.dark.containsKey(device.id),
 );
 
@@ -114,12 +138,15 @@ void prefetchDeviceMenu(Device device) {
   if (_hasSimCamera(device)) {
     remember(
       _simCameraState(device),
-      (value) => _last.simCamera[device.id] = value,
+      _ifCurrent<_SimCameraState>(
+        device.id,
+        (value) => _last.simCamera[device.id] = value,
+      ),
     );
   }
   remember(
     getIt<DeviceAppearance>().isDark(device),
-    (value) => _last.dark[device.id] = value,
+    _ifCurrent<bool?>(device.id, (value) => _last.dark[device.id] = value),
   );
 }
 
@@ -199,7 +226,9 @@ Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
     () => [
       _actionItems(context, device),
       if (!busy) _deviceItems(context, device),
-      if (!busy && dark != null) [_darkModeItem(context, device, dark)],
+      // A cached value may be from before the device stopped.
+      if (!busy && dark != null && DeviceAppearance.supports(device))
+        [_darkModeItem(context, device, dark)],
       if (!device.type.isPhysical) _launchItems(context, device, set),
       if (emulator)
         [
@@ -281,7 +310,7 @@ native.MenuItem _darkModeItem(BuildContext context, Device device, bool dark) {
   return menuCheck('Dark mode', dark, () async {
     try {
       await getIt<DeviceAppearance>().setDark(device, dark: !dark);
-      _last.dark[device.id] = !dark;
+      _changed(device.id, forget: () => _last.dark[device.id] = !dark);
     } catch (e) {
       devices.notify('$e', error: true);
     }
@@ -392,6 +421,8 @@ List<native.MenuItem> _simCameraItems(
   Future<void> guard(String done, Future<void> Function() action) async {
     try {
       await action();
+      // The next menu reads the camera afresh.
+      _changed(device.id, forget: () => _last.simCamera.remove(device.id));
       devices.notify(done);
     } on Object catch (e) {
       final message = e is StateError ? e.message : '$e';

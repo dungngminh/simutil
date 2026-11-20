@@ -18,6 +18,9 @@ void main() {
     expect(await appearance.isDark(emulator), isTrue);
     await appearance.setDark(emulator, dark: false);
     expect(await appearance.isDark(emulator), isFalse);
+    // Reads (prefetched on hover) stay out of the interactive slots.
+    expect(exec.calls.first.priority, CommandPriority.background);
+    expect(exec.calls[1].priority, CommandPriority.interactive);
     expect(exec.calls[1].arguments, [
       '-s',
       emulator.id,

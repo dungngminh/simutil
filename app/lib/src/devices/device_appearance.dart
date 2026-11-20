@@ -68,28 +68,34 @@ final class _DeviceAppearance implements DeviceAppearance {
   }
 
   /// Reads the mode, or sets it to [value] (the platform's own word).
-  Future<CommandResult> _run(Device device, [String? value]) =>
-      device.os == DeviceOs.android
-      ? _exec.run(
-          _adbPath(),
-          arguments: [
-            '-s',
-            device.id,
-            'shell',
-            'cmd',
-            'uimode',
-            'night',
-            ?value,
-          ],
-          timeout: _timeout,
-          priority: CommandPriority.interactive,
-        )
-      : _exec.run(
-          'xcrun',
-          arguments: ['simctl', 'ui', device.id, 'appearance', ?value],
-          timeout: _timeout,
-          priority: CommandPriority.interactive,
-        );
+  /// Reads (menu prefetches on hover) run in the background so they never
+  /// take the slots kept for what the user just did.
+  Future<CommandResult> _run(Device device, [String? value]) {
+    final priority = value == null
+        ? CommandPriority.background
+        : CommandPriority.interactive;
+    return device.os == DeviceOs.android
+        ? _exec.run(
+            _adbPath(),
+            arguments: [
+              '-s',
+              device.id,
+              'shell',
+              'cmd',
+              'uimode',
+              'night',
+              ?value,
+            ],
+            timeout: _timeout,
+            priority: priority,
+          )
+        : _exec.run(
+            'xcrun',
+            arguments: ['simctl', 'ui', device.id, 'appearance', ?value],
+            timeout: _timeout,
+            priority: priority,
+          );
+  }
 
   /// `Night mode: yes|no|auto|custom` (Android) or `light|dark|…` (iOS).
   static bool? parse(DeviceOs os, String output) {
