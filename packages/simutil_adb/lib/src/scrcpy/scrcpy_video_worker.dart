@@ -58,8 +58,10 @@ class ScrcpyVideoWorker {
     });
     events.listen((message) {
       switch (message) {
+        // Cancelled first: the port may still be queued; the worker is
+        // already being killed.
         case final SendPort port:
-          commands.complete(port);
+          if (!commands.isCompleted) commands.complete(port);
         case (final int width, final int height):
           onSize(width, height);
         case (final Uint8List frame, final bool keyFrame):
