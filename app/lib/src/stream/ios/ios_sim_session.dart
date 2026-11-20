@@ -37,7 +37,9 @@ class IosSimSession implements DeviceSession {
   SessionStatus _status = const SessionConnecting();
   bool _inputBlocked = false;
 
-  /// Set by [stop]; a [start] still running then backs out.
+  /// Set by [stop]; a [start] still running then backs out. Sessions are
+  /// single-use, like the others: [stop] also closes [statusChanges], and
+  /// the grid creates a new session for every open.
   bool _stopped = false;
   int? _width;
   int? _height;
@@ -93,17 +95,19 @@ class IosSimSession implements DeviceSession {
 
   @override
   Future<void> start() async {
+    if (_stopped) return;
     _emit(const SessionConnecting());
     _active[udid] = this;
     _inputBlocked = await _isInputShadowed();
     // Closed while asking xcrun (up to 10 s): the native stop already ran
     // and found nothing, so starting now would leave a capture behind.
-    if (_stopped) return;
+    if (_stopped) return _deactivate();
     try {
       final result = (await _channel.invokeMapMethod<String, Object?>('start', {
         'udid': udid,
       }))!;
       if (_stopped) {
+        _deactivate();
         await _channel.invokeMethod<void>('stop', {'udid': udid});
         return;
       }
@@ -120,6 +124,12 @@ class IosSimSession implements DeviceSession {
       _active.remove(udid);
       _emit(SessionFailed(e.message ?? e.code));
     }
+  }
+
+  /// Stops routing the native `size` events here (a newer session for the
+  /// same simulator may have taken over).
+  void _deactivate() {
+    if (_active[udid] == this) _active.remove(udid);
   }
 
   Future<int> _framesShown() async =>
@@ -257,7 +267,7 @@ class IosSimSession implements DeviceSession {
   Future<void> stop() async {
     _stopped = true;
     await _recorder.stop();
-    if (_active[udid] == this) _active.remove(udid);
+    _deactivate();
     removeFrameCounter(this, _framesShown);
     await _channel.invokeMethod<void>('stop', {'udid': udid});
     // Closing the stream turns the simulator's camera (and webcam) off too.
