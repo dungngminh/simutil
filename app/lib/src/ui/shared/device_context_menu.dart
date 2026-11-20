@@ -25,6 +25,43 @@ import 'package:tray_manager/tray_manager.dart' as native;
 Future<List<({String id, String name})>>? _webcams;
 Future<List<({String id, String name})>>? _hostWebcams;
 
+/// How long a context menu waits for what it shows before it opens: it
+/// opens at the cursor, so waiting longer lands it wherever the mouse went
+/// meanwhile. Slower answers fill [_last] for the next open.
+const _menuBudget = Duration(milliseconds: 250);
+
+/// Last answers per device (webcams under `''`), shown while a fresh one
+/// is still loading.
+final _last = (
+  webcams: <({String id, String name})>[],
+  simCamera: <String, _SimCameraState>{},
+  dark: <String, bool?>{},
+);
+
+/// [load]'s value when it arrives within [_menuBudget], else [fallback];
+/// [remember] gets it whenever it arrives.
+Future<T> _quick<T>(
+  Future<T> load,
+  T fallback,
+  void Function(T value) remember,
+) {
+  final remembered = load.then((value) {
+    remember(value);
+    return value;
+  });
+  return remembered
+      .timeout(_menuBudget, onTimeout: () => fallback)
+      .catchError((Object _) => fallback);
+}
+
+Future<List<({String id, String name})>> _quickWebcams() => _quick(
+  _listWebcams(),
+  _last.webcams,
+  (value) => _last.webcams
+    ..clear()
+    ..addAll(value),
+);
+
 /// What an iOS simulator's Camera submenu shows: the host webcams, the
 /// running feed and the apps that can be launched with it.
 typedef _SimCameraState = ({
@@ -74,18 +111,30 @@ Future<void> showCameraMenu(BuildContext context, Device device) async {
 /// per-device settings.
 Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
   final emulator = device.os == DeviceOs.android && !device.type.isPhysical;
-  final webcams = emulator
-      ? await _listWebcams()
-      : const <({String id, String name})>[];
-  final simCamera =
+  final hasSimCamera =
       Platform.isMacOS &&
-          device.os == DeviceOs.ios &&
-          !device.type.isPhysical &&
-          device.state == DeviceState.booted
-      ? await _simCameraState(device)
-      : null;
-  // Null when the device cannot tell (or switch): no menu entry then.
-  final dark = await getIt<DeviceAppearance>().isDark(device);
+      device.os == DeviceOs.ios &&
+      !device.type.isPhysical &&
+      device.state == DeviceState.booted;
+  // In parallel, each within the menu budget.
+  final (webcams, simCamera, dark) = await (
+    emulator
+        ? _quickWebcams()
+        : Future.value(const <({String id, String name})>[]),
+    hasSimCamera
+        ? _quick<_SimCameraState?>(
+            _simCameraState(device),
+            _last.simCamera[device.id],
+            (value) => _last.simCamera[device.id] = value!,
+          )
+        : Future<_SimCameraState?>.value(),
+    // Null when the device cannot tell (or switch): no menu entry then.
+    _quick(
+      getIt<DeviceAppearance>().isDark(device),
+      _last.dark[device.id],
+      (value) => _last.dark[device.id] = value,
+    ),
+  ).wait;
   if (!context.mounted) return;
   final settingsCubit = context.read<DeviceSettingsCubit>();
   void set(DeviceSettings Function(DeviceSettings) change) =>
@@ -178,6 +227,7 @@ native.MenuItem _darkModeItem(BuildContext context, Device device, bool dark) {
   return menuCheck('Dark mode', dark, () async {
     try {
       await getIt<DeviceAppearance>().setDark(device, dark: !dark);
+      _last.dark[device.id] = !dark;
     } catch (e) {
       devices.notify('$e', error: true);
     }
