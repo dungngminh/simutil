@@ -38,9 +38,13 @@ class AppAutomation implements DeviceAutomation {
   Future<bool> tapElement(Device device, UiElement element) async {
     final session = iosSession(device.id);
     if (session == null) return _of(device).tapElement(device, element);
-    final settled = await _settled(session, element);
+    final settled = await _settled(session, element, _snapshots[device.id]);
     return session.pressElement(settled ?? element);
   }
+
+  /// The last iOS accessibility listing per device, the one a tap's element
+  /// was most likely found in; tells which of several look-alikes it is.
+  final _snapshots = <String, List<UiElement>>{};
 
   /// [element] once its frame holds still across two snapshots (an alert or
   /// sheet still animating in ignores presses), with a fresh handle; null
@@ -49,7 +53,11 @@ class AppAutomation implements DeviceAutomation {
   /// ponytail: Android skips this; each dump there costs ~2.5 s.
   static const settleTimeout = Duration(seconds: 2);
 
-  Future<UiElement?> _settled(IosSimSession session, UiElement element) async {
+  Future<UiElement?> _settled(
+    IosSimSession session,
+    UiElement element,
+    List<UiElement>? foundIn,
+  ) async {
     bool same(UiElement a, UiElement b) =>
         a.label == b.label &&
         a.id == b.id &&
@@ -58,15 +66,22 @@ class AppAutomation implements DeviceAutomation {
         (a.right - b.right).abs() < 0.002 &&
         (a.bottom - b.bottom).abs() < 0.002;
     // Labels repeat (two "Delete" buttons, or none at all on an element
-    // found by its value): follow the one nearest to where it last was.
+    // found by its value). Look-alikes keep their order in the tree while a
+    // sheet moves them together, so follow the element by its rank among
+    // them; only when their number changes, by where it last was.
+    bool twin(UiElement a, UiElement b) =>
+        a.label == b.label && a.id == b.id && a.role == b.role;
+    final twins = [...?foundIn?.where((e) => twin(e, element))];
+    final rank = twins.indexWhere(
+      (e) => e.handle == element.handle && same(e, element),
+    );
     double distance(UiElement a, UiElement b) =>
         (a.centerX - b.centerX).abs() + (a.centerY - b.centerY).abs();
     UiElement? match(List<UiElement> all, UiElement like) {
+      final now = [...all.where((e) => twin(e, like))];
+      if (rank >= 0 && now.length == twins.length) return now[rank];
       UiElement? best;
-      for (final e in all) {
-        if (e.label != like.label || e.id != like.id || e.role != like.role) {
-          continue;
-        }
+      for (final e in now) {
         if (best == null || distance(e, like) < distance(best, like)) best = e;
       }
       return best;
@@ -85,9 +100,11 @@ class AppAutomation implements DeviceAutomation {
   }
 
   @override
-  Future<List<UiElement>> elements(Device device) =>
-      iosSession(device.id)?.accessibilityElements() ??
-      _of(device).elements(device);
+  Future<List<UiElement>> elements(Device device) async {
+    final session = iosSession(device.id);
+    if (session == null) return _of(device).elements(device);
+    return _snapshots[device.id] = await session.accessibilityElements();
+  }
 }
 
 /// The production [AppAutomation].

@@ -4,16 +4,18 @@ import 'package:simutil_app/src/stream/ios/ios_sim_session.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_core/testing.dart';
 
-/// Answers every accessibility snapshot with [elements] and records the
-/// element it was asked to press.
+/// Answers accessibility snapshots from [snapshots] in turn (the last one
+/// repeats) and records the element it was asked to press.
 class _FakeSimSession implements IosSimSession {
-  _FakeSimSession(this.elements);
+  _FakeSimSession(this.snapshots);
 
-  final List<UiElement> elements;
+  final List<List<UiElement>> snapshots;
   UiElement? pressed;
+  var _next = 0;
 
   @override
-  Future<List<UiElement>> accessibilityElements() async => elements;
+  Future<List<UiElement>> accessibilityElements() async =>
+      snapshots[_next < snapshots.length - 1 ? _next++ : _next];
 
   @override
   Future<bool> pressElement(UiElement element) async {
@@ -45,7 +47,9 @@ void main() {
   test('taps the element it was given, not its first namesake', () async {
     final first = button(1, 0.2);
     final second = button(2, 0.6);
-    final session = _FakeSimSession([first, second]);
+    final session = _FakeSimSession([
+      [first, second],
+    ]);
     final automation = AppAutomation(
       android: _NoAutomation(),
       ios: _NoAutomation(),
@@ -59,7 +63,9 @@ void main() {
 
   test('an element without label or id keeps its own position', () async {
     final field = button(3, 0.7, label: '');
-    final session = _FakeSimSession([button(4, 0.1, label: ''), field]);
+    final session = _FakeSimSession([
+      [button(4, 0.1, label: ''), field],
+    ]);
     final automation = AppAutomation(
       android: _NoAutomation(),
       ios: _NoAutomation(),
@@ -68,5 +74,28 @@ void main() {
 
     expect(await automation.tapElement(testIosSimulator(), field), isTrue);
     expect(session.pressed?.handle, 3);
+  });
+
+  test('look-alikes moving together keep the chosen one', () async {
+    // A sheet slides up by 0.4: the second "Delete" ends up where the first
+    // one was found, so nearest-position would pick it.
+    final found = [button(1, 0.6), button(2, 0.8)];
+    final session = _FakeSimSession([
+      found,
+      [button(3, 0.4), button(4, 0.6)],
+      [button(5, 0.2), button(6, 0.4)],
+    ]);
+    final automation = AppAutomation(
+      android: _NoAutomation(),
+      ios: _NoAutomation(),
+      iosSession: (_) => session,
+    );
+
+    final elements = await automation.elements(testIosSimulator());
+    expect(
+      await automation.tapElement(testIosSimulator(), elements[0]),
+      isTrue,
+    );
+    expect(session.pressed?.handle, 5);
   });
 }
