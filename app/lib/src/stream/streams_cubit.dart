@@ -11,6 +11,7 @@ import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/stream/ios/ios_device_session.dart';
 import 'package:simutil_app/src/stream/ios/ios_sim_session.dart';
 import 'package:simutil_app/src/stream/streams_state.dart';
+import 'package:simutil_app/src/recording/capture_file.dart';
 
 /// Creates the platform session for a device, or throws a user-facing
 /// message when it cannot.
@@ -230,9 +231,8 @@ class StreamsCubit extends CubitSignal<StreamsState> {
         ?.device
         .name;
     _recordingLock.acquire(deviceId, label: name ?? deviceId);
-    final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
     try {
-      await session.startRecording('$directory/simutil-$deviceId-$stamp.mp4');
+      await session.startRecording(captureFilePath(directory, deviceId, 'mp4'));
     } catch (_) {
       _recordingLock.release(deviceId);
       rethrow;

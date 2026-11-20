@@ -20,6 +20,7 @@ import 'package:simutil_app/src/ui/mcp_connect_dialog.dart';
 import 'package:simutil_app/src/ui/recording_toast.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:simutil_app/src/recording/capture_file.dart';
 
 /// Window-draggable bar over the grid: sidebar toggle on the left, one
 /// toolbar on the right (grid recording, layouts, Xcode cleanup, MCP).
@@ -275,9 +276,8 @@ class _ViewActions extends StatelessWidget {
       if (recorder.isRecording) {
         await recorder.stop();
       } else {
-        final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
         await recorder.start(
-          '${recordingsDirectory()}/simutil-grid-$stamp.mp4',
+          captureFilePath(recordingsDirectory(), 'grid', 'mp4'),
           quality: context.read<ViewSettingsCubit>().stateValue.gridQuality,
         );
       }
