@@ -180,7 +180,11 @@ void main() {
     addTearDown(server.close);
     // Accepts and stays silent: the handshake would wait for its timeout.
     final silent = <Socket>[];
-    server.listen(silent.add);
+    final accepted = Completer<void>();
+    server.listen((socket) {
+      silent.add(socket);
+      if (!accepted.isCompleted) accepted.complete();
+    });
     addTearDown(() {
       for (final s in silent) {
         s.destroy();
@@ -194,7 +198,8 @@ void main() {
     );
 
     final starting = session.start();
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    // The worker is connected and waiting for the server's first byte.
+    await accepted.future.timeout(const Duration(seconds: 10));
     final clock = Stopwatch()..start();
     await session.stop();
     await starting.timeout(const Duration(seconds: 3));
