@@ -155,27 +155,31 @@ class _StreamTileState extends State<StreamTile> {
                     onLongPressCancel: widget.drag?.end,
                     onSecondaryTap: () =>
                         showDeviceContextMenu(context, entry.device),
-                    child: thumbnail
-                        ? _ThumbnailHeader(entry: entry)
-                        : StreamTileHeader(
-                            entry: entry,
-                            session: session,
-                            showResolution:
-                                mode == StreamTileMode.spotlight ||
-                                mode == StreamTileMode.window,
-                            actions: _tileActions(
-                              context,
-                              entry,
-                              session,
-                              mode,
-                              showFrame,
-                              canRecord: !otherRecording,
-                              typing: typing,
-                              onKeyboard: () => typing
-                                  ? _keyboard.unfocus()
-                                  : _keyboard.requestFocus(),
+                    child: MouseRegion(
+                      // So a right click finds its menu's state loaded.
+                      onEnter: (_) => prefetchDeviceMenu(entry.device),
+                      child: thumbnail
+                          ? _ThumbnailHeader(entry: entry)
+                          : StreamTileHeader(
+                              entry: entry,
+                              session: session,
+                              showResolution:
+                                  mode == StreamTileMode.spotlight ||
+                                  mode == StreamTileMode.window,
+                              actions: _tileActions(
+                                context,
+                                entry,
+                                session,
+                                mode,
+                                showFrame,
+                                canRecord: !otherRecording,
+                                typing: typing,
+                                onKeyboard: () => typing
+                                    ? _keyboard.unfocus()
+                                    : _keyboard.requestFocus(),
+                              ),
                             ),
-                          ),
+                    ),
                   ),
                   Expanded(
                     child: InstallDropTarget(

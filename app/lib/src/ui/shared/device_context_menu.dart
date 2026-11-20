@@ -16,6 +16,7 @@ import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/ui/shared/device_actions.dart';
 import 'package:simutil_app/src/ui/shared/device_recording.dart';
 import 'package:simutil_app/src/ui/shared/native_menu.dart';
+import 'package:simutil_app/src/devices/device_appearance.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:tray_manager/tray_manager.dart' as native;
 
@@ -23,6 +24,162 @@ import 'package:tray_manager/tray_manager.dart' as native;
 // restart; re-list on every menu open if that matters.
 Future<List<({String id, String name})>>? _webcams;
 Future<List<({String id, String name})>>? _hostWebcams;
+
+/// How long a context menu waits for what it shows before it opens: it
+/// opens at the cursor, so waiting longer lands it wherever the mouse went
+/// meanwhile. Slower answers fill [_last] for the next open.
+const _menuBudget = Duration(milliseconds: 250);
+
+/// Last answers per device (webcams under `''`), shown while a fresh one
+/// is still loading.
+final _last = (
+  webcams: <({String id, String name})>[],
+  simCamera: <String, _SimCameraState>{},
+  dark: <String, bool?>{},
+);
+
+/// Whether [_last] holds an answer for the webcams.
+var _webcamsKnown = false;
+
+/// Per device, how many successful changes (dark mode, camera) were made:
+/// a read started before one must not overwrite what it changed.
+final _revisions = <String, int>{};
+
+int _revision(String deviceId) => _revisions[deviceId] ?? 0;
+
+/// Reads in flight per kind and device, with the revision they started at.
+final _reads = <String, ({int revision, Future<Object?> future})>{};
+
+/// [load]s what [kind] shows for [deviceId] and passes it to [store] unless
+/// the device changed meanwhile. A read already in flight is shared while
+/// nothing changed. After a change, a new read first waits for the older
+/// one to settle: the command queue hands identical background commands
+/// the running one's result, which would be the state before the change.
+Future<T> _read<T>(
+  String kind,
+  String deviceId,
+  Future<T> Function() load,
+  void Function(T value) store,
+) {
+  final key = '$kind\u0000$deviceId';
+  final revision = _revision(deviceId);
+  final pending = _reads[key];
+  if (pending != null && pending.revision == revision) {
+    return pending.future as Future<T>;
+  }
+  final settled = pending?.future.then((_) {}, onError: (Object _) {});
+  final future = (settled ?? Future<void>.value()).then((_) => load());
+  _reads[key] = (revision: revision, future: future);
+  future
+      .then((value) {
+        if (_revision(deviceId) == revision) store(value);
+      }, onError: (Object _) {})
+      .whenComplete(() {
+        if (identical(_reads[key]?.future, future)) _reads.remove(key);
+      });
+  return future;
+}
+
+Future<_SimCameraState> _readSimCamera(Device device) => _read(
+  'simCamera',
+  device.id,
+  () => _simCameraState(device),
+  (value) => _last.simCamera[device.id] = value,
+);
+
+Future<bool?> _readDark(Device device) => _read(
+  'dark',
+  device.id,
+  () => getIt<DeviceAppearance>().isDark(device),
+  (value) => _last.dark[device.id] = value,
+);
+
+/// After a successful change on [deviceId]: older reads are dropped, and
+/// [forget] clears what the change made stale.
+void _changed(String deviceId, {void Function()? forget}) {
+  _revisions[deviceId] = _revision(deviceId) + 1;
+  forget?.call();
+}
+
+/// [load]'s value when it arrives within [_menuBudget], else [fallback];
+/// [remember] gets it whenever it arrives. When [known] (an earlier answer,
+/// e.g. from [prefetchDeviceMenu]), [fallback] is used at once and [load]
+/// only refreshes it.
+Future<T> _quick<T>(
+  Future<T> load,
+  T fallback,
+  void Function(T value) remember, {
+  required bool known,
+}) {
+  final remembered = load.then((value) {
+    remember(value);
+    return value;
+  });
+  if (known) {
+    remembered.ignore();
+    return Future.value(fallback);
+  }
+  return remembered
+      .timeout(_menuBudget, onTimeout: () => fallback)
+      .catchError((Object _) => fallback);
+}
+
+Future<List<({String id, String name})>> _quickWebcams() =>
+    _quick(_listWebcams(), _last.webcams, (value) {
+      _webcamsKnown = true;
+      _last.webcams
+        ..clear()
+        ..addAll(value);
+    }, known: _webcamsKnown);
+
+Future<_SimCameraState?> _quickSimCamera(Device device) =>
+    _quick<_SimCameraState?>(
+      _readSimCamera(device),
+      _last.simCamera[device.id],
+      (_) {},
+      known: _last.simCamera.containsKey(device.id),
+    );
+
+Future<bool?> _quickDark(Device device) => _quick(
+  _readDark(device),
+  _last.dark[device.id],
+  (_) {},
+  known: _last.dark.containsKey(device.id),
+);
+
+/// When each device's menu state was last prefetched.
+final _prefetched = <String, DateTime>{};
+
+/// Loads what [device]'s context menu shows ahead of a right click (on
+/// hover), at most every 10 s per device, so the menu opens at once with
+/// fresh values.
+void prefetchDeviceMenu(Device device) {
+  if (device.state != DeviceState.booted) return;
+  final now = DateTime.now();
+  final last = _prefetched[device.id];
+  if (last != null && now.difference(last) < const Duration(seconds: 10)) {
+    return;
+  }
+  _prefetched[device.id] = now;
+  void remember<T>(Future<T> load, void Function(T value) store) =>
+      load.then(store).ignore();
+  if (device.os == DeviceOs.android && !device.type.isPhysical) {
+    remember(_listWebcams(), (value) {
+      _webcamsKnown = true;
+      _last.webcams
+        ..clear()
+        ..addAll(value);
+    });
+  }
+  if (_hasSimCamera(device)) _readSimCamera(device).ignore();
+  _readDark(device).ignore();
+}
+
+bool _hasSimCamera(Device device) =>
+    Platform.isMacOS &&
+    device.os == DeviceOs.ios &&
+    !device.type.isPhysical &&
+    device.state == DeviceState.booted;
 
 /// What an iOS simulator's Camera submenu shows: the host webcams, the
 /// running feed and the apps that can be launched with it.
@@ -51,7 +208,7 @@ Future<List<({String id, String name})>> _listWebcams() =>
 /// away; an iOS simulator's feed switches live.
 Future<void> showCameraMenu(BuildContext context, Device device) async {
   if (device.os == DeviceOs.ios) {
-    final state = await _simCameraState(device);
+    final state = await _readSimCamera(device);
     if (!context.mounted) return;
     showNativeMenu(() => [_simCameraItems(context, device, state)]);
     return;
@@ -73,16 +230,17 @@ Future<void> showCameraMenu(BuildContext context, Device device) async {
 /// per-device settings.
 Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
   final emulator = device.os == DeviceOs.android && !device.type.isPhysical;
-  final webcams = emulator
-      ? await _listWebcams()
-      : const <({String id, String name})>[];
-  final simCamera =
-      Platform.isMacOS &&
-          device.os == DeviceOs.ios &&
-          !device.type.isPhysical &&
-          device.state == DeviceState.booted
-      ? await _simCameraState(device)
-      : null;
+  // In parallel, each within the menu budget (none when known already).
+  final (webcams, simCamera, dark) = await (
+    emulator
+        ? _quickWebcams()
+        : Future.value(const <({String id, String name})>[]),
+    _hasSimCamera(device)
+        ? _quickSimCamera(device)
+        : Future<_SimCameraState?>.value(),
+    // Null when the device cannot tell (or switch): no menu entry then.
+    _quickDark(device),
+  ).wait;
   if (!context.mounted) return;
   final settingsCubit = context.read<DeviceSettingsCubit>();
   void set(DeviceSettings Function(DeviceSettings) change) =>
@@ -93,6 +251,9 @@ Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
     () => [
       _actionItems(context, device),
       if (!busy) _deviceItems(context, device),
+      // A cached value may be from before the device stopped.
+      if (!busy && dark != null && DeviceAppearance.supports(device))
+        [_darkModeItem(context, device, dark)],
       if (!device.type.isPhysical) _launchItems(context, device, set),
       if (emulator)
         [
@@ -165,6 +326,20 @@ List<native.MenuItem> _deviceItems(BuildContext context, Device device) {
         await devices.refresh(silent: true);
       }),
   ];
+}
+
+/// Switches [device] between light and dark mode ([dark] is its current
+/// mode); a failure shows as a notice.
+native.MenuItem _darkModeItem(BuildContext context, Device device, bool dark) {
+  final devices = context.read<DevicesCubit>();
+  return menuCheck('Dark mode', dark, () async {
+    try {
+      await getIt<DeviceAppearance>().setDark(device, dark: !dark);
+      _changed(device.id, forget: () => _last.dark[device.id] = !dark);
+    } catch (e) {
+      devices.notify('$e', error: true);
+    }
+  });
 }
 
 /// Headless for every start, and one-off launch modes for a shut-down
@@ -271,6 +446,8 @@ List<native.MenuItem> _simCameraItems(
   Future<void> guard(String done, Future<void> Function() action) async {
     try {
       await action();
+      // The next menu reads the camera afresh.
+      _changed(device.id, forget: () => _last.simCamera.remove(device.id));
       devices.notify(done);
     } on Object catch (e) {
       final message = e is StateError ? e.message : '$e';
