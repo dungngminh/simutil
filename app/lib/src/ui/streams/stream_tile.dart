@@ -14,7 +14,6 @@ import 'package:simutil_app/src/stream/device_keyboard.dart';
 import 'package:simutil_app/src/stream/ios/ios_device_session.dart';
 import 'package:simutil_app/src/ui/recording_toast.dart';
 import 'package:simutil_app/src/ui/shared/device_recording.dart';
-import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/settings/recordings_dir.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
@@ -27,6 +26,7 @@ import 'package:simutil_app/src/ui/shared/install_drop_target.dart';
 import 'package:simutil_app/src/ui/shared/recording_clock.dart';
 import 'package:simutil_app/src/ui/shared/stream_tile_body.dart';
 import 'package:simutil_app/src/windows/device_windows.dart';
+import 'package:simutil_app/src/ui/shared/device_actions.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// Where a tile sits in the layout.
@@ -379,11 +379,8 @@ List<TileAction> _tileActions(
         icon: LucideIcons.power,
         label: 'Shut down device',
         priority: 3,
-        onPressed: () async {
-          final devices = context.read<DevicesCubit>();
-          await streams.closeStream(device.id);
-          await devices.shutdown(device);
-        },
+        // In a device window this runs in the main window.
+        onPressed: () => DeviceCommands(context, device).stop(),
       ),
     if (mode == StreamTileMode.grid)
       TileAction(
