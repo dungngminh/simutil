@@ -90,13 +90,19 @@ class _StreamGridState extends State<StreamGrid> {
               builder: (context, constraints) {
                 final ids = [for (final e in state.entries) e.device.id];
                 final grid = settings.layout == StreamLayout.grid;
-                final dragId = grid && ids.contains(_dragId) ? _dragId : null;
+                final dragId = grid && ids.length > 1 && ids.contains(_dragId)
+                    ? _dragId
+                    : null;
+                // A stream closed mid-drag: the dragged one (its gesture
+                // never ends) or another (the drop slot may be gone).
+                if (dragId == null) _dragId = null;
+                _dragIndex = _dragIndex.clamp(0, ids.length - 1);
                 // While dragging, lay out the order it would drop into.
                 final order = [...ids];
                 if (dragId != null) {
                   order
                     ..remove(dragId)
-                    ..insert(_dragIndex.clamp(0, ids.length - 1), dragId);
+                    ..insert(_dragIndex, dragId);
                 }
                 final rects = streamRects(
                   order,
