@@ -15,6 +15,7 @@ import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/di.dart';
 import 'package:simutil_app/src/logging/bloc_log.dart';
 import 'package:simutil_app/src/logging/debug_log.dart';
+import 'package:simutil_app/src/maestro/maestro_runner.dart';
 import 'package:simutil_app/src/mcp/mcp_server.dart';
 import 'package:simutil_app/src/mcp/simutil_tools.dart';
 import 'package:simutil_app/src/mcp/tools/tool_context.dart';
@@ -83,6 +84,7 @@ Future<void> main(List<String> args) async {
         adbPath: () => getIt<AndroidDeviceService>().adbPath,
         session: streams.sessionFor,
       ),
+      maestro: getIt<MaestroRunner>(),
       marks: getIt<TouchMarks>(),
       runs: getIt<ScenarioRunsCubit>(),
     ),

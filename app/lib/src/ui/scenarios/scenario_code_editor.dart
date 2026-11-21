@@ -1,34 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
-import 'package:simutil_app/src/scenarios/scenario_suggest.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
 
-/// A step's status on its line, with its errors (empty unless failed).
+/// A step's status on its line, with what to show on hover.
 typedef LineMark = ({ScenarioStatus status, String message});
 
-/// Monospace YAML editor with a gutter of line numbers and, per [marks],
-/// each step's status beside its first line. Suggests keywords at the
-/// cursor (see [scenarioSuggestions]); Up / Down pick, Enter or Tab accept,
-/// Escape dismisses.
+/// Monospace, syntax-highlighted editor for a Maestro flow, with a gutter of
+/// line numbers. Give it a [controller] (a `ScenarioSyntaxController` for
+/// colors); the parent sizes it. Tab indents two spaces.
 class ScenarioCodeEditor extends StatefulWidget {
   const ScenarioCodeEditor({
     super.key,
     required this.controller,
-    this.marks = const {},
     this.readOnly = false,
-    this.devices = const [],
+    this.marks = const {},
   });
 
   final TextEditingController controller;
-
-  /// Status by line (0-based).
-  final Map<int, LineMark> marks;
   final bool readOnly;
 
-  /// Device names offered inside `devices: [...]`.
-  final List<String> devices;
+  /// Step statuses by 0-based line, shown in the gutter.
+  final Map<int, LineMark> marks;
 
   @override
   State<ScenarioCodeEditor> createState() => _ScenarioCodeEditorState();
@@ -36,94 +32,40 @@ class ScenarioCodeEditor extends StatefulWidget {
 
 class _ScenarioCodeEditorState extends State<ScenarioCodeEditor> {
   final _scroll = ScrollController();
-  final _focus = FocusNode();
-  ScenarioSuggestions? _suggest;
-  var _picked = 0;
-
-  /// Text the user dismissed suggestions for; they return once it changes.
-  String? _dismissed;
+  final _field = GlobalKey();
 
   static const _fontSize = 13.0;
   static const _lineHeight = 1.5;
-  static const _padTop = 10.0;
-  static const _padLeft = 4.0;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.controller.addListener(_update);
-    _focus.addListener(_update);
-  }
-
-  @override
-  void didUpdateWidget(ScenarioCodeEditor old) {
-    super.didUpdateWidget(old);
-    if (old.controller != widget.controller) {
-      old.controller.removeListener(_update);
-      widget.controller.addListener(_update);
-    }
-    if (old.readOnly != widget.readOnly || old.devices != widget.devices) {
-      // After this frame: _update may setState.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _update();
-      });
-    }
-  }
+  static const _pad = EdgeInsets.fromLTRB(4, 10, 10, 10);
 
   @override
   void dispose() {
-    widget.controller.removeListener(_update);
     _scroll.dispose();
-    _focus.dispose();
     super.dispose();
   }
-
-  void _update() {
-    final value = widget.controller.value;
-    final sel = value.selection;
-    final next =
-        widget.readOnly ||
-            !_focus.hasFocus ||
-            !sel.isValid ||
-            !sel.isCollapsed ||
-            value.text == _dismissed
-        ? null
-        : scenarioSuggestions(
-            value.text,
-            sel.baseOffset,
-            devices: widget.devices,
-          );
-    if (next?.items != _suggest?.items || next?.start != _suggest?.start) {
-      setState(() {
-        _suggest = next;
-        _picked = 0;
-      });
-    }
-  }
-
-  void _accept() {
-    final s = _suggest;
-    if (s == null || widget.readOnly) return;
-    final value = widget.controller.value;
-    final insert = s.items[_picked].insert;
-    widget.controller.value = value.replaced(
-      TextRange(start: s.start, end: value.selection.baseOffset),
-      insert,
-    );
-  }
-
-  void _move(int by) =>
-      setState(() => _picked = (_picked + by) % (_suggest?.items.length ?? 1));
-
-  void _dismiss() => setState(() {
-    _dismissed = widget.controller.text;
-    _suggest = null;
-  });
 
   void _indent() {
     final sel = widget.controller.selection;
     if (widget.readOnly || !sel.isValid) return;
     widget.controller.value = widget.controller.value.replaced(sel, '  ');
+  }
+
+  /// The text field's render object, which knows where each line sits.
+  RenderEditable? _editable() {
+    RenderEditable? found;
+    void visit(RenderObject o) {
+      if (found != null) return;
+      if (o is RenderEditable) {
+        found = o;
+      } else {
+        o.visitChildren(visit);
+      }
+    }
+
+    if (_field.currentContext?.findRenderObject() case final root?) {
+      visit(root);
+    }
+    return found;
   }
 
   @override
@@ -134,192 +76,138 @@ class _ScenarioCodeEditorState extends State<ScenarioCodeEditor> {
       color: t.text,
       height: _lineHeight,
     );
-    final suggest = _suggest;
-    final bindings = <ShortcutActivator, VoidCallback>{
-      if (suggest == null)
-        const SingleActivator(LogicalKeyboardKey.tab): _indent
-      else ...{
-        const SingleActivator(LogicalKeyboardKey.tab): _accept,
-        const SingleActivator(LogicalKeyboardKey.enter): _accept,
-        const SingleActivator(LogicalKeyboardKey.arrowDown): () => _move(1),
-        const SingleActivator(LogicalKeyboardKey.arrowUp): () => _move(-1),
-        const SingleActivator(LogicalKeyboardKey.escape): _dismiss,
-      },
-    };
-    return Container(
-      decoration: BoxDecoration(
-        color: t.raised,
-        borderRadius: BorderRadius.circular(SimuTokens.radius),
-        border: Border.all(color: t.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Gutter(
-            controller: widget.controller,
-            scroll: _scroll,
-            marks: widget.marks,
-            lineExtent: _fontSize * _lineHeight,
-            padTop: _padTop,
-          ),
-          Expanded(
-            child: Material(
-              type: MaterialType.transparency,
-              child: Stack(
-                children: [
-                  CallbackShortcuts(
-                    bindings: bindings,
-                    child: TextField(
-                      controller: widget.controller,
-                      focusNode: _focus,
-                      scrollController: _scroll,
-                      readOnly: widget.readOnly,
-                      expands: true,
-                      maxLines: null,
-                      keyboardType: TextInputType.multiline,
-                      style: style,
-                      // Every line exactly one gutter row tall.
-                      strutStyle: StrutStyle(
-                        fontFamily: style.fontFamily,
-                        fontFamilyFallback: style.fontFamilyFallback,
-                        fontSize: _fontSize,
-                        height: _lineHeight,
-                        forceStrutHeight: true,
-                      ),
-                      cursorColor: t.accent,
-                      decoration:
-                          const InputDecoration.collapsed(
-                            hintText: null,
-                          ).copyWith(
-                            contentPadding: const EdgeInsets.fromLTRB(
-                              _padLeft,
-                              _padTop,
-                              10,
-                              _padTop,
-                            ),
-                          ),
+    // Rebuilt on resize so the gutter re-measures rewrapped lines.
+    return LayoutBuilder(
+      builder: (context, _) => Container(
+        decoration: BoxDecoration(
+          color: t.raised,
+          borderRadius: BorderRadius.circular(SimuTokens.radius),
+          border: Border.all(color: t.border),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _Gutter(
+              controller: widget.controller,
+              scroll: _scroll,
+              editable: _editable,
+              marks: widget.marks,
+            ),
+            Expanded(
+              child: Material(
+                type: MaterialType.transparency,
+                child: CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.tab): _indent,
+                  },
+                  child: TextField(
+                    key: _field,
+                    controller: widget.controller,
+                    scrollController: _scroll,
+                    readOnly: widget.readOnly,
+                    expands: true,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    style: style,
+                    strutStyle: StrutStyle(
+                      fontFamily: style.fontFamily,
+                      fontFamilyFallback: style.fontFamilyFallback,
+                      fontSize: _fontSize,
+                      height: _lineHeight,
+                      forceStrutHeight: true,
                     ),
+                    cursorColor: t.accent,
+                    decoration: InputDecoration.collapsed(
+                      hintText: 'Maestro flow YAML',
+                      hintStyle: style.copyWith(color: t.textFaint),
+                    ).copyWith(contentPadding: _pad),
                   ),
-                  if (suggest != null)
-                    _SuggestionPopup(
-                      at: _caret(style, suggest.start),
-                      lineExtent: _fontSize * _lineHeight,
-                      items: [for (final i in suggest.items) i.label],
-                      picked: _picked,
-                      onPick: (i) {
-                        _picked = i;
-                        _accept();
-                      },
-                    ),
-                ],
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Top-left of the character at [offset], in the text area.
-  /// ponytail: monospace, no soft wrap (as the gutter assumes).
-  Offset _caret(TextStyle style, int offset) {
-    final text = widget.controller.text;
-    final lineStart = text.lastIndexOf('\n', offset - 1) + 1;
-    final line = '\n'.allMatches(text.substring(0, lineStart)).length;
-    final charWidth = (TextPainter(
-      text: TextSpan(text: 'M', style: style),
-      textDirection: TextDirection.ltr,
-    )..layout()).width;
-    final scrolled = _scroll.hasClients ? _scroll.offset : 0.0;
-    return Offset(
-      _padLeft + (offset - lineStart) * charWidth,
-      _padTop + line * _fontSize * _lineHeight - scrolled,
-    );
-  }
-}
-
-/// Keyword choices under the word being typed.
-class _SuggestionPopup extends StatelessWidget {
-  const _SuggestionPopup({
-    required this.at,
-    required this.lineExtent,
-    required this.items,
-    required this.picked,
-    required this.onPick,
-  });
-
-  final Offset at;
-  final double lineExtent;
-  final List<String> items;
-  final int picked;
-  final ValueChanged<int> onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = SimuTokens.of(context);
-    return Positioned(
-      left: at.dx,
-      top: at.dy + lineExtent + 2,
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 140, maxHeight: 180),
-        decoration: BoxDecoration(
-          color: t.panel,
-          borderRadius: BorderRadius.circular(SimuTokens.radiusSmall),
-          border: Border.all(color: t.border),
-          boxShadow: const [
-            BoxShadow(color: Color(0x40000000), blurRadius: 10),
           ],
         ),
-        child: SingleChildScrollView(
-          child: IntrinsicWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final (i, label) in items.indexed)
-                  GestureDetector(
-                    onTap: () => onPick(i),
-                    child: Container(
-                      color: i == picked ? t.hover : null,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      child: Text(
-                        label,
-                        style: t.mono.copyWith(
-                          fontSize: 12,
-                          color: i == picked ? t.text : t.textMuted,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
 }
 
-/// Line numbers and step statuses, scrolled with the text.
-/// ponytail: rows assume no soft wrap; YAML steps are short lines.
-class _Gutter extends StatelessWidget {
+/// Line numbers beside the field's lines, measured from the field itself
+/// after each layout, so soft-wrapped lines and scrolling line up; a
+/// wrapped line keeps its number on its first row.
+class _Gutter extends StatefulWidget {
   const _Gutter({
     required this.controller,
     required this.scroll,
+    required this.editable,
     required this.marks,
-    required this.lineExtent,
-    required this.padTop,
   });
 
   final TextEditingController controller;
   final ScrollController scroll;
+  final RenderEditable? Function() editable;
   final Map<int, LineMark> marks;
-  final double lineExtent;
-  final double padTop;
+
+  @override
+  State<_Gutter> createState() => _GutterState();
+}
+
+class _GutterState extends State<_Gutter> {
+  /// Each line's row rect (top, height) in the gutter's coordinates.
+  var _rows = const <(double, double)>[];
+
+  late final _listenable = Listenable.merge([widget.scroll, widget.controller]);
+
+  @override
+  void initState() {
+    super.initState();
+    _listenable.addListener(_schedule);
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(_Gutter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _schedule();
+  }
+
+  @override
+  void dispose() {
+    _listenable.removeListener(_schedule);
+    super.dispose();
+  }
+
+  void _schedule() =>
+      WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+
+  /// ponytail: measures every line, fine for flow-sized YAML; measure only
+  /// the visible ones if flows get huge.
+  void _measure() {
+    final editable = widget.editable();
+    final gutter = context.findRenderObject() as RenderBox?;
+    if (!mounted || editable == null || gutter == null) return;
+    if (!editable.hasSize || !gutter.hasSize) return;
+    final text = widget.controller.text;
+    final starts = [
+      0,
+      for (var i = text.indexOf('\n'); i != -1; i = text.indexOf('\n', i + 1))
+        i + 1,
+    ];
+    final rows = [
+      for (final start in starts)
+        () {
+          final rect = editable.getLocalRectForCaret(
+            TextPosition(offset: start),
+          );
+          final top = gutter
+              .globalToLocal(editable.localToGlobal(rect.topLeft))
+              .dy;
+          return (top, editable.preferredLineHeight);
+        }(),
+    ];
+    if (!listEquals(rows, _rows)) setState(() => _rows = rows);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -328,34 +216,17 @@ class _Gutter extends StatelessWidget {
       width: 52,
       color: t.panel,
       child: ClipRect(
-        child: LayoutBuilder(
-          builder: (context, box) => ListenableBuilder(
-            listenable: Listenable.merge([scroll, controller]),
-            builder: (context, _) {
-              final offset = scroll.hasClients ? scroll.offset : 0.0;
-              final lines = '\n'.allMatches(controller.text).length + 1;
-              final first = ((offset - padTop) / lineExtent).floor().clamp(
-                0,
-                lines,
-              );
-              final last = ((offset + box.maxHeight) / lineExtent).ceil().clamp(
-                0,
-                lines,
-              );
-              return Stack(
-                children: [
-                  for (var i = first; i < last; i++)
-                    Positioned(
-                      top: padTop + i * lineExtent - offset,
-                      left: 0,
-                      right: 6,
-                      height: lineExtent,
-                      child: _GutterRow(line: i, mark: marks[i]),
-                    ),
-                ],
-              );
-            },
-          ),
+        child: Stack(
+          children: [
+            for (final (i, (top, height)) in _rows.indexed)
+              Positioned(
+                top: top,
+                left: 0,
+                right: 8,
+                height: height,
+                child: _GutterRow(line: i, mark: widget.marks[i]),
+              ),
+          ],
         ),
       ),
     );
@@ -389,7 +260,12 @@ class _GutterRow extends StatelessWidget {
           child: Text(
             '${line + 1}',
             textAlign: TextAlign.right,
-            style: t.mono.copyWith(fontSize: 11, color: t.textFaint),
+            style: t.mono.copyWith(
+              fontSize: 11,
+              color: mark?.status == ScenarioStatus.failed
+                  ? t.danger
+                  : t.textFaint,
+            ),
           ),
         ),
       ],
@@ -397,7 +273,7 @@ class _GutterRow extends StatelessWidget {
   }
 }
 
-/// A spinner, check, cross, minus (skipped) or hollow circle for [status].
+/// A spinner, check, cross or minus (stopped) for [status].
 class ScenarioStatusIcon extends StatelessWidget {
   const ScenarioStatusIcon({super.key, required this.status, this.size = 16});
 
@@ -408,13 +284,8 @@ class ScenarioStatusIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
     return switch (status) {
-      ScenarioStatus.pending => Icon(
-        LucideIcons.circle,
-        size: size,
-        color: t.textFaint,
-      ),
       ScenarioStatus.running => SimuSpinner(size: size - 2),
-      ScenarioStatus.skipped => Icon(
+      ScenarioStatus.stopped => Icon(
         LucideIcons.circleMinus,
         size: size,
         color: t.textMuted,

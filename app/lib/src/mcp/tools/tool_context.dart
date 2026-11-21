@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:simutil_app/src/devices/slim_mode_cubit.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
+import 'package:simutil_app/src/maestro/maestro_runner.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
@@ -33,6 +34,7 @@ class ToolContext {
     required this.slim,
     required this.adbPath,
     required this.automation,
+    required this.maestro,
     this.marks,
     this.runs,
   });
@@ -44,6 +46,9 @@ class ToolContext {
   final SlimModeCubit slim;
   final String Function() adbPath;
   final DeviceAutomation automation;
+
+  /// Runs Maestro flows on devices (replaces the old step scenarios).
+  final MaestroRunner maestro;
 
   /// Where agent touches are shown on stream tiles; null in tests.
   final TouchMarks? marks;
