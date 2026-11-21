@@ -36,6 +36,12 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
   );
 
   bool _running = false;
+
+  /// The newest run the editor has caught up with.
+  int? _shownRun;
+
+  /// The device whose log and step statuses show; null shows them all.
+  String? _focus;
   String? _error;
   String? _file;
 
@@ -163,18 +169,35 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
     }
   }
 
-  /// Each step's status across the run's devices, keyed by its line.
-  Map<int, LineMark> _marks(ScenarioRun run) => {
-    for (final (step, line) in flowStepLines(run.source).indexed)
-      line: ?_mark(run, step),
+  /// Loads a run that just started into the editor when its flow differs
+  /// (an agent's, over MCP), so its steps get statuses too.
+  void _follow(ScenarioRun? run) {
+    if (run == null || run.id == _shownRun) return;
+    _shownRun = run.id;
+    if (!run.devices.any((d) => d.deviceId == _focus)) _focus = null;
+    if (run.source.isEmpty || run.source == _text.text) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _text.text = run.source;
+      setState(() {
+        _file = null;
+        _error = null;
+      });
+    });
+  }
+
+  /// Each step's status on [devices], keyed by its line.
+  Map<int, LineMark> _marks(String source, List<ScenarioDeviceRun> devices) => {
+    for (final (step, line) in flowStepLines(source).indexed)
+      line: ?_mark(devices, step),
   };
 
-  /// Failed if [step] failed on any device, running if it runs on any,
-  /// passed once it passed on all; null before it starts.
-  LineMark? _mark(ScenarioRun run, int step) {
-    final many = run.devices.length > 1;
+  /// Failed if [step] failed on any of [devices], running if it runs on
+  /// any, passed once it passed on all; null before it starts.
+  LineMark? _mark(List<ScenarioDeviceRun> devices, int step) {
+    final many = devices.length > 1;
     List<ScenarioDeviceRun> on(ScenarioStatus s) => [
-      for (final d in run.devices)
+      for (final d in devices)
         if (d.stepStatus(step) == s) d,
     ];
     final failed = on(ScenarioStatus.failed);
@@ -196,7 +219,7 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
             : 'Running',
       );
     }
-    if (on(ScenarioStatus.ok).length == run.devices.length) {
+    if (on(ScenarioStatus.ok).length == devices.length) {
       return (status: ScenarioStatus.ok, message: 'Passed');
     }
     return null;
@@ -221,8 +244,12 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
       bloc: _runs,
       builder: (context, runs) {
         final run = runs.firstOrNull;
+        _follow(run);
+        final focused = run?.devices
+            .where((d) => d.deviceId == _focus)
+            .firstOrNull;
         // A run an agent started over MCP shows here too.
-        final latest = runs.firstOrNull;
+        final latest = run;
         final running = _running || latest?.status == ScenarioStatus.running;
         return Container(
           decoration: BoxDecoration(
@@ -256,7 +283,12 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
                   );
                 },
               ),
-              if (run != null) _RunSummary(run: run),
+              if (run != null)
+                _RunSummary(
+                  run: run,
+                  focus: focused?.deviceId,
+                  onFocus: (id) => setState(() => _focus = id),
+                ),
               Expanded(
                 flex: 3,
                 child: Padding(
@@ -266,13 +298,22 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
                     readOnly: running,
                     // Statuses map to lines only while the text is what ran.
                     marks: run != null && run.source == _text.text
-                        ? _marks(run)
+                        ? _marks(
+                            run.source,
+                            focused == null ? run.devices : [focused],
+                          )
                         : const {},
                   ),
                 ),
               ),
               if (run != null)
-                Expanded(flex: 2, child: _Output(lines: run.lines)),
+                Expanded(
+                  flex: 2,
+                  child: _Output(
+                    device: focused?.name,
+                    lines: focused?.lines ?? run.lines,
+                  ),
+                ),
               _Problems(
                 error: _error,
                 onClear: () => setState(() => _error = null),
@@ -520,29 +561,30 @@ class _DeviceChip extends StatelessWidget {
   }
 }
 
-/// The run on one line: status, when, how many devices passed, failed,
-/// stopped or still run; expands to each device and its time.
-class _RunSummary extends StatefulWidget {
-  const _RunSummary({required this.run});
+/// The run on one line (status, when, how many devices passed, failed,
+/// stopped or still run) and, with several devices, a chip per device that
+/// shows just that device's log and step statuses.
+class _RunSummary extends StatelessWidget {
+  const _RunSummary({
+    required this.run,
+    required this.focus,
+    required this.onFocus,
+  });
 
   final ScenarioRun run;
 
-  @override
-  State<_RunSummary> createState() => _RunSummaryState();
-}
-
-class _RunSummaryState extends State<_RunSummary> {
-  var _expanded = false;
+  /// The focused device's id; null for all.
+  final String? focus;
+  final ValueChanged<String?> onFocus;
 
   @override
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
-    final run = widget.run;
     final time = TimeOfDay.fromDateTime(run.startedAt).format(context);
     int count(ScenarioStatus s) =>
         run.devices.where((d) => d.status == s).length;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 8, 8),
+      padding: const EdgeInsets.fromLTRB(14, 0, 12, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -554,18 +596,32 @@ class _RunSummaryState extends State<_RunSummary> {
               const SizedBox(width: 10),
               for (final s in ScenarioStatus.values)
                 if (count(s) > 0) _CountChip(status: s, count: count(s)),
-              const Spacer(),
-              SimuIconButton(
-                icon: _expanded
-                    ? LucideIcons.chevronUp
-                    : LucideIcons.chevronDown,
-                tooltip: _expanded ? 'Hide devices' : 'Show devices',
-                size: 14,
-                onPressed: () => setState(() => _expanded = !_expanded),
-              ),
             ],
           ),
-          if (_expanded) _DeviceList(devices: run.devices),
+          if (run.devices.length > 1) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                _FocusChip(
+                  label: 'All',
+                  selected: focus == null,
+                  onTap: () => onFocus(null),
+                ),
+                for (final d in run.devices)
+                  _FocusChip(
+                    label: d.seconds == null
+                        ? d.name
+                        : '${d.name} · ${d.seconds} s',
+                    status: d.status,
+                    tooltip: d.error,
+                    selected: focus == d.deviceId,
+                    onTap: () => onFocus(d.deviceId),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -596,46 +652,71 @@ class _CountChip extends StatelessWidget {
   }
 }
 
-class _DeviceList extends StatelessWidget {
-  const _DeviceList({required this.devices});
+/// Picks whose log and step statuses the panel shows: all devices, or one
+/// (with its own status).
+class _FocusChip extends StatelessWidget {
+  const _FocusChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.status,
+    this.tooltip,
+  });
 
-  final List<ScenarioDeviceRun> devices;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final ScenarioStatus? status;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 4,
-        children: [
-          for (final d in devices)
-            Tooltip(
-              message: d.error ?? '',
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ScenarioStatusIcon(status: d.status, size: 11),
-                  const SizedBox(width: 4),
-                  Text(
-                    d.seconds == null ? d.name : '${d.name} · ${d.seconds} s',
-                    style: t.caption,
-                  ),
-                ],
+    final chip = SimuHoverable(
+      onTap: onTap,
+      builder: (context, hovered) => AnimatedContainer(
+        duration: SimuTokens.motion,
+        height: 24,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? t.accent.withValues(alpha: 0.14)
+              : hovered
+              ? t.hover
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: selected ? Colors.transparent : t.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (status case final status?) ...[
+              ScenarioStatusIcon(status: status, size: 11),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: t.caption.copyWith(
+                color: selected ? t.accent : t.textMuted,
+                fontWeight: selected ? FontWeight.w600 : null,
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
+    return tooltip == null ? chip : Tooltip(message: tooltip, child: chip);
   }
 }
 
 /// Maestro's live output for the run.
 class _Output extends StatelessWidget {
-  const _Output({required this.lines});
+  const _Output({required this.lines, this.device});
 
   final List<String> lines;
+
+  /// The focused device's name; null when the log is every device's.
+  final String? device;
 
   @override
   Widget build(BuildContext context) {
@@ -645,7 +726,10 @@ class _Output extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 12, 6),
-          child: Text('OUTPUT', style: t.overline),
+          child: Text(
+            device == null ? 'OUTPUT' : 'OUTPUT · ${device!.toUpperCase()}',
+            style: t.overline,
+          ),
         ),
         Expanded(
           child: Container(

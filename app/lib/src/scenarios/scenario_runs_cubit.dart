@@ -15,6 +15,7 @@ final class ScenarioDeviceRun extends Equatable {
     this.error,
     this.stepsDone = 0,
     this.failedStep,
+    this.lines = const [],
   });
 
   final String deviceId;
@@ -33,6 +34,9 @@ final class ScenarioDeviceRun extends Equatable {
   /// The 0-based top-level command that failed, if one did.
   final int? failedStep;
 
+  /// This device's own Maestro output.
+  final List<String> lines;
+
   /// Where top-level command [step] stands on this device, or null when it
   /// has not started (or never will).
   ScenarioStatus? stepStatus(int step) => step == failedStep
@@ -49,6 +53,7 @@ final class ScenarioDeviceRun extends Equatable {
     String? error,
     int? stepsDone,
     int? failedStep,
+    List<String>? lines,
   }) => ScenarioDeviceRun(
     deviceId: deviceId,
     name: name,
@@ -57,6 +62,7 @@ final class ScenarioDeviceRun extends Equatable {
     error: error ?? this.error,
     stepsDone: stepsDone ?? this.stepsDone,
     failedStep: failedStep ?? this.failedStep,
+    lines: lines ?? this.lines,
   );
 
   @override
@@ -68,6 +74,7 @@ final class ScenarioDeviceRun extends Equatable {
     error,
     stepsDone,
     failedStep,
+    lines,
   ];
 }
 
@@ -147,20 +154,35 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
     return run.id;
   }
 
-  /// Appends a Maestro output [line] to run [id]'s live log.
-  void appendLine(int id, String line) => emit([
+  /// Appends a Maestro output [line] to run [id]'s live log, and to
+  /// [deviceId]'s own log when given.
+  void appendLine(int id, String line, {String? deviceId}) => emit([
     for (final r in stateValue)
-      if (r.id != id)
-        r
-      else
-        ScenarioRun(
-          id: r.id,
-          startedAt: r.startedAt,
-          source: r.source,
-          devices: r.devices,
-          lines: [...r.lines, line].takeLast(_maxLines),
-        ),
+      if (r.id != id) r else _withLine(r, line, deviceId),
   ]);
+
+  /// [run] with [line] on its log (tagged with the device's name when the
+  /// run has several) and on [deviceId]'s own log.
+  ScenarioRun _withLine(ScenarioRun run, String line, String? deviceId) {
+    final device = run.devices.where((d) => d.deviceId == deviceId);
+    final tagged =
+        device.isNotEmpty && run.devices.length > 1 && line.isNotEmpty
+        ? '[${device.first.name}] $line'
+        : line;
+    return ScenarioRun(
+      id: run.id,
+      startedAt: run.startedAt,
+      source: run.source,
+      lines: [...run.lines, tagged].takeLast(_maxLines),
+      devices: [
+        for (final d in run.devices)
+          if (d.deviceId == deviceId)
+            d.copyWith(lines: [...d.lines, line].takeLast(_maxLines))
+          else
+            d,
+      ],
+    );
+  }
 
   /// Records that top-level command [step] finished on [deviceId] in run
   /// [id]; a failed one is remembered as the device's failed step.
@@ -222,12 +244,7 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
       final result = await maestro.run(
         flowYaml: flow,
         deviceIds: devices.keys.toList(),
-        onLine: (device, line) => appendLine(
-          id,
-          devices.length > 1 && line.isNotEmpty
-              ? '[${devices[device]}] $line'
-              : line,
-        ),
+        onLine: (device, line) => appendLine(id, line, deviceId: device),
         onStep: (device, step, {required passed}) =>
             stepDone(id, device, step, passed: passed),
       );

@@ -22,6 +22,7 @@ const scenarioSamples = <ScenarioSample>[
   (name: 'Settings walkthrough', os: DeviceOs.ios, flow: _iosWalk),
   (name: 'Search & input', os: DeviceOs.ios, flow: _iosSearch),
   (name: 'Gestures', os: DeviceOs.ios, flow: _iosGestures),
+  (name: 'Dark mode (Developer)', os: DeviceOs.ios, flow: _iosDarkMode),
 ];
 
 // Comments stay short so they fit the panel without wrapping.
@@ -134,6 +135,33 @@ appId: com.apple.Preferences
     direction: DOWN
 - longPressOn: "Privacy & Security"
 - assertVisible: "Privacy & Security"
+''';
+
+const _iosDarkMode = '''
+# Developer → turn on Dark Appearance.
+appId: com.apple.Preferences
+---
+- launchApp:
+    stopApp: true
+- scrollUntilVisible:
+    element: "Developer"
+    direction: DOWN
+- tapOn: "Developer"
+- assertVisible: "Appearance"
+# The switch reads "0" (off) or "1" (on);
+# tap it only when off. A tap on the row
+# does not flip an iOS switch.
+- runFlow:
+    when:
+      visible:
+        id: "UIAppearanceSettings"
+        text: "0"
+    commands:
+      - tapOn:
+          point: "86%,22%"
+- assertVisible:
+    id: "UIAppearanceSettings"
+    text: "1"
 ''';
 
 /// The 0-based line of each top-level command in a Maestro [flow]: the

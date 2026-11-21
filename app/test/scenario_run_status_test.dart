@@ -29,4 +29,20 @@ void main() {
     expect(failed.stepStatus(2), ScenarioStatus.failed);
     expect(failed.stepStatus(3), isNull);
   });
+
+  test('each device keeps its own log; the run log tags lines by name', () {
+    final runs = ScenarioRunsCubit();
+    final id = runs.start({'a': 'Pixel', 'b': 'iPhone'});
+    runs
+      ..appendLine(id, 'one', deviceId: 'a')
+      ..appendLine(id, '', deviceId: 'b')
+      ..stepDone(id, 'a', 0, passed: true)
+      ..stepDone(id, 'b', 0, passed: false);
+    final run = runs.stateValue.single;
+    expect(run.lines, ['[Pixel] one', '']);
+    expect(run.devices[0].lines, ['one']);
+    expect(run.devices[1].lines, ['']);
+    expect(run.devices[0].stepStatus(0), ScenarioStatus.ok);
+    expect(run.devices[1].stepStatus(0), ScenarioStatus.failed);
+  });
 }
