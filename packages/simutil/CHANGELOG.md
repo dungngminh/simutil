@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-21
+
 ### Added
 
 - `simutil launch --camera-back` / `--camera-front` feed an Android emulator's camera from your Mac's webcam, an image or a video file (`webcam0`, `image:qr.png`, `video:clip.mp4`).

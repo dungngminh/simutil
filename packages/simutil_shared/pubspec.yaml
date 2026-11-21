@@ -1,6 +1,6 @@
 name: simutil_shared
 description: UI-agnostic SimUtil app layer shared by the TUI and GUI (settings, app state, changelog).
-version: 1.1.0
+version: 1.1.1
 homepage: https://github.com/dungngminh/simutil
 repository: https://github.com/dungngminh/simutil/tree/main/packages/simutil_shared
 issue_tracker: https://github.com/dungngminh/simutil/issues

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- `changelogEntries` includes the `simutil` 1.3.0 release notes.
+
 ## 1.1.0
 
 - `resolveStatePath` falls back to `USERPROFILE` when `HOME` is unset (the
