@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:simutil_apple/src/ios_device_service.dart';
+import 'package:simutil_apple/src/models/simulator_launch_exception.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:simutil_core/testing.dart';
 import 'package:test/test.dart';
@@ -157,6 +158,205 @@ void main() {
 
     test('returns empty list for missing result', () {
       expect(IOSDeviceService.parsePhysicalDevices({}), isEmpty);
+    });
+
+    test('uses the hardware UDID over the CoreDevice identifier', () {
+      final json = {
+        'result': {
+          'devices': [
+            {
+              'identifier': 'BB41C231-E589-59F1-B499-80349FE48FA5',
+              'deviceProperties': {'name': 'iPhone', 'osVersionNumber': '26'},
+              'hardwareProperties': {
+                'reality': 'physical',
+                'udid': '00008130-000A2DDA1AE0001C',
+              },
+              'connectionProperties': {'transportType': 'wired'},
+            },
+          ],
+        },
+      };
+
+      expect(
+        IOSDeviceService.parsePhysicalDevices(json).single.id,
+        '00008130-000A2DDA1AE0001C',
+      );
+    });
+  });
+
+  group('getPhysicalDevices', () {
+    final usbmuxPhone = Device.ios(
+      id: 'U1',
+      name: 'iPhone',
+      state: DeviceState.booted,
+      type: DeviceType.physical,
+    );
+
+    test('uses usbmuxd without running devicectl', () async {
+      if (!Platform.isMacOS) return;
+      final exec = FakeCommandExec((_, _) {
+        throw StateError('devicectl should not run');
+      });
+      final service = IOSDeviceService(
+        exec,
+        listUsbmuxDevices: () async => [usbmuxPhone],
+      );
+
+      expect(await service.getPhysicalDevices(), [usbmuxPhone]);
+      expect(exec.calls, isEmpty);
+    });
+
+    test('falls back to devicectl when usbmuxd does not answer', () async {
+      if (!Platform.isMacOS) return;
+      final exec = FakeCommandExec((_, _) => null);
+      final service = IOSDeviceService(
+        exec,
+        pathExists: (_) => false,
+        listUsbmuxDevices: () async => null,
+      );
+
+      expect(await service.getPhysicalDevices(), isEmpty);
+      expect(exec.calls.map((c) => c.arguments.first), contains('devicectl'));
+    });
+  });
+
+  group('launchDevice', () {
+    const udid = 'A3CE2FEC-A918-4096-BBC4-857ACE5B56E8';
+
+    IOSDeviceService service(
+      CommandResult? Function(String command, List<String> args) handler,
+    ) => IOSDeviceService(FakeCommandExec(handler), pathExists: (_) => false);
+
+    test('boots and opens the Simulator app', () async {
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+      await IOSDeviceService(
+        exec,
+        pathExists: (_) => false,
+      ).launchDevice(deviceId: udid);
+
+      expect(exec.calls.first.arguments, ['simctl', 'boot', udid]);
+      expect(exec.calls.last.command, 'open');
+    });
+
+    test('headless only boots', () async {
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+      await IOSDeviceService(
+        exec,
+        pathExists: (_) => false,
+      ).launchDevice(deviceId: udid, headless: true);
+
+      expect(exec.calls.map((c) => c.command), ['xcrun']);
+    });
+
+    test('an already booted simulator counts as started', () async {
+      await service(
+        (command, _) => command == 'xcrun'
+            ? FakeCommandExec.fail(
+                'An error was encountered processing the command '
+                    '(domain=com.apple.CoreSimulator.SimError, code=405):\n'
+                    'Unable to boot device in current state: Booted\n',
+                '',
+                149,
+              )
+            : FakeCommandExec.ok(),
+      ).launchDevice(deviceId: udid);
+    });
+
+    test('throws simctl\'s error when the boot fails', () async {
+      await expectLater(
+        service(
+          (_, _) => FakeCommandExec.fail(
+            'Invalid device or device pair: $udid\n',
+            '',
+            148,
+          ),
+        ).launchDevice(deviceId: udid),
+        throwsA(
+          isA<SimulatorLaunchException>()
+              .having((e) => e.deviceId, 'deviceId', udid)
+              .having(
+                (e) => e.message,
+                'message',
+                'Invalid device or device pair: $udid',
+              ),
+        ),
+      );
+    });
+
+    test('throws when the Simulator app does not open', () async {
+      await expectLater(
+        service(
+          (command, _) => command == 'open'
+              ? FakeCommandExec.fail('Unable to find application.')
+              : FakeCommandExec.ok(),
+        ).launchDevice(deviceId: udid),
+        throwsA(
+          isA<SimulatorLaunchException>().having(
+            (e) => e.message,
+            'message',
+            'Booted, but the Simulator app did not open: '
+                'Unable to find application.',
+          ),
+        ),
+      );
+    });
+
+    test('throws when xcrun cannot run', () async {
+      await expectLater(
+        service(
+          (_, _) => throw const ProcessException('xcrun', [], 'not found'),
+        ).launchDevice(deviceId: udid),
+        // Catchable as the common core type too.
+        throwsA(isA<DeviceLaunchException>()),
+      );
+    });
+
+    test('launchError falls back to stdout, then the exit code', () {
+      expect(
+        IOSDeviceService.launchError(FakeCommandExec.fail('', 'out\n', 3)),
+        'out',
+      );
+      expect(
+        IOSDeviceService.launchError(FakeCommandExec.fail('', '', 3)),
+        'Exited with code 3',
+      );
+    });
+  });
+
+  group('command timeouts', () {
+    test('listing simulators has a timeout', () async {
+      if (!Platform.isMacOS) return;
+      final exec = FakeCommandExec((_, _) => FakeCommandExec.ok('{}'));
+      await IOSDeviceService(exec).getSimulators();
+
+      expect(exec.calls.single.timeout, isNotNull);
+    });
+
+    test('devicectl writes to its own temp dir and removes it', () async {
+      if (!Platform.isMacOS) return;
+      String? outputPath;
+      final exec = FakeCommandExec((_, args) {
+        if (args.first != 'devicectl') return null;
+        outputPath = args[args.indexOf('-j') + 1];
+        File(outputPath!).writeAsStringSync('{"result": {"devices": []}}');
+        return FakeCommandExec.ok();
+      });
+      final service = IOSDeviceService(
+        exec,
+        pathExists: (_) => false,
+        listUsbmuxDevices: () async => null,
+      );
+
+      expect(await service.getPhysicalDevices(), isEmpty);
+      expect(outputPath, isNot(endsWith('/ios_devices.json')));
+      expect(File(outputPath!).parent.existsSync(), isFalse);
+      expect(
+        exec.calls
+            .where((c) => c.arguments.first == 'devicectl')
+            .single
+            .timeout,
+        isNotNull,
+      );
     });
   });
 
@@ -327,7 +527,7 @@ void main() {
       final exec = FakeCommandExec((_, _) {
         throw StateError('command should not run on non-macOS');
       });
-      final service = IOSDeviceService(exec);
+      final service = IOSDeviceService(exec, listUsbmuxDevices: () async => []);
 
       if (Platform.isMacOS) {
         // On macOS the guard does not apply; nothing to assert here.

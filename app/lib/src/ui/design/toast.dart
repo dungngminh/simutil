@@ -19,6 +19,8 @@ class SimuToast extends StatelessWidget {
     this.subtitle,
     this.subtitleLines = 1,
     this.actions = const [],
+    this.progressBar = false,
+    this.progress,
     this.onTap,
     this.onClose,
   });
@@ -42,6 +44,11 @@ class SimuToast extends StatelessWidget {
   final String? subtitle;
   final int subtitleLines;
   final List<Widget> actions;
+
+  /// Shows a 4 px bar under the text (adds 12 px): filled to [progress],
+  /// or indeterminate while [progress] is `null`.
+  final bool progressBar;
+  final double? progress;
   final VoidCallback? onTap;
   final VoidCallback? onClose;
 
@@ -99,6 +106,18 @@ class SimuToast extends StatelessWidget {
                       maxLines: subtitleLines,
                       overflow: TextOverflow.ellipsis,
                       style: subtitleStyle(t),
+                    ),
+                  ],
+                  if (progressBar) ...[
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 4,
+                        color: tone,
+                        backgroundColor: tone.withValues(alpha: 0.14),
+                      ),
                     ),
                   ],
                   if (actions.isNotEmpty) ...[

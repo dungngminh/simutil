@@ -9,7 +9,7 @@ class Simutil < Formula
 
   on_macos do
     on_arm do
-      url "https://github.com/dungngminh/simutil/releases/download/v{{VERSION}}/simutil-macos-arm64.tar.gz"
+      url "https://github.com/dungngminh/simutil/releases/download/cli-v{{VERSION}}/simutil-macos-arm64.tar.gz"
       sha256 "{{ARM64_SHA256}}"
 
       def install
@@ -18,7 +18,7 @@ class Simutil < Formula
     end
 
     on_intel do
-      url "https://github.com/dungngminh/simutil/releases/download/v{{VERSION}}/simutil-macos-x64.tar.gz"
+      url "https://github.com/dungngminh/simutil/releases/download/cli-v{{VERSION}}/simutil-macos-x64.tar.gz"
       sha256 "{{X64_SHA256}}"
 
       def install
@@ -30,7 +30,7 @@ class Simutil < Formula
   on_linux do
     depends_on arch: :x86_64
 
-    url "https://github.com/dungngminh/simutil/releases/download/v{{VERSION}}/simutil-linux-x64.tar.gz"
+    url "https://github.com/dungngminh/simutil/releases/download/cli-v{{VERSION}}/simutil-linux-x64.tar.gz"
     sha256 "{{LINUX_X64_SHA256}}"
 
     def install

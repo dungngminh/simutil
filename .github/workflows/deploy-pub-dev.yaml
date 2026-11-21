@@ -3,7 +3,7 @@ name: Deploy to pub.dev
 on:
   push:
     tags:
-      - 'v*'           # app release: packages/simutil only
+      - 'cli-v*'       # CLI release: packages/simutil only
       - 'simutil_*-v*' # library release, e.g. simutil_core-v1.0.1
   workflow_dispatch:
 
@@ -35,9 +35,9 @@ jobs:
         run: |
           tag="${GITHUB_REF_NAME}"
           case "$tag" in
-            v*)            dir="packages/simutil"; version="${tag#v}" ;;
+            cli-v*)        dir="packages/simutil"; version="${tag#cli-v}" ;;
             simutil_*-v*)  dir="packages/${tag%-v*}"; version="${tag##*-v}" ;;
-            *) echo "::error::Run from a tag (v* or simutil_<pkg>-v*), got '$tag'"; exit 1 ;;
+            *) echo "::error::Run from a tag (cli-v* or simutil_<pkg>-v*), got '$tag'"; exit 1 ;;
           esac
           if [[ ! -f "$dir/pubspec.yaml" ]]; then
             echo "::error::No package at $dir for tag $tag"; exit 1

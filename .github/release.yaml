@@ -1,7 +1,12 @@
+# Release-note categories for CLI/TUI releases (cli-v* tags). Desktop app
+# releases (app-v*) use release-app.yaml. A PR labeled `app` stays out of
+# CLI notes and one labeled `cli` stays out of app notes; a PR with
+# neither (shared packages, CI) shows up in both.
 changelog:
   exclude:
     labels:
       - ignore-for-release
+      - app
   categories:
     - title: Features ✨
       labels:

@@ -4,80 +4,81 @@
 <h1 align="center">SimUtil</h1>
 
 <p align="center">
-  <strong>Launch, stream and control Android Emulators / iOS Simulators</strong><br>
-  <strong>A terminal UI + CLI, and a desktop app for many devices at once</strong>
+  <strong>Everyday utilities for Android emulators, iOS simulators and real devices</strong><br>
+  Launch, stream, control, record, test and clean up, from one desktop app or the command line.
 </p>
 
 <p align="center">
-  <a href="https://www.producthunt.com/products/simutil?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-simutil" target="_blank" rel="noopener noreferrer"><img alt="SimUtil - Terminal UI for iOS Simulators and Android Emulators | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1111003&amp;theme=light&amp;t=1774974338508"></a>
+  <a href="https://www.producthunt.com/products/simutil?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-simutil" target="_blank" rel="noopener noreferrer"><img alt="SimUtil on Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1111003&amp;theme=light&amp;t=1774974338508"></a>
 </p>
 <p align="center">
   <img src="https://img.shields.io/github/stars/dungngminh/simutil" alt="GitHub Repo stars" />
   <a href="https://github.com/dungngminh/simutil/actions/workflows/ci.yaml"><img src="https://github.com/dungngminh/simutil/actions/workflows/ci.yaml/badge.svg" alt="Build" /></a>
-  <a href="https://github.com/dungngminh/simutil/releases"><img src="https://img.shields.io/github/v/release/dungngminh/simutil?filter=v*&label=CLI" alt="CLI release" /></a>
   <a href="https://github.com/dungngminh/simutil/releases?q=app-v"><img src="https://img.shields.io/github/v/release/dungngminh/simutil?filter=app-v*&label=Desktop" alt="Desktop release" /></a>
+  <a href="https://github.com/dungngminh/simutil/releases?q=cli-v"><img src="https://img.shields.io/github/v/release/dungngminh/simutil?filter=!app-v*&label=CLI" alt="CLI release" /></a>
 </p>
 
-Browse your available emulators and simulators side-by-side, launch with custom options and connect to physical devices wirelessly.
+Mobile development means juggling Android Studio, Xcode, `adb`, `simctl`,
+scrcpy and a pile of scripts just to get a device up and look at it.
+SimUtil puts those chores in one place, without opening an IDE:
 
-SimUtil comes in two forms:
+- **SimUtil Desktop** — stream and control many devices side by side
+  (emulators, simulators, real Android phones and real iPhones / iPads), record
+  them, run scenarios across them, and let AI agents drive them over MCP.
+- **`simutil` CLI** — list, launch and shut down devices, connect over Wi-Fi,
+  read Logcat and run your own tools from scripts or the terminal.
+- **Dart packages** — the same device services (`adb`, `simctl`, `devicectl`)
+  as libraries for your own tooling.
 
-- **CLI / TUI** — `simutil` in your terminal: launch and shut down devices, ADB wireless tools, Logcat and custom plugins. Built with [Nocterm](https://nocterm.dev/), a terminal UI framework for Dart with similar syntax to Flutter.
-- **Desktop app (preview)** — a Flutter app that streams and controls many Android emulators / devices and iOS simulators side by side, records them, runs scenarios across devices, and exposes an MCP server for AI agents. See [app/README.md](app/README.md).
-
-Both run on macOS, Linux, and Windows. **iOS Simulator support requires macOS** (Xcode / `simctl`); on Linux and Windows they focus on Android emulators and devices.
+Runs on macOS, Linux and Windows. iOS features need macOS (Xcode).
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/2ffebae8-f22d-4b66-8fbe-e2e2e39c202f" alt="Simutil Desktop Image" />
+  <img src="https://github.com/user-attachments/assets/2ffebae8-f22d-4b66-8fbe-e2e2e39c202f" alt="SimUtil Desktop" />
 </p>
 
 https://github.com/user-attachments/assets/b0463741-6d31-496d-99a8-264a5e69457a
 
 <p align="center">
-  <img src="art/showcase-simutil.gif" height="100%" width="100%" alt="Simutil Showcase" />
+  <img src="art/showcase-simutil.gif" width="100%" alt="simutil interactive device picker" />
 </p>
 
 <p align="center">
-  <img src="art/showcase.png" alt="Simutil Showcase Image" />
+  <img src="art/showcase.png" alt="simutil interactive device picker" />
 </p>
 
-## Features
+## Utilities
 
-### Desktop app (preview)
+| | Utility | Desktop | CLI |
+| --- | --- | :---: | :---: |
+| **Devices** | Start / stop emulators and simulators, headless or with their window | ✓ | ✓ |
+| | Android launch options: cold boot, no audio | ✓ | ✓ |
+| | Wipe data or delete an emulator / simulator | ✓ | |
+| | Slim iOS simulators (about 1 GB of memory instead of 4 GB) | ✓ | |
+| **Stream & control** | Many devices side by side, grid or spotlight layout | ✓ | |
+| | Real Android phones over USB or Wi-Fi | ✓ | |
+| | Touch, swipe, navigation buttons and keyboard typing on every stream | ✓ | |
+| | Real iPhones / iPads connected by USB: device frame, screenshots, recording with sound (view only, macOS) | ✓ | |
+| | Built-in scrcpy server, no separate install | ✓ | |
+| **Connect** | Wireless ADB by QR code, pairing code or IP | ✓ | ✓ |
+| **Capture** | Screenshot one device or the whole grid | ✓ | |
+| | Record one device or the whole grid (native 60 fps on macOS) | ✓ | |
+| **Apps** | Install by dropping an `.apk` / `.app` / `.ipa` on a device | ✓ | |
+| | Convert an iPhone build so it runs on a simulator (Apple Silicon) | ✓ | |
+| **Test & automate** | Scenario studio: YAML steps (tap by label, swipe, type, assert) on many devices at once | ✓ | |
+| | MCP server for Claude Code, Codex, Cursor, Gemini CLI, VS Code | ✓ | |
+| | JSON output and a full command schema for scripts and agents | | ✓ |
+| **Debug** | Logcat with filtering | | ✓ |
+| | Custom tools (scrcpy, Maestro, scripts) as YAML plugins | | ✓ |
+| **Clean up** | Clear Xcode DerivedData after a size preview (macOS) | ✓ | ✓ |
 
-- **Multi-device streaming** — Stream and control many Android emulators / devices and iOS simulators side by side, in a grid or spotlight layout, with touch, swipe and navigation buttons on every stream.
-- **Headless devices** — Start devices without the emulator window or Simulator app; launch Android emulators with Cold Boot / No Audio from the context menu.
-- **Slim mode** — iOS simulators with background services off use about 1 GB of memory instead of 4 GB.
-- **Wireless ADB** — Connect Android devices over Wi-Fi with a QR code, a pairing code or an IP.
-- **Recording** — Record one device or the whole grid (native, 60 fps on macOS).
-- **Scenario studio** — Write YAML scenarios (tap by label, swipe, type, assertions) and run them on many devices at once, watching each step's status live.
-- **MCP server for agents** — Let Claude Code, Codex, Cursor and others list, start, stream, tap, swipe, screenshot and record devices. See [app/README.md](app/README.md#mcp-server).
-- **No scrcpy install needed** — The app ships its own scrcpy server.
+## Install
 
-### CLI / TUI
+### SimUtil Desktop
 
-- **One-Key Launch** — Start any device with `Enter`, no need to open Android Studio or Xcode
-- **Android Launch Options** — Provide launch option for Android Emulators: Normal, Cold Boot, No Audio, or Cold Boot + No Audio,...
-- **Shutdown device** — Shutdown simulators/emulators.
-- **Logcat** — View logcat output of Android emulators / devices, support filtering.
-- **ADB Tools Built-in** — Connect to physical Android devices wirelessly:
-  - Connect via IP address
-  - Pair with 6-digit code (Android 11+)
-  - QR code pairing (Android 11+)
-- **Custom Plugins** — Add your own external tools (scrcpy, Maestro, etc.) via a YAML file, no code changes needed. Press `p` to pick a plugin and a command to run on the selected device.
-- **Edit Config** — Press `e` to open `~/.simutil/settings.yaml` in your default editor (macOS, Linux, Windows).
-- **Xcode Tools** — Press `x` (macOS) to clear Xcode Derived Data after a size preview and confirmation.
+Installers are on the [releases page](https://github.com/dungngminh/simutil/releases?q=app-v)
+(`app-v*` tags). The app updates itself in place from where you installed it.
 
-## Installation
-
-### Desktop app
-
-SimUtil Desktop (preview) streams and controls many Android emulators / devices
-and iOS simulators side by side. Installers are on the
-[releases page](https://github.com/dungngminh/simutil/releases?q=app-v) (`app-v*` tags).
-
-**macOS** (Monterey or later; pulls in `adb` and `ffmpeg`). Update Homebrew
-first so it sees the latest cask, then tap and install:
+**macOS** (Monterey or later; pulls in `adb` and `ffmpeg`):
 
 ```bash
 brew update
@@ -87,127 +88,68 @@ brew install --cask simutil-desktop
 
 Or download `SimUtil-macos.dmg` and drag SimUtil into Applications.
 
-**Windows**: download `SimUtil-windows-x64-setup.exe` from the
-[latest desktop release](https://github.com/dungngminh/simutil/releases?q=app-v)
-and run it. The installer also offers to install Android platform-tools and
-FFmpeg.
+**Windows**: run `SimUtil-windows-x64-setup.exe` from the
+[latest desktop release](https://github.com/dungngminh/simutil/releases?q=app-v).
+The installer offers to install Android platform-tools and FFmpeg.
 
-**Linux** (x86_64 AppImage; installs `adb`, `ffmpeg` and FUSE with your package manager, re-run to update):
+**Linux** (x86_64 AppImage; installs `adb`, `ffmpeg` and FUSE, re-run to update):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dungngminh/simutil/main/app/packaging/linux/install.sh | bash
 ```
 
-### CLI / TUI
+More, including the MCP tool list: [app/README.md](app/README.md).
 
-#### Binary Install
+### `simutil` CLI
 
 ```bash
+# macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/dungngminh/simutil/main/install.sh | bash
+
+# Homebrew
+brew tap dungngminh/simutil && brew install simutil
+
+# pub.dev
+dart pub global activate simutil
 ```
 
-#### Binary Install (Windows PowerShell)
+Windows (PowerShell):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/dungngminh/simutil/main/install.ps1 | iex"
 ```
 
-#### Using Homebrew (macOS/Linux)
+`simutil upgrade` updates it the same way you installed it. simutil checks for
+a new release at most once a day; set `SIMUTIL_NO_UPDATE_CHECK=1` to turn that off.
+
+## CLI usage
 
 ```bash
-brew tap dungngminh/simutil
-brew install simutil
-```
-
-#### From pub.dev
-
-```bash
-dart pub global activate simutil
-```
-
-#### From source
-
-```bash
-git clone https://github.com/dungngminh/simutil.git
-cd simutil
-flutter pub get   # the workspace includes the Flutter desktop app
-dart pub global activate --source path packages/simutil
-```
-
-Then run:
-
-```bash
-simutil
-```
-
-#### Updating
-
-simutil checks for a new release at most once a day and shows
-`Version X available! Run: simutil upgrade`. Set `SIMUTIL_NO_UPDATE_CHECK=1`
-to turn it off.
-
-`simutil upgrade` runs the upgrade for your install method (e.g.
-`brew upgrade dungngminh/simutil/simutil`, `dart pub global activate simutil`,
-or re-running the install script). On Windows, or when running from source, it
-prints the command / releases link instead.
-
-## Supported platforms
-
-SimUtil itself runs on macOS, Linux, and Windows. Feature support depends on the host OS:
-
-| Host OS | Android emulators & devices | iOS simulators & devices |
-| ------- | --------------------------- | ------------------------ |
-| macOS   | Yes                         | Yes (requires Xcode)     |
-| Linux   | Yes                         | No                       |
-| Windows | Yes                         | No                       |
-
-iOS support depends on Apple’s tools (`xcrun simctl` for simulators, `xcrun devicectl` for physical devices), which are only available on macOS. On Xcode 27+, launching a simulator opens DeviceHub.app; earlier Xcode versions still open Simulator.app. On Linux and Windows, the iOS panels indicate they are not supported; Android launch, ADB tools, Logcat, and plugins still work.
-
-## CLI
-
-With arguments, `simutil` runs headless commands (no TUI). The TUI starts when you run `simutil` with no arguments.
-
-```bash
-simutil -V                         # print version
-simutil upgrade                    # upgrade to the latest release
-simutil android emulator list      # AVD names (one per line, like the screenshot)
-simutil android device list -r     # running adb devices only
-simutil list -v                    # grouped tables (all platforms)
-simutil list --json                # agent/script friendly
+simutil list -v                    # devices on every platform, grouped
+simutil list --json                # for scripts and agents
 simutil launch <device-id>         # boot (alias: start)
 simutil launch <id> -c --no-audio  # cold boot, no audio (Android)
-simutil shutdown <device-id>       # shut down (alias: stop)
-simutil plugin list                # YAML plugins
+simutil launch <id> --headless     # no emulator window / Simulator app
+simutil shutdown <device-id>       # alias: stop
+simutil wipe <device-id>           # erase data of a shut-down device (asks y/N)
+simutil delete <device-id> -y      # delete it; -y skips the prompt
+simutil android device list -r     # running adb devices only
 simutil plugin run scrcpy mirror -d emulator-5554
-simutil schema                     # full CLI JSON schema for agents
-simutil schema list --human        # readable help for one command
-simutil list --help                # flags for a command (built-in)
+simutil schema                     # every command as JSON, for agents
 ```
 
-Short flags: `-a`/`--android`, `-i`/`--ios`, `-e`/`--emulator`, `-p`/`--physical`, `-r`/`--running`, `-v`/`--verbose`, `-j`/`--json`, `-c`/`--cold`, `-d`/`--device`.
+Run `simutil` with no arguments for an interactive device picker with ADB
+tools, Logcat and plugins. `simutil <command> --help` lists each command's flags.
 
-## Custom Plugins
+### Plugins
 
-SimUtil can run external shell-command tools (scrcpy, Maestro, custom scripts, …)
-defined in the `plugins:` section of `~/.simutil/settings.yaml` — no code changes
-needed. A default file (with `theme`, `last_selected_device_id`, and `scrcpy`) is
-created automatically on first launch.
-
-Each plugin groups one or more **commands**. In the app, press `p` on a selected
-device to choose a plugin, then a command. Press `e` to edit the config file.
-A command can also define a single-key `shortcut` to run it directly. Commands are
-filtered to the selected device, and `args` support template variables like
-`{device.id}` and `{device.name}`.
+Wire external tools (scrcpy, Maestro, your own scripts) to a device in
+`~/.simutil/settings.yaml`, no code changes needed:
 
 ```yaml
-# ~/.simutil/settings.yaml
-theme: dark
-last_selected_device_id: ~
-
 plugins:
   - id: scrcpy
     label: scrcpy
-    description: Screen mirroring and control for Android
     availability:
       command: scrcpy
       args: [--version]
@@ -216,50 +158,50 @@ plugins:
         label: Screen Mirror
         command: scrcpy
         args: [-s, "{device.id}"]
-        platforms: [android]   # android | ios; empty = any
-        requires_running: true # only show when the device is running
-        mode: detached         # detached (default) | inherit
-        shortcut: s            # optional single key to run directly
+        platforms: [android]
+        requires_running: true
 ```
 
-See the full reference — all fields, template variables, run modes, availability
-probes, shortcuts, examples, and troubleshooting — in
-**[docs/plugins.md](docs/plugins.md)**.
+Full reference: [docs/plugins.md](docs/plugins.md).
+
+## Supported platforms
+
+| Host OS | Android emulators & devices | iOS simulators & devices |
+| ------- | --------------------------- | ------------------------ |
+| macOS   | Yes                         | Yes (requires Xcode)     |
+| Linux   | Yes                         | No                       |
+| Windows | Yes                         | No                       |
+
+iOS support uses Apple's tools (`xcrun simctl`, `xcrun devicectl`), which only
+exist on macOS. On Xcode 27+, a simulator opens in DeviceHub.app; earlier
+versions use Simulator.app.
 
 ## Packages
 
-Monorepo (pub workspace); every package is versioned and published separately:
+Monorepo (pub workspace); each package is versioned and published separately:
 
 | Package | Contents |
 | ------- | -------- |
-| [`simutil`](packages/simutil) | The app: `simutil` executable, TUI and CLI |
-| [`simutil_shared`](packages/simutil_shared) | App layer shared by TUI and GUI: settings, app state, changelog, service wiring |
+| [`app`](app) | SimUtil Desktop: multi-device streaming, recording, scenarios, MCP server |
+| [`simutil`](packages/simutil) | The `simutil` CLI |
 | [`simutil_core`](packages/simutil_core) | Models, `CommandExec`, `DeviceService` |
-| [`simutil_adb`](packages/simutil_adb) | `AndroidDeviceService`, wireless ADB, Logcat parsing |
-| [`simutil_apple`](packages/simutil_apple) | `IOSDeviceService`, `XcodeCacheService` |
+| [`simutil_adb`](packages/simutil_adb) | Android: devices, wireless ADB, scrcpy session, Logcat |
+| [`simutil_apple`](packages/simutil_apple) | Apple: simulators, physical devices, Xcode cache |
 | [`simutil_plugins`](packages/simutil_plugins) | YAML plugin catalog and runner |
-| [`simutil_h264`](packages/simutil_h264) | Native H.264 decoding into Flutter textures (desktop app) |
-| [`app`](app) | SimUtil desktop (preview): multi-device streaming, MCP server for agents |
-
-The repository root only holds the workspace `pubspec.yaml` (Melos scripts), docs, and CI.
-The workspace includes the Flutter desktop app, so resolving it needs the
-[Flutter SDK](https://docs.flutter.dev/get-started/install) (`flutter pub get`).
+| [`simutil_shared`](packages/simutil_shared) | Shared app layer: settings, app state, changelog |
+| [`simutil_h264`](packages/simutil_h264) | Native H.264 decoding into Flutter textures |
 
 ## Contributing
 
 ```bash
 git clone https://github.com/dungngminh/simutil.git
 cd simutil
-flutter pub get                   # whole workspace, desktop app included
-dart run melos run cli   # CLI locally
-
-dart run melos run check          # analyze + Dart and Flutter tests
-dart run melos run cli_hot_reload # CLI with hot reload
+flutter pub get              # whole workspace, desktop app included
+dart run melos run check     # analyze + Dart and Flutter tests
+cd app && flutter run -d macos
 ```
 
-1. Fork this repository
-2. Create a branch and make your changes
-3. Open a Pull Request
+Fork, branch, open a Pull Request. Architecture notes: [docs/ai/architecture.md](docs/ai/architecture.md).
 
 ## License
 

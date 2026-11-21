@@ -36,6 +36,7 @@ class AdbTrackDevicesDecoder {
 /// exits. Long-lived, so it uses `Process.start` (not `CommandExec`).
 Stream<String> _trackDevicesOnce(String adbPath) {
   Process? process;
+  var cancelled = false;
   late final StreamController<String> controller;
   controller = StreamController<String>(
     onListen: () async {
@@ -43,6 +44,11 @@ Stream<String> _trackDevicesOnce(String adbPath) {
         final started = process = await Process.start(adbPath, [
           'track-devices',
         ]);
+        // Cancelled while starting: onCancel had no process to kill yet.
+        if (cancelled) {
+          started.kill();
+          return;
+        }
         unawaited(started.stdin.close());
         unawaited(started.stderr.drain<void>());
         final decoder = AdbTrackDevicesDecoder();
@@ -55,7 +61,10 @@ Stream<String> _trackDevicesOnce(String adbPath) {
       }
       await controller.close();
     },
-    onCancel: () => process?.kill(),
+    onCancel: () {
+      cancelled = true;
+      process?.kill();
+    },
   );
   return controller.stream;
 }

@@ -1,22 +1,89 @@
+import 'dart:io';
+
 import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:simutil_adb/simutil_adb.dart';
+import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_app/src/di.dart';
 import 'package:simutil_app/src/devices/slim_mode_cubit.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
-import 'package:simutil_app/src/settings/recordings_dir.dart';
+import 'package:simutil_app/src/stream/ios/sim_camera.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/ui/shared/device_actions.dart';
+import 'package:simutil_app/src/ui/shared/device_recording.dart';
 import 'package:simutil_app/src/ui/shared/native_menu.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:tray_manager/tray_manager.dart' as native;
 
+// ponytail: listed once per run, so a camera plugged in later needs an app
+// restart; re-list on every menu open if that matters.
+Future<List<({String id, String name})>>? _webcams;
+Future<List<({String id, String name})>>? _hostWebcams;
+
+/// What an iOS simulator's Camera submenu shows: the host webcams, the
+/// running feed and the apps that can be launched with it.
+typedef _SimCameraState = ({
+  List<({String id, String name})> webcams,
+  ({String source, String? arg})? current,
+  List<({String id, String name})> apps,
+});
+
+Future<_SimCameraState> _simCameraState(Device device) async {
+  final apps = getIt<IosAutomation>()
+      .installedApps(device)
+      .catchError((Object _) => <({String id, String name})>[]);
+  return (
+    webcams: await (_hostWebcams ??= SimCamera.webcams()),
+    current: await SimCamera.status(device.id),
+    apps: await apps,
+  );
+}
+
+Future<List<({String id, String name})>> _listWebcams() =>
+    _webcams ??= getIt<AndroidDeviceService>().listWebcams();
+
+/// The camera sources of a running device as their own menu (from its
+/// stream header). An Android emulator restarts so the camera changes right
+/// away; an iOS simulator's feed switches live.
+Future<void> showCameraMenu(BuildContext context, Device device) async {
+  if (device.os == DeviceOs.ios) {
+    final state = await _simCameraState(device);
+    if (!context.mounted) return;
+    showNativeMenu(() => [_simCameraItems(context, device, state)]);
+    return;
+  }
+  final webcams = await _listWebcams();
+  if (!context.mounted) return;
+  final settingsCubit = context.read<DeviceSettingsCubit>();
+  showNativeMenu(
+    () => [
+      _cameraSides(settingsCubit.of(device), webcams, (change) {
+        settingsCubit.update(device, change);
+        if (context.mounted) DeviceCommands(context, device).restart();
+      }),
+    ],
+  );
+}
+
 /// Opens a native context menu for [device] at the cursor: its actions plus
 /// per-device settings.
-void showDeviceContextMenu(BuildContext context, Device device) {
+Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
+  final emulator = device.os == DeviceOs.android && !device.type.isPhysical;
+  final webcams = emulator
+      ? await _listWebcams()
+      : const <({String id, String name})>[];
+  final simCamera =
+      Platform.isMacOS &&
+          device.os == DeviceOs.ios &&
+          !device.type.isPhysical &&
+          device.state == DeviceState.booted
+      ? await _simCameraState(device)
+      : null;
+  if (!context.mounted) return;
   final settingsCubit = context.read<DeviceSettingsCubit>();
   void set(DeviceSettings Function(DeviceSettings) change) =>
       settingsCubit.update(device, change);
@@ -27,6 +94,15 @@ void showDeviceContextMenu(BuildContext context, Device device) {
       _actionItems(context, device),
       if (!busy) _deviceItems(context, device),
       if (!device.type.isPhysical) _launchItems(context, device, set),
+      if (emulator)
+        [
+          menuSubmenu(
+            'Camera (next boot)',
+            _cameraSides(settingsCubit.of(device), webcams, set),
+          ),
+        ],
+      if (simCamera != null)
+        [menuSubmenu('Camera', _simCameraItems(context, device, simCamera))],
       _streamItems(context, device, set),
       if (!device.type.isPhysical && !busy) _deleteItems(context, device),
     ],
@@ -55,7 +131,7 @@ List<native.MenuItem> _actionItems(BuildContext context, Device device) {
               )))
         menuItem(
           session.isRecording ? 'Stop recording' : 'Record',
-          () => streams.toggleRecording(device.id, recordingsDirectory()),
+          () => toggleDeviceRecording(context, streams, device.id),
         ),
       menuItem('Close stream', () => streams.closeStream(device.id)),
       if (session.status case SessionLive(inputBlocked: true))
@@ -113,6 +189,142 @@ List<native.MenuItem> _launchItems(
       menuItem(
         'Launch with Cold Boot and No Audio',
         () => commands.start(coldBoot: true, noAudio: true),
+      ),
+    ],
+  ];
+}
+
+/// Back / front camera source of an Android emulator, used from its next
+/// boot: the AVD default, the emulator's fake camera, a host webcam, an
+/// image or a video file.
+List<native.MenuItem> _cameraSides(
+  DeviceSettings settings,
+  List<({String id, String name})> webcams,
+  void Function(DeviceSettings Function(DeviceSettings)) set,
+) {
+  native.MenuItem side(
+    String label,
+    String? current, {
+    required bool back,
+    required void Function(String? source) pick,
+  }) {
+    native.MenuItem file(String kind, String title, List<String> extensions) {
+      final picked = current?.startsWith('$kind:') ?? false;
+      return menuCheck(
+        picked
+            ? '$title: ${current!.split(Platform.pathSeparator).last}'
+            : '$title…',
+        picked,
+        () async {
+          final file = await openFile(
+            acceptedTypeGroups: [
+              XTypeGroup(label: title, extensions: extensions),
+            ],
+          );
+          if (file != null) pick('$kind:${file.path}');
+        },
+      );
+    }
+
+    return menuSubmenu(label, [
+      menuCheck('AVD default', current == null, () => pick(null)),
+      menuCheck('Emulated', current == 'emulated', () => pick('emulated')),
+      if (back)
+        menuCheck(
+          'Virtual scene',
+          current == 'virtualscene',
+          () => pick('virtualscene'),
+        ),
+      menuCheck('Off', current == 'none', () => pick('none')),
+      for (final cam in webcams)
+        menuCheck(cam.name, current == cam.id, () => pick(cam.id)),
+      file('image', 'Image', const ['png', 'jpg', 'jpeg']),
+      file('video', 'Video', const ['mp4', 'mov', 'webm']),
+    ]);
+  }
+
+  return [
+    side(
+      'Back camera',
+      settings.cameraBack,
+      back: true,
+      pick: (v) => set((s) => s.copyWith(cameraBack: () => v)),
+    ),
+    side(
+      'Front camera',
+      settings.cameraFront,
+      back: false,
+      pick: (v) => set((s) => s.copyWith(cameraFront: () => v)),
+    ),
+  ];
+}
+
+/// Camera of an iOS simulator: pick a host webcam, image or video to feed
+/// it, then launch an app reading that feed (serve-sim's camera injector).
+List<native.MenuItem> _simCameraItems(
+  BuildContext context,
+  Device device,
+  _SimCameraState state,
+) {
+  final devices = context.read<DevicesCubit>();
+  final current = state.current;
+  Future<void> guard(String done, Future<void> Function() action) async {
+    try {
+      await action();
+      devices.notify(done);
+    } on Object catch (e) {
+      final message = e is StateError ? e.message : '$e';
+      devices.notify('Camera: $message', error: true);
+    }
+  }
+
+  void feed(String source, String? arg, String label) => guard(
+    'Simulator camera: $label',
+    () => SimCamera.setSource(device.id, source, arg),
+  );
+
+  native.MenuItem file(String kind, String title, List<String> extensions) {
+    final picked = current?.source == kind;
+    return menuCheck(
+      picked
+          ? '$title: ${current!.arg!.split(Platform.pathSeparator).last}'
+          : '$title…',
+      picked,
+      () async {
+        final file = await openFile(
+          acceptedTypeGroups: [
+            XTypeGroup(label: title, extensions: extensions),
+          ],
+        );
+        if (file != null) feed(kind, file.path, file.name);
+      },
+    );
+  }
+
+  return [
+    for (final cam in state.webcams)
+      menuCheck(
+        cam.name,
+        current?.source == 'webcam' && current?.arg == cam.id,
+        () => feed('webcam', cam.id, cam.name),
+      ),
+    file('image', 'Image', const ['png', 'jpg', 'jpeg', 'heic']),
+    file('video', 'Video', const ['mp4', 'mov', 'm4v']),
+    if (current != null) ...[
+      menuSubmenu('Open app with camera', [
+        for (final app in state.apps)
+          menuItem(
+            app.name,
+            () => guard(
+              'Launched ${app.name} with the camera',
+              () => SimCamera.launch(getIt<IosAutomation>(), device, app.id),
+            ),
+          ),
+        if (state.apps.isEmpty) menuItem('No apps installed', null),
+      ]),
+      menuItem(
+        'Turn off camera',
+        () => guard('Simulator camera off', () => SimCamera.stop(device.id)),
       ),
     ],
   ];

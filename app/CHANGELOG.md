@@ -14,7 +14,102 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the same flow runs on them at once, in parallel. A Samples menu loads
   ready-made example flows. Needs the Maestro CLI installed.
 
-## [0.3.1] - 2026-10-14
+## [0.6.1] - 2026-11-21
+
+### Fixed
+
+- The iOS device list no longer freezes when Xcode's simulator service
+  hangs (for example after an Xcode update).
+- Starting a device recording that fails (for example an iOS simulator
+  that cannot write the file) shows the error instead of nothing, and a
+  failed recording is no longer reported as saved.
+- An iOS simulator that fails to start shows its error instead of
+  starting silently.
+- Running several Android emulators no longer stalls SimUtil: each one
+  used to block a slot for device commands until it was shut down.
+- An Android emulator that fails to start (for example because it is
+  already running) shows its error.
+- Android emulators started with a window use your Mac's GPU, like
+  headless ones: emulators with API 37 or newer no longer crash shortly
+  after starting, and switching between window and headless no longer
+  forces a slow cold boot. A GPU mode set in Android Studio is kept.
+- Streaming an Android emulator right after starting it no longer fails
+  with "The guest has not posted new frames"; the stream waits until the
+  emulator shows its first frame.
+- Closing the stream of an Android device that is still booting no longer
+  leaves the streaming server running on it.
+- A stream shows that it ended when the device stops sending video,
+  instead of freezing on the last frame.
+- Shutting down or recording a frozen Android emulator no longer hangs.
+- A failed video conversion after a recording is no longer run a second
+  time.
+
+## [0.6.0] - 2026-11-11
+
+### Added
+
+- Open a stream in its own window: the window button on a stream's header
+  moves that device out of the grid into a separate, resizable window.
+  Streaming the device again brings its window to the front; "Back to the
+  main window" returns it to the grid, and closing the window ends the
+  stream. Closing the main window while device windows are open only hides
+  it (the Dock icon brings it back); SimUtil quits once the last device
+  window closes. If a window cannot open, the stream stays in the grid and
+  SimUtil says why.
+
+### Changed
+
+- A stream's title wraps to two lines before it is cut.
+- Settings changed in a device window last until it closes.
+
+## [0.5.0] - 2026-10-23
+
+### Added
+
+- Pick what an Android emulator's back and front cameras see: your Mac's
+  webcam, an image or a video file. Set it from the device menu (Camera,
+  used from the next start) or the camera button on a running emulator's
+  stream (restarts it). SimUtil asks for Camera access before an emulator
+  uses your webcam. Agents can set it over MCP too.
+- Give iOS simulator apps a camera (macOS): pick your Mac's webcam, an
+  image or a looping video from the device menu (Camera) or the camera
+  button on its stream, then open an app with it; switching the source
+  updates running apps live, and closing its stream or shutting it down
+  turns the camera off. Agents can pass
+  a camera to launch_app over MCP. Uses serve-sim's camera injector.
+
+### Changed
+
+- Connected iPhones and iPads show up faster, and their device frame loads
+  without waiting on `devicectl`.
+- Android emulators stream straight from the emulator on macOS, like
+  Android Studio's embedded emulator: a steady 60 fps with less load on
+  the emulator, sized to the view. Older emulators, ones started without
+  gRPC, and other platforms keep using scrcpy. Emulator recordings are
+  made by the emulator itself.
+
+### Fixed
+
+- Android emulators started for streaming (headless) use your computer's
+  GPU: their stream runs at full speed instead of a few frames a second.
+- Streaming an Android emulator right as it starts no longer fails with
+  "scrcpy server did not start"; the stream waits for Android to finish
+  booting.
+
+## [0.4.0]
+
+### Added
+
+- Update SimUtil from inside the app: on launch a toast tells you when a
+  newer version is out, and "Update & restart" installs it the way you
+  installed SimUtil (Homebrew, DMG, Windows installer or AppImage), no
+  reinstall needed, with download and install progress, and a toast once
+  the new version starts. Missed it? Click the arrow next to the SimUtil
+  title.
+- The app remembers your settings between launches: stream layout,
+  headless mode, grid recording quality, Slim mode, and each device's
+  stream options (frame, scrcpy resolution, frame rate, bit rate, touches,
+  stay awake, screen off).
 
 ### Changed
 

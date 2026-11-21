@@ -1,13 +1,22 @@
 # Changelog
 
+## 1.1.1
+
+- `changelogEntries` includes the `simutil` 1.3.0 release notes.
+
 ## 1.1.0
 
+- `resolveStatePath` falls back to `USERPROFILE` when `HOME` is unset (the
+  usual case in Windows shells) instead of the current directory, and
+  takes an optional `environment`.
 - **Breaking:** removed `ServiceLocator`. Each app now wires its own services
   (the TUI keeps a locator in `simutil`, the desktop app uses `get_it`).
 - Dropped the `simutil_adb` and `simutil_apple` dependencies.
 - `DeviceChangeWatcher`: reloads device lists when `DeviceService.watchDevices`
   reports a change (debounced), with a slow fallback reload.
 - `kReloadInterval` is now the 60 s fallback period (was a 10 s poll).
+- `UpdateChecker`: GitHub installs take the newest CLI release (`cli-v*`, or
+  legacy `v*`) and skip desktop app releases (`app-v*`).
 
 ## 1.0.0
 

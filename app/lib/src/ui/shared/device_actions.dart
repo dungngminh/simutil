@@ -1,5 +1,6 @@
 import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
 import 'package:flutter/widgets.dart';
+import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
 import 'package:simutil_app/src/devices/devices_state.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
@@ -42,7 +43,23 @@ class DeviceCommands {
       headless: headless,
       coldBoot: coldBoot,
       noAudio: noAudio,
+      cameraArgs: _cameraArgs(),
     );
+  }
+
+  /// The emulator camera sources picked in the context menu; a missing file
+  /// shows an error and boots with the AVD's own cameras.
+  List<String> _cameraArgs() {
+    if (device.os != DeviceOs.android) return const [];
+    try {
+      return emulatorCameraArgs(
+        back: settings.cameraBack,
+        front: settings.cameraFront,
+      );
+    } on FormatException catch (e) {
+      _devices.notify('Camera: ${e.message}', error: true);
+      return const [];
+    }
   }
 
   Future<void> stop() async {
@@ -55,7 +72,11 @@ class DeviceCommands {
   Future<void> restart() async {
     final reopen = headless || _streams.stateValue.isOpen(device.id);
     await _streams.closeStream(device.id);
-    await _devices.restart(device, headless: headless);
+    await _devices.restart(
+      device,
+      headless: headless,
+      cameraArgs: _cameraArgs(),
+    );
     // After the restart so the old, still-booted device is not reopened.
     if (reopen) _streams.openWhenBooted(device);
   }

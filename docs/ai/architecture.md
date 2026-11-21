@@ -15,7 +15,7 @@ package has its own version.
 | Package | Role |
 | --- | --- |
 | [packages/simutil_core](../../packages/simutil_core/) | `Device`, `DeviceService`, `DeviceSession`, `CommandExec`, `IsolateRunner` (no user data); `testing.dart` fakes |
-| [packages/simutil_adb](../../packages/simutil_adb/) | `AndroidDeviceService`, wireless pairing, mDNS discovery, `LogcatHelper`, `ScrcpySession` (scrcpy streaming as H.264 access units) |
+| [packages/simutil_adb](../../packages/simutil_adb/) | `AndroidDeviceService`, wireless pairing, mDNS discovery, `LogcatHelper`, `ScrcpySession` (scrcpy streaming as H.264 access units), `EmulatorGrpcSession` (emulator gRPC API: raw frames through a shared file, input) |
 | [packages/simutil_apple](../../packages/simutil_apple/) | `IOSDeviceService` (simctl + devicectl), `XcodeCacheService`, `SimulatorSlimmer`, `SimulatorRecorder` |
 | [packages/simutil_plugins](../../packages/simutil_plugins/) | `PluginCatalog` / `loadPluginCatalog`, `PluginRunner`; `testing.dart` fakes |
 | [packages/simutil_h264](../../packages/simutil_h264/) | Flutter plugin for `app/` only, outside the pub workspace: `H264Decoder` decodes Annex-B H.264 into a texture (VideoToolbox, Media Foundation, libavcodec) |
@@ -25,8 +25,8 @@ package has its own version.
 `app/` (Flutter desktop GUI) depends on the libraries via pub.dev versions
 overridden with `../packages/*` paths and stays **outside** the pub workspace
 so root `dart pub get` never needs the Flutter SDK. Live device screens use
-`DeviceSession` (`simutil_core`), implemented by `ScrcpySession`
-(`simutil_adb`) and the app's iOS session over a native plugin.
+`DeviceSession` (`simutil_core`), implemented by `ScrcpySession` and
+`EmulatorGrpcSession` (`simutil_adb`) and the app's iOS session over a native plugin.
 
 Rules: `simutil_shared` must not import `nocterm` or Flutter; libraries never
 import `package:simutil/` (the app).

@@ -67,6 +67,11 @@ jobs:
           security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
           security set-key-partition-list -S apple-tool:,apple: -k ci "$KEYCHAIN"
           security list-keychains -d user -s "$KEYCHAIN"
+          # --deep skips Mach-O files in Resources: sign the simulator
+          # camera injector first.
+          codesign --force --timestamp --options runtime \
+            --sign "$MACOS_SIGNING_IDENTITY" \
+            "$APP/Contents/Resources/libSimCameraInjector.dylib"
           codesign --force --deep --timestamp --options runtime \
             --entitlements app/macos/Runner/Release.entitlements \
             --sign "$MACOS_SIGNING_IDENTITY" "$APP"
@@ -224,6 +229,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: actions/download-artifact@v4
         with:
@@ -233,9 +240,15 @@ jobs:
       - name: Checksums and notes
         env:
           VERSION: ${{ needs.version.outputs.version }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           (cd dist && sha256sum -- * > checksums.txt && cat checksums.txt)
-          awk -v v="## [$VERSION]" 'index($0, v) == 1 {on=1; next} /^## \[/ {on=0} on' app/CHANGELOG.md > notes.md
+          # The changelog is hard-wrapped; GitHub renders each newline in a
+          # release body as a line break, so join wrapped lines first.
+          awk -v v="## [$VERSION]" 'index($0, v) == 1 {on=1; next} /^## \[/ {on=0} on' app/CHANGELOG.md \
+            | awk '/^ +[^ *+-]/ && buf != "" {sub(/^ +/, ""); buf = buf " " $0; next} {if (NR > 1) print buf; buf = $0} END {if (NR) print buf}' > notes.md
+          echo >> notes.md
+          .github/scripts/release-notes.sh "$GITHUB_REF_NAME" .github/release-app.yaml 'app-v*' >> notes.md
 
       - uses: softprops/action-gh-release@v2
         with:

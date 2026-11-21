@@ -29,6 +29,8 @@
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
 		774E23D8DCFAF6CB00396293 /* SimStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6748D658158903B23D1E42C0 /* SimStream.swift */; };
 		A1C0DE0000000000000000B1 /* WindowRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE0000000000000000F1 /* WindowRecorder.swift */; };
+		A1C0DE0000000000000000B3 /* SimCamera.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE0000000000000000F3 /* SimCamera.swift */; };
+		A1C0DE0000000000000000B4 /* SimCameraFeed.m in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE0000000000000000F4 /* SimCameraFeed.m */; };
 		A1C0DE0000000000000000B2 /* DeviceStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0DE0000000000000000F2 /* DeviceStream.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 /* End PBXBuildFile section */
@@ -82,6 +84,10 @@
 		33E5194F232828860026EE4D /* AppInfo.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppInfo.xcconfig; sourceTree = "<group>"; };
 		6748D658158903B23D1E42C0 /* SimStream.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SimStream.swift; sourceTree = "<group>"; };
 		A1C0DE0000000000000000F1 /* WindowRecorder.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WindowRecorder.swift; sourceTree = "<group>"; };
+		A1C0DE0000000000000000F3 /* SimCamera.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SimCamera.swift; sourceTree = "<group>"; };
+		A1C0DE0000000000000000F4 /* SimCameraFeed.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = SimCameraFeed.m; sourceTree = "<group>"; };
+		A1C0DE0000000000000000F5 /* SimCameraFeed.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = SimCameraFeed.h; sourceTree = "<group>"; };
+		A1C0DE0000000000000000F6 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		A1C0DE0000000000000000F2 /* DeviceStream.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DeviceStream.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
@@ -180,6 +186,10 @@
 				6748D658158903B23D1E42C0 /* SimStream.swift */,
 				A1C0DE0000000000000000F1 /* WindowRecorder.swift */,
 				A1C0DE0000000000000000F2 /* DeviceStream.swift */,
+				A1C0DE0000000000000000F3 /* SimCamera.swift */,
+				A1C0DE0000000000000000F5 /* SimCameraFeed.h */,
+				A1C0DE0000000000000000F4 /* SimCameraFeed.m */,
+				A1C0DE0000000000000000F6 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -212,6 +222,7 @@
 				33CC10E92044A3C60003C045 /* Sources */,
 				33CC10EA2044A3C60003C045 /* Frameworks */,
 				33CC10EB2044A3C60003C045 /* Resources */,
+				A1C0DE0000000000000000C1 /* Build SimCameraInjector */,
 				33CC110E2044A8840003C045 /* Bundle Framework */,
 				3399D490228B24CF009A79C7 /* ShellScript */,
 			);
@@ -302,6 +313,25 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		A1C0DE0000000000000000C1 /* Build SimCameraInjector */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build SimCameraInjector";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n\"$PROJECT_DIR/SimCameraInjector/build.sh\" \"$DERIVED_FILE_DIR/simcam\"\nDEST=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/libSimCameraInjector.dylib\"\ncp \"$DERIVED_FILE_DIR/simcam/libSimCameraInjector.dylib\" \"$DEST\"\ncodesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY:--}\" \"$DEST\"\n";
+		};
 		3399D490228B24CF009A79C7 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -361,6 +391,8 @@
 				774E23D8DCFAF6CB00396293 /* SimStream.swift in Sources */,
 				A1C0DE0000000000000000B1 /* WindowRecorder.swift in Sources */,
 				A1C0DE0000000000000000B2 /* DeviceStream.swift in Sources */,
+				A1C0DE0000000000000000B3 /* SimCamera.swift in Sources */,
+				A1C0DE0000000000000000B4 /* SimCameraFeed.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -498,6 +530,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Profile;
@@ -630,6 +663,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
@@ -650,6 +684,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;

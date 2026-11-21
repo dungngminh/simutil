@@ -1,0 +1,124 @@
+// Subset of the Android emulator's gRPC API that SimUtil uses, copied from
+// $ANDROID_HOME/emulator/lib/emulator_controller.proto (emulator 37.2) with
+// unused services, messages and fields removed. Field numbers and names must
+// match the original. Regenerate the Dart code with
+// `dart run melos run protoc` (needs protoc and protoc_plugin).
+//
+// Copyright (C) 2018 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package android.emulation.control;
+import "google/protobuf/empty.proto";
+
+service EmulatorController {
+    rpc streamInputEvent(stream InputEvent) returns (google.protobuf.Empty) {}
+    rpc getScreenshot(ImageFormat) returns (Image) {}
+    rpc streamScreenshot(ImageFormat) returns (stream Image) {}
+}
+
+message Touch {
+    int32 x = 1;
+    int32 y = 2;
+    int32 identifier = 3;
+    int32 pressure = 4;
+    int32 touch_major = 5;
+    int32 touch_minor = 6;
+}
+
+message TouchEvent {
+    repeated Touch touches = 1;
+    int32 display = 2;
+}
+
+message MouseEvent {
+    int32 x = 1;
+    int32 y = 2;
+    int32 buttons = 3;
+    int32 display = 4;
+}
+
+message KeyboardEvent {
+    enum KeyCodeType {
+        Usb = 0;
+        Evdev = 1;
+        XKB = 2;
+        Win = 3;
+        Mac = 4;
+    }
+
+    enum KeyEventType {
+        keydown = 0;
+        keyup = 1;
+        keypress = 2;
+    }
+
+    KeyCodeType codeType = 1;
+    KeyEventType eventType = 2;
+    int32 keyCode = 3;
+    string key = 4;
+    string text = 5;
+}
+
+message InputEvent {
+    oneof type {
+        KeyboardEvent key_event = 1;
+        TouchEvent touch_event = 2;
+        MouseEvent mouse_event = 3;
+    }
+}
+
+message ImageTransport {
+    enum TransportChannel {
+        TRANSPORT_CHANNEL_UNSPECIFIED = 0;
+        MMAP = 1;
+    }
+
+    TransportChannel channel = 1;
+    string handle = 2;
+}
+
+message ImageFormat {
+    enum ImgFormat {
+        PNG = 0;
+        RGBA8888 = 1;
+        RGB888 = 2;
+    }
+
+    ImgFormat format = 1;
+    Rotation rotation = 2;
+    uint32 width = 3;
+    uint32 height = 4;
+    uint32 display = 5;
+    ImageTransport transport = 6;
+}
+
+message Image {
+    ImageFormat format = 1;
+    bytes image = 4;
+    uint32 seq = 5;
+    uint64 timestampUs = 6;
+}
+
+message Rotation {
+    enum SkinRotation {
+        PORTRAIT = 0;
+        LANDSCAPE = 1;
+        REVERSE_PORTRAIT = 2;
+        REVERSE_LANDSCAPE = 3;
+    }
+
+    SkinRotation rotation = 1;
+}

@@ -9,7 +9,7 @@ jobs:
   update-formula:
     name: Update Homebrew Formula
     # Desktop app releases (app-v*) are handled by deploy-app.yaml.
-    if: startsWith(github.ref_name, 'v')
+    if: startsWith(github.ref_name, 'cli-v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout simutil
@@ -25,7 +25,7 @@ jobs:
       - name: Get release info and generate formula
         id: release
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
+          VERSION=${GITHUB_REF_NAME#cli-v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
           # Download macOS ARM64 artifact and get SHA256

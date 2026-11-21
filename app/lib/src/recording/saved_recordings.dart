@@ -15,7 +15,7 @@ class SavedRecordings {
 
   void add(String path) => _saved.add(path);
 
-  /// Opens [path] in the default video player.
+  /// Opens [path] (or a URL) with its default app.
   Future<void> open(String path) => _exec.run(
     switch (Platform.operatingSystem) {
       'macos' => 'open',

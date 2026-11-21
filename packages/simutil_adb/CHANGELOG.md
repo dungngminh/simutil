@@ -1,5 +1,77 @@
 # Changelog
 
+## 1.5.0
+
+- `AndroidDeviceService.launchDevice` returns once the emulator is up
+  instead of when it exits. It used to wait for the emulator to quit and
+  held a `CommandExec` slot the whole time, so a few running emulators
+  stalled every other command. The emulator now starts in its own process
+  group (`ProcessStartMode.detachedWithStdio`) and outlives the caller.
+- `launchDevice` throws an `EmulatorLaunchException` with the emulator's
+  `FATAL` / `ERROR` output when it exits within the launch grace period
+  (e.g. the AVD is already running), and when the emulator binary cannot
+  be started; failures used to be ignored. `EmulatorLaunchException`
+  extends `DeviceLaunchException` from `simutil_core` (now `^1.4.0`).
+- `launchDevice` adds `-gpu host` on macOS for windowed launches too, not
+  only headless ones: with `-gpu auto`, API 37+ AVDs render in software
+  and crash shortly after boot, and switching renderers between windowed
+  and headless launches invalidated the quick-boot snapshot. Launches keep
+  the AVD's own `hw.gpu.mode` when it is not `auto`
+  (`AndroidDeviceService.usesAutoGpu`), and the caller's `-gpu` as before.
+- `AndroidDeviceService.hostGpuArgs` replaces `headlessGpuArgs`, which is
+  deprecated.
+- `AndroidDeviceService` takes `startProcess` (`EmulatorProcessStarter`),
+  `launchGracePeriod` and `isMacOS` test seams.
+- `EmulatorGrpcSession.start` keeps waiting (up to 3 min, as for an empty
+  display) when the emulator answers the display check with a gRPC error
+  such as `The guest has not posted new frames`, which it does while
+  Android boots; the session failed at once. Errors that waiting cannot
+  fix (unauthenticated, permission denied, unimplemented, invalid
+  argument) still fail right away.
+- `ScrcpySession` waits for `sys.boot_completed` with short `getprop`
+  polls instead of one `adb shell` loop, so a booting device no longer
+  holds a `CommandExec` slot for up to 3 min, and `stop()` ends the wait.
+- `ScrcpySession.stop()` during `start()` no longer leaves the scrcpy
+  server, its `adb shell` process or the `adb forward` behind: what the
+  start creates after `stop()` is released when it returns.
+- `ScrcpySession` reports `Stream ended` when the server closes the video
+  socket; the worker watched `socket.done`, which only completes for the
+  write side. A stream that ends while the control socket connects stays
+  failed instead of turning live, and `stop()` waits for the video
+  worker to exit. The video handshake gives up after 10 s in total, also
+  when a connection never sends its first byte.
+- `watchAndroidDevices` kills an `adb track-devices` process whose
+  subscription was cancelled while it was still starting.
+- `AndroidDeviceService.shutdownSimulator` and the `adb emu` calls of
+  `EmulatorGrpcSession` time out after 15 s instead of waiting forever on
+  a hung emulator's console. When `screenrecord stop` fails or times out,
+  `EmulatorGrpcSession.stopRecording` returns null and leaves the `.webm`
+  alone instead of converting a file the emulator may still be writing.
+- `runFfmpeg` tries the next ffmpeg candidate only when one cannot be
+  started, not again after a failed or timed-out conversion.
+
+## 1.4.0
+
+- `EmulatorGrpcSession` streams and controls an Android emulator over its
+  gRPC API (`streamScreenshot` with the MMAP transport into a caller-owned
+  RGB888 file, input through `streamInputEvent`, recording with
+  `adb emu screenrecord`), like Android Studio's embedded emulator.
+- `EmulatorEndpoint.find(serial)` reads an emulator's gRPC port and token
+  from its discovery file (`avd/running/pid_<pid>.ini`).
+- `emulatorCameraArgs(back:, front:)` builds `-camera-back` /
+  `-camera-front` emulator args from `webcam<N>`, `image:<path>`,
+  `video:<path>`, `virtualscene`, `emulated` or `none`; one webcam cannot
+  be both cameras.
+- `AndroidDeviceService.listWebcams()` lists the host cameras the emulator
+  can use (`emulator -webcam-list`).
+- `launchDevice(headless: true)` also adds
+  `AndroidDeviceService.headlessGpuArgs` (`-gpu host`) unless the caller
+  passes `-gpu`: headless emulators otherwise render in software (lavapipe)
+  and stream at ~5 fps instead of ~55.
+- `ScrcpySession.start` waits (up to 3 min) for `sys.boot_completed` before
+  starting the server, which crashed when started on a still-booting
+  emulator.
+
 ## 1.3.0
 
 - `AndroidAutomation.install` runs `adb install -r -t` and reports the

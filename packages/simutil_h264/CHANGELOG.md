@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- `SharedFrameTexture` (macOS) shows packed RGB888 frames that another
+  process writes into a shared file it maps, such as the Android emulator's
+  gRPC MMAP transport, without a video codec.
+
 ## 0.1.0
 
 - Initial release: `H264Decoder` decodes Annex-B H.264 access units into a

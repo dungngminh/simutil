@@ -11,6 +11,8 @@ import 'package:simutil_app/src/devices/devices_state.dart';
 import 'package:simutil_app/src/ui/design/design.dart';
 import 'package:simutil_app/src/ui/devices/device_row.dart';
 import 'package:simutil_app/src/ui/devices/device_search_field.dart';
+import 'package:simutil_app/src/ui/toasts/update_toast.dart';
+import 'package:simutil_app/src/update/app_update_cubit.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -154,10 +156,31 @@ class _BrandState extends State<_Brand> {
               ),
               const SizedBox(width: 10),
               Text('SimUtil', style: t.title),
+              const _UpdateButton(),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Shown while a newer release exists; reopens the update toast.
+class _UpdateButton extends StatelessWidget {
+  const _UpdateButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final update = context.value<AppUpdateCubit, AppUpdate?>();
+    if (update == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: SimuIconButton(
+        icon: LucideIcons.circleArrowUp,
+        tooltip: 'SimUtil ${update.version} is available',
+        color: SimuTokens.of(context).accent,
+        onPressed: () => showUpdateToast(context, update),
+      ),
     );
   }
 }

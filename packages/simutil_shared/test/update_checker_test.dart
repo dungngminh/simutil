@@ -100,7 +100,7 @@ void main() {
     test('GitHub tag for Homebrew installs', () async {
       final info = await checker(
         InstallSource.homebrew,
-        '{"tag_name":"v1.2.0"}',
+        '[{"tag_name":"v1.2.0"}]',
       ).check('1.0.0');
 
       expect(requested.single.host, 'api.github.com');
@@ -111,6 +111,18 @@ void main() {
         'brew upgrade dungngminh/simutil/simutil',
       );
       expect((await appState.load()).latestKnownVersion, '1.2.0');
+    });
+
+    test('skips app and draft releases for the newest CLI tag', () async {
+      final info = await checker(
+        InstallSource.homebrew,
+        '[{"tag_name":"app-v0.5.0"},'
+        '{"tag_name":"cli-v1.4.0","draft":true},'
+        '{"tag_name":"cli-v1.3.0"},'
+        '{"tag_name":"v1.2.0"}]',
+      ).check('1.0.0');
+
+      expect(info?.latestVersion, '1.3.0');
     });
 
     test('pub.dev for pub installs', () async {
@@ -126,7 +138,7 @@ void main() {
     test('unknown install points at releases page', () async {
       final info = await checker(
         InstallSource.unknown,
-        '{"tag_name":"v1.1.0"}',
+        '[{"tag_name":"v1.1.0"}]',
       ).check('1.0.0');
 
       expect(info?.instruction, simutilReleasesUrl);
@@ -149,7 +161,7 @@ void main() {
     test('up to date returns null', () async {
       final info = await checker(
         InstallSource.homebrew,
-        '{"tag_name":"v1.0.0"}',
+        '[{"tag_name":"v1.0.0"}]',
       ).check('1.0.0');
 
       expect(info, isNull);
@@ -165,7 +177,7 @@ void main() {
     test('source checkouts follow GitHub releases', () async {
       final info = await checker(
         InstallSource.source,
-        '{"tag_name":"v1.2.0"}',
+        '[{"tag_name":"v1.2.0"}]',
       ).check('1.0.0');
 
       expect(requested.single.host, 'api.github.com');
@@ -179,7 +191,7 @@ void main() {
       );
       final info = await checker(
         InstallSource.homebrew,
-        '{"tag_name":"v1.2.0"}',
+        '[{"tag_name":"v1.2.0"}]',
         env: {'SIMUTIL_NO_UPDATE_CHECK': '1'},
       ).check('1.0.0', force: true);
 
@@ -191,7 +203,7 @@ void main() {
       expect(
         await checker(
           InstallSource.homebrew,
-          '{"tag_name":"v9.0.0"}',
+          '[{"tag_name":"v9.0.0"}]',
           env: {'SIMUTIL_NO_UPDATE_CHECK': '1'},
         ).check('1.0.0'),
         isNull,

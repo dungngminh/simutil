@@ -15,7 +15,7 @@ jobs:
         id: release
         shell: pwsh
         run: |
-          $VERSION = $env:GITHUB_REF_NAME -replace '^v', ''
+          $VERSION = $env:GITHUB_REF_NAME -replace '^cli-v', ''
           echo "version=$VERSION" >> $env:GITHUB_OUTPUT
 
       - name: Submit to WinGet

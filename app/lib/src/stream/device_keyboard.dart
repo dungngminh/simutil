@@ -5,23 +5,24 @@ import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_app/src/stream/ios/ios_sim_session.dart';
 import 'package:simutil_core/simutil_core.dart';
 
-/// Non-printing keys: Android `AKEYCODE_*` and the character the iOS
-/// simulator plugin types for it (AppKit function-key characters).
-final _keys = <LogicalKeyboardKey, (int, String)>{
-  LogicalKeyboardKey.enter: (66, '\n'),
-  LogicalKeyboardKey.numpadEnter: (66, '\n'),
-  LogicalKeyboardKey.backspace: (67, '\b'),
-  LogicalKeyboardKey.delete: (112, ''),
-  LogicalKeyboardKey.tab: (61, '\t'),
-  LogicalKeyboardKey.escape: (111, '\x1b'),
-  LogicalKeyboardKey.arrowUp: (19, ''),
-  LogicalKeyboardKey.arrowDown: (20, ''),
-  LogicalKeyboardKey.arrowLeft: (21, ''),
-  LogicalKeyboardKey.arrowRight: (22, ''),
-  LogicalKeyboardKey.home: (122, ''),
-  LogicalKeyboardKey.end: (123, ''),
-  LogicalKeyboardKey.pageUp: (92, ''),
-  LogicalKeyboardKey.pageDown: (93, ''),
+/// Non-printing keys: Android `AKEYCODE_*`, the character the iOS
+/// simulator plugin types for it (AppKit function-key characters) and the
+/// W3C key value the Android emulator's gRPC API takes.
+final _keys = <LogicalKeyboardKey, (int, String, String)>{
+  LogicalKeyboardKey.enter: (66, '\n', 'Enter'),
+  LogicalKeyboardKey.numpadEnter: (66, '\n', 'Enter'),
+  LogicalKeyboardKey.backspace: (67, '\b', 'Backspace'),
+  LogicalKeyboardKey.delete: (112, '', 'Delete'),
+  LogicalKeyboardKey.tab: (61, '\t', 'Tab'),
+  LogicalKeyboardKey.escape: (111, '\x1b', 'Escape'),
+  LogicalKeyboardKey.arrowUp: (19, '', 'ArrowUp'),
+  LogicalKeyboardKey.arrowDown: (20, '', 'ArrowDown'),
+  LogicalKeyboardKey.arrowLeft: (21, '', 'ArrowLeft'),
+  LogicalKeyboardKey.arrowRight: (22, '', 'ArrowRight'),
+  LogicalKeyboardKey.home: (122, '', 'Home'),
+  LogicalKeyboardKey.end: (123, '', 'End'),
+  LogicalKeyboardKey.pageUp: (92, '', 'PageUp'),
+  LogicalKeyboardKey.pageDown: (93, '', 'PageDown'),
 };
 
 /// Forwards a host key press to [session]: special keys as key codes,
@@ -42,6 +43,8 @@ bool sendKeyToDevice(DeviceSession session, KeyEvent event) {
   switch (session) {
     case final ScrcpySession s:
       special != null ? s.pressKey(special.$1) : s.typeText(text!);
+    case final EmulatorGrpcSession s:
+      special != null ? s.pressKey(special.$3) : s.typeText(text!);
     case final IosSimSession s:
       unawaited(s.typeText(special?.$2 ?? text!));
     default:

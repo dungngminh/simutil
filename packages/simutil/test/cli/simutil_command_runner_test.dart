@@ -14,6 +14,8 @@ void main() {
         'list',
         'launch',
         'shutdown',
+        'wipe',
+        'delete',
         'plugin',
         'schema',
         'upgrade',

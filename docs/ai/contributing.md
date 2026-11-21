@@ -6,7 +6,7 @@ code change itself.
 ## Per-PR checklist
 
 1. **Update the changelog.** First check whether the newest version heading is
-   released: it has a git tag (`git tag -l 'v*'`, or `simutil_<pkg>-v*` for a
+   released: it has a git tag (`git tag -l 'cli-v*' 'v*'`, or `simutil_<pkg>-v*` for a
    library) or its version is on pub.dev. Not released: add the change under that
    version. Released: the app ([CHANGELOG.md](../../packages/simutil/CHANGELOG.md))
    uses `[Unreleased]`; a library bumps its `pubspec.yaml` version (patch for
@@ -39,7 +39,7 @@ code change itself.
 
 ## Release pipeline (maintainer-only, FYI)
 
-Tag-driven: pushing `vX.Y.Z` builds four-target binaries, drafts a GitHub
+Tag-driven: pushing `cli-vX.Y.Z` builds four-target binaries, drafts a GitHub
 Release, and publishes to pub.dev. Publishing the draft fans out to the Homebrew
 tap; WinGet is manual. **Full pipeline, secrets, and the cut-a-release
 checklist live in [docs/ai/deployment.md](deployment.md).**

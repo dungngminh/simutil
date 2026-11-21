@@ -58,6 +58,20 @@ List<CliCommandSpec> simutilCliCatalog({required String version}) => [
         description: 'Disable emulator audio (Android)',
       ),
       CliFlagSpec(
+        long: 'camera-back',
+        kind: CliArgKind.option,
+        valueName: 'source',
+        description:
+            'Android back camera: webcam<N>, image:<path>, video:<path>, '
+            'virtualscene, emulated, none',
+      ),
+      CliFlagSpec(
+        long: 'camera-front',
+        kind: CliArgKind.option,
+        valueName: 'source',
+        description: 'Android front camera (same sources)',
+      ),
+      CliFlagSpec(
         long: 'headless',
         description:
             'No emulator window / Simulator app (for streaming in another UI)',
@@ -65,9 +79,10 @@ List<CliCommandSpec> simutilCliCatalog({required String version}) => [
     ],
     examples: [
       'simutil launch Pixel_7_Pro_big_Android_15',
-      'simutil start emulator-5554 -a',
+      'simutil start <avd> -a',
       'simutil launch <avd> -c --no-audio',
       'simutil launch <udid> --headless',
+      'simutil launch <avd> --camera-back image:qr.png --camera-front webcam0',
     ],
   ),
   CliCommandSpec(
@@ -78,6 +93,28 @@ List<CliCommandSpec> simutilCliCatalog({required String version}) => [
     arguments: ['device-id'],
     flags: cliPlatformFlags,
     examples: ['simutil shutdown emulator-5554', 'simutil stop <udid> -i'],
+  ),
+  CliCommandSpec(
+    name: 'wipe',
+    summary: 'Erase a shut-down emulator or simulator\'s data (asks y/N)',
+    usage: 'simutil wipe <device-id> [options]',
+    arguments: ['device-id'],
+    flags: [...cliPlatformFlags, _yesFlag],
+    examples: [
+      'simutil wipe Pixel_7_Pro_big_Android_15',
+      'simutil wipe <udid> -y',
+    ],
+  ),
+  CliCommandSpec(
+    name: 'delete',
+    summary: 'Delete a shut-down emulator or simulator (asks y/N)',
+    usage: 'simutil delete <device-id> [options]',
+    arguments: ['device-id'],
+    flags: [...cliPlatformFlags, _yesFlag],
+    examples: [
+      'simutil delete Pixel_7_Pro_big_Android_15',
+      'simutil delete <udid> -i -y',
+    ],
   ),
   _pluginCommand(),
   CliCommandSpec(
@@ -289,6 +326,12 @@ enum CliArgKind {
   /// Option that takes a value.
   option,
 }
+
+const _yesFlag = CliFlagSpec(
+  short: 'y',
+  long: 'yes',
+  description: 'Skip the confirmation prompt',
+);
 
 /// Documents one flag or option for help text and agent schema export.
 class CliFlagSpec {

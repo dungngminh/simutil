@@ -105,6 +105,52 @@ void main() {
     ]);
   });
 
+  test('installedApps lists user apps by name', () async {
+    final exec = FakeCommandExec(
+      (_, _) => FakeCommandExec.ok(
+        '{"com.apple.mobilesafari": {"ApplicationType": "System", '
+        '"CFBundleDisplayName": "Safari"}, '
+        '"com.acme.z": {"ApplicationType": "User", "CFBundleName": "Zed"}, '
+        '"com.acme.a": {"ApplicationType": "User", '
+        '"CFBundleDisplayName": "Acme"}}',
+      ),
+    );
+    expect(await IosAutomation(exec).installedApps(_sim), [
+      (id: 'com.acme.a', name: 'Acme'),
+      (id: 'com.acme.z', name: 'Zed'),
+    ]);
+    expect(exec.calls.single.arguments.last, 'UDID');
+  });
+
+  test('launchWithCamera grants camera and inserts the dylib', () async {
+    final exec = FakeCommandExec((_, _) => FakeCommandExec.ok());
+    await IosAutomation(exec).launchWithCamera(
+      _sim,
+      'com.acme.app',
+      dylib: '/A/libSimCameraInjector.dylib',
+      shmName: '/simutil-cam-UDID',
+    );
+    expect(exec.calls.first.arguments, [
+      'simctl',
+      'privacy',
+      'UDID',
+      'grant',
+      'camera',
+      'com.acme.app',
+    ]);
+    expect(exec.calls.last.command, 'env');
+    expect(exec.calls.last.arguments, [
+      'SIMCTL_CHILD_DYLD_INSERT_LIBRARIES=/A/libSimCameraInjector.dylib',
+      'SIMCTL_CHILD_SIMCAM_SHM_NAME=/simutil-cam-UDID',
+      'xcrun',
+      'simctl',
+      'launch',
+      '--terminate-running-process',
+      'UDID',
+      'com.acme.app',
+    ]);
+  });
+
   test('install surfaces the simctl error', () async {
     final exec = FakeCommandExec(
       (_, _) => FakeCommandExec.fail('not built for the simulator'),

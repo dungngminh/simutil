@@ -73,17 +73,28 @@ List<McpTool> deviceTools(ToolContext c) => [
     description:
         'Boot an emulator/simulator. headless (default true) skips its own '
         'window and streams it into SimUtil. Android emulators: coldBoot '
-        'skips the snapshot, noAudio boots muted (both default false).',
+        'skips the snapshot, noAudio boots muted (both default false); '
+        'cameraBack / cameraFront pick a camera source: webcam<N> (host '
+        'camera), image:<path>, video:<path>, virtualscene, emulated or none '
+        '(default: the one picked in the device menu).',
     properties: {
       ...deviceArg,
       'headless': {'type': 'boolean'},
       'coldBoot': {'type': 'boolean'},
       'noAudio': {'type': 'boolean'},
+      'cameraBack': {'type': 'string'},
+      'cameraFront': {'type': 'string'},
     },
     required: ['device'],
     handler: (args) async {
       final device = c.find(args);
       final options = _launchOptions(device);
+      final cameraArgs = device.os == DeviceOs.android
+          ? emulatorCameraArgs(
+              back: args['cameraBack'] as String? ?? options.cameraBack,
+              front: args['cameraFront'] as String? ?? options.cameraFront,
+            )
+          : const <String>[];
       final headless = args['headless'] as bool? ?? options.headless ?? true;
       if (headless) c.streams.openWhenBooted(device);
       await c.devices.launch(
@@ -91,6 +102,7 @@ List<McpTool> deviceTools(ToolContext c) => [
         headless: headless,
         coldBoot: args['coldBoot'] as bool? ?? false,
         noAudio: args['noAudio'] as bool? ?? false,
+        cameraArgs: cameraArgs,
       );
       return c.text('Starting ${device.name}');
     },

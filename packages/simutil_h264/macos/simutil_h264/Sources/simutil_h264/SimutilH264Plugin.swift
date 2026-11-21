@@ -3,6 +3,10 @@
 import FlutterMacOS
 
 extension H264Stream: FlutterTexture {}
+extension SharedFrames: FlutterTexture {}
+
+/// Shared-frame textures by id; main thread only.
+private var sharedFrames: [Int64: SharedFrames] = [:]
 
 /// Decoders by texture id. Global so `decodeFunction` reaches them from any
 /// thread; every access holds `registryLock`, which also serializes
@@ -31,6 +35,11 @@ private let decodeFunction: @convention(c) (Int64, UnsafePointer<UInt8>?, Int64)
 /// dispose({id}), decodeFunction → address of `decodeFunction`. Access units arrive on the binary channel
 /// `simutil/h264/decode` as `int64 LE id` + Annex-B bytes; the reply is
 /// `[1]` when frames were dropped and the sender should send a key frame.
+///
+/// Shared RGB888 frames: sharedCreate({capacity}) → {id, path},
+/// sharedResize({id, capacity}) → path, and frames / dispose as above. A new
+/// frame is announced on `simutil/h264/present` as `int64 LE id`, `int32 LE
+/// width`, `int32 LE height`.
 public final class SimutilH264Plugin: NSObject, FlutterPlugin {
   private let textures: FlutterTextureRegistry
 
@@ -44,6 +53,17 @@ public final class SimutilH264Plugin: NSObject, FlutterPlugin {
     registrar.addMethodCallDelegate(plugin, channel: channel)
     registrar.messenger.setMessageHandlerOnChannel("simutil/h264/decode") { message, reply in
       reply(decodeMessage(message) ? Data([1]) : nil)
+    }
+    registrar.messenger.setMessageHandlerOnChannel("simutil/h264/present") { message, reply in
+      if let message, message.count >= 16 {
+        message.withUnsafeBytes {
+          let id = Int64(littleEndian: $0.loadUnaligned(as: Int64.self))
+          let width = Int32(littleEndian: $0.loadUnaligned(fromByteOffset: 8, as: Int32.self))
+          let height = Int32(littleEndian: $0.loadUnaligned(fromByteOffset: 12, as: Int32.self))
+          sharedFrames[id]?.present(width: Int(width), height: Int(height))
+        }
+      }
+      reply(nil)
     }
   }
 
@@ -60,26 +80,29 @@ public final class SimutilH264Plugin: NSObject, FlutterPlugin {
     case "create":
       let decoder = H264Stream()
       let textureId = textures.register(decoder)
-      // One main-thread hop per batch of decoded frames, not per frame.
-      let pending = NSLock()
-      var scheduled = false
-      decoder.onFrame = { [weak self] in
-        pending.lock()
-        defer { pending.unlock() }
-        if scheduled { return }
-        scheduled = true
-        DispatchQueue.main.async {
-          pending.lock()
-          scheduled = false
-          pending.unlock()
-          self?.textures.textureFrameAvailable(textureId)
-        }
-      }
+      decoder.onFrame = coalesced { [weak self] in self?.textures.textureFrameAvailable(textureId) }
       registryLock.lock()
       registry[textureId] = decoder
       registryLock.unlock()
       result(textureId)
+    case "sharedCreate":
+      let frames = SharedFrames()
+      guard let path = frames.resize((args["capacity"] as? NSNumber)?.intValue ?? 0) else {
+        return result(FlutterError(code: "io", message: "Cannot create a frame file", details: nil))
+      }
+      let textureId = textures.register(frames)
+      frames.onFrame = coalesced { [weak self] in self?.textures.textureFrameAvailable(textureId) }
+      sharedFrames[textureId] = frames
+      result(["id": textureId, "path": path])
+    case "sharedResize":
+      let capacity = (args["capacity"] as? NSNumber)?.intValue ?? 0
+      if let path = sharedFrames[id]?.resize(capacity) {
+        result(path)
+      } else {
+        result(FlutterError(code: "io", message: "Cannot create a frame file", details: nil))
+      }
     case "frames":
+      if let frames = sharedFrames[id] { return result(frames.framesShown) }
       registryLock.lock()
       let decoder = registry[id]
       registryLock.unlock()
@@ -87,6 +110,11 @@ public final class SimutilH264Plugin: NSObject, FlutterPlugin {
     case "decodeFunction":
       result(Int64(Int(bitPattern: unsafeBitCast(decodeFunction, to: UnsafeRawPointer.self))))
     case "dispose":
+      if let frames = sharedFrames.removeValue(forKey: id) {
+        frames.stop()
+        textures.unregisterTexture(id)
+        return result(nil)
+      }
       registryLock.lock()
       let removed = registry.removeValue(forKey: id)
       registryLock.unlock()
@@ -97,6 +125,25 @@ public final class SimutilH264Plugin: NSObject, FlutterPlugin {
       result(nil)
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+}
+
+/// Runs `body` on the main thread once per batch of calls from other
+/// threads, not once per call (one hop per batch of frames).
+private func coalesced(_ body: @escaping () -> Void) -> () -> Void {
+  let pending = NSLock()
+  var scheduled = false
+  return {
+    pending.lock()
+    defer { pending.unlock() }
+    if scheduled { return }
+    scheduled = true
+    DispatchQueue.main.async {
+      pending.lock()
+      scheduled = false
+      pending.unlock()
+      body()
     }
   }
 }

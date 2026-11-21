@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:simutil_app/src/logging/debug_log.dart';
 import 'package:simutil_adb/simutil_adb.dart';
@@ -8,10 +9,15 @@ import 'package:simutil_app/src/maestro/maestro_runner.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
 import 'package:simutil_app/src/recording/saved_recordings.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
+import 'package:simutil_app/src/settings/desktop_settings_store.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/stream/touch_marks.dart';
+import 'package:simutil_app/src/update/app_installer.dart';
+import 'package:simutil_app/src/update/app_update_cubit.dart';
+import 'package:simutil_app/src/windows/device_windows.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:simutil_apple/simutil_apple.dart';
 import 'package:simutil_core/simutil_core.dart';
 
@@ -19,14 +25,22 @@ import 'package:simutil_core/simutil_core.dart';
 final getIt = GetIt.instance;
 
 /// Starts the shell-command isolate and registers the device services plus
-/// the app's cubits.
-Future<void> configureDependencies() async {
+/// the app's cubits. A [deviceWindow] (its own engine) never saves settings
+/// and streams every device it is asked to.
+Future<void> configureDependencies({bool deviceWindow = false}) async {
   final isolateRunner = IsolateRunner();
   await isolateRunner.init();
   final debugLog = DebugLog();
   final exec = LoggingCommandExec(CommandExec.isolate(isolateRunner), debugLog);
+  final settingsStore = DesktopSettingsStore(readOnly: deviceWindow);
+  await settingsStore.load();
 
   getIt
+    // First in, last disposed: cubits close before the final save is awaited.
+    ..registerSingleton<DesktopSettingsStore>(
+      settingsStore,
+      dispose: (store) => store.flush(),
+    )
     ..registerSingleton<DebugLog>(debugLog)
     ..registerSingleton<IsolateRunner>(
       isolateRunner,
@@ -55,13 +69,14 @@ Future<void> configureDependencies() async {
       dispose: (cubit) => cubit.close(),
     )
     ..registerLazySingleton<DeviceSettingsCubit>(
-      DeviceSettingsCubit.new,
+      () => DeviceSettingsCubit(store: getIt<DesktopSettingsStore>()),
       dispose: (cubit) => cubit.close(),
     )
     ..registerSingleton<SavedRecordings>(
       SavedRecordings(exec),
       dispose: (saved) => saved.dispose(),
     )
+    ..registerSingleton(DeviceWindows())
     ..registerSingleton(RecordingLock())
     ..registerSingleton(TouchMarks(), dispose: (marks) => marks.dispose())
     ..registerLazySingleton<GridRecorderCubit>(
@@ -76,7 +91,7 @@ Future<void> configureDependencies() async {
       dispose: (cubit) => cubit.close(),
     )
     ..registerLazySingleton<ViewSettingsCubit>(
-      ViewSettingsCubit.new,
+      () => ViewSettingsCubit(store: getIt<DesktopSettingsStore>()),
       dispose: (cubit) => cubit.close(),
     )
     ..registerLazySingleton<StreamsCubit>(
@@ -87,14 +102,23 @@ Future<void> configureDependencies() async {
           settings: (device) => getIt<DeviceSettingsCubit>().of(device),
         ),
         onSaved: getIt<SavedRecordings>().add,
+        openElsewhere: deviceWindow ? null : getIt<DeviceWindows>().focus,
         recordingLock: getIt<RecordingLock>(),
       ),
+      dispose: (cubit) => cubit.close(),
+    )
+    ..registerLazySingleton<AppInstaller>(
+      () => AppInstaller(exec, quit: quitApp),
+    )
+    ..registerSingleton<AppUpdateCubit>(
+      AppUpdateCubit(currentVersion: await getAppVersion()),
       dispose: (cubit) => cubit.close(),
     )
     ..registerLazySingleton<SlimModeCubit>(
       () => SlimModeCubit(
         devices: getIt<DevicesCubit>(),
         streams: getIt<StreamsCubit>(),
+        store: getIt<DesktopSettingsStore>(),
       ),
       dispose: (cubit) => cubit.close(),
     )
@@ -116,3 +140,16 @@ class _SimulatorSlimControl implements SlimControl {
 
 /// Closes cubits and stops the shell-command isolate.
 Future<void> disposeDependencies() => getIt.reset();
+
+/// Releases streams (device windows' too) and recordings, then closes the
+/// window and quits.
+Future<void> quitApp() async {
+  try {
+    await getIt<DeviceWindows>().closeAll();
+    await disposeDependencies();
+  } catch (e, s) {
+    debugPrint('Dispose on quit failed: $e\n$s');
+  } finally {
+    await windowManager.destroy();
+  }
+}

@@ -4,9 +4,12 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:simutil_apple/src/apple_device_watch.dart';
+import 'package:simutil_apple/src/usbmux.dart' as usbmux;
+import 'package:simutil_apple/src/models/simulator_launch_exception.dart';
 import 'package:simutil_core/simutil_core.dart';
 
-/// Apple simulators (`simctl`) and physical devices (`devicectl`).
+/// Apple simulators (`simctl`) and physical devices (usbmuxd + lockdownd,
+/// falling back to `devicectl`).
 ///
 /// Covers iPhone, iPad, Watch, TV, and other CoreSimulator runtimes.
 /// No-ops on non-macOS hosts.
@@ -14,12 +17,26 @@ class IOSDeviceService implements DeviceService {
   /// Creates a service that runs `xcrun` via [CommandExec].
   ///
   /// [pathExists] overrides the directory check used to locate the
-  /// simulator app (for tests).
-  IOSDeviceService(this._exec, {bool Function(String path)? pathExists})
-    : _pathExists = pathExists ?? _directoryExists;
+  /// simulator app, and [listUsbmuxDevices] the usbmuxd device lookup
+  /// (both for tests).
+  IOSDeviceService(
+    this._exec, {
+    bool Function(String path)? pathExists,
+    Future<List<Device>?> Function()? listUsbmuxDevices,
+  }) : _pathExists = pathExists ?? _directoryExists,
+       _listUsbmuxDevices = listUsbmuxDevices ?? usbmux.listUsbmuxDevices;
 
   final CommandExec _exec;
+
+  /// Listing and probing commands. A stuck CoreSimulatorService or
+  /// CoreDevice (e.g. after an Xcode update) never answers; without a
+  /// timeout every later refresh joined the same never-ending command.
+  static const _listTimeout = Duration(seconds: 30);
+
+  /// `simctl shutdown` / `delete` / `erase`.
+  static const _changeTimeout = Duration(minutes: 2);
   final bool Function(String path) _pathExists;
+  final Future<List<Device>?> Function() _listUsbmuxDevices;
 
   static bool _directoryExists(String path) => Directory(path).existsSync();
 
@@ -34,6 +51,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'list', '--json'],
+        timeout: _listTimeout,
         priority: CommandPriority.background,
       );
       return result.success;
@@ -53,6 +71,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'list', 'devices', '-j'],
+        timeout: _listTimeout,
         priority: CommandPriority.background,
       );
       if (!result.success) return [];
@@ -98,14 +117,75 @@ class IOSDeviceService implements DeviceService {
     return devices;
   }
 
+  /// Boots the simulator [deviceId] and, unless [headless], opens the
+  /// Simulator app on it. An already booted simulator counts as started.
+  ///
+  /// Throws a [SimulatorLaunchException] with `simctl`'s or `open`'s error
+  /// when either fails.
   @override
   Future<void> launchDevice({
     required String deviceId,
     List<String> additionalArgs = const [],
     bool headless = false,
   }) async {
-    await bootSimulator(deviceId);
-    if (!headless) await openSimulatorApp(deviceId);
+    final boot = await _runForLaunch(deviceId, 'xcrun', [
+      'simctl',
+      'boot',
+      deviceId,
+    ]);
+    if (!boot.success && !isAlreadyBooted(boot)) {
+      throw SimulatorLaunchException(deviceId, launchError(boot));
+    }
+    if (headless) return;
+    final open = await _runForLaunch(
+      deviceId,
+      'open',
+      openSimulatorArguments(
+        uuid: deviceId,
+        appPath: await _simulatorAppPath(),
+      ),
+    );
+    if (!open.success) {
+      throw SimulatorLaunchException(
+        deviceId,
+        'Booted, but the Simulator app did not open: ${launchError(open)}',
+      );
+    }
+  }
+
+  Future<CommandResult> _runForLaunch(
+    String udid,
+    String command,
+    List<String> arguments,
+  ) async {
+    try {
+      return await _exec.run(
+        command,
+        arguments: arguments,
+        priority: CommandPriority.interactive,
+      );
+    } catch (e) {
+      throw SimulatorLaunchException(udid, 'Could not run $command: $e');
+    }
+  }
+
+  /// Whether a failed `simctl boot` only means the simulator already runs
+  /// (`Unable to boot device in current state: Booted`, exit 149).
+  static bool isAlreadyBooted(CommandResult boot) =>
+      boot.stderr.contains('current state: Booted');
+
+  /// The last line a failed command printed to stderr, else to stdout
+  /// (`simctl` puts its error domain on the line before the message), else
+  /// its exit code.
+  static String launchError(CommandResult result) {
+    String? lastLine(String output) => output
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .lastOrNull;
+    return lastLine(result.stderr) ??
+        lastLine(result.stdout) ??
+        'Exited with code ${result.exitCode}';
   }
 
   /// Boots the simulator [udid] via `simctl boot`.
@@ -135,6 +215,7 @@ class IOSDeviceService implements DeviceService {
         uuid: uuid,
         appPath: await _simulatorAppPath(),
       ),
+      timeout: _listTimeout,
       priority: CommandPriority.interactive,
     );
   }
@@ -149,6 +230,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         '/usr/bin/xcode-select',
         arguments: ['--print-path'],
+        timeout: _listTimeout,
       );
       if (!result.success) return null;
       final path = result.stdout.trim();
@@ -208,6 +290,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'shutdown', deviceId],
+        timeout: _changeTimeout,
         priority: CommandPriority.interactive,
       );
       return result.success;
@@ -222,6 +305,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'delete', deviceId],
+        timeout: _changeTimeout,
         priority: CommandPriority.interactive,
       );
       return result.success;
@@ -236,6 +320,7 @@ class IOSDeviceService implements DeviceService {
       final result = await _exec.run(
         'xcrun',
         arguments: ['simctl', 'erase', deviceId],
+        timeout: _changeTimeout,
         priority: CommandPriority.interactive,
       );
       return result.success;
@@ -258,20 +343,30 @@ class IOSDeviceService implements DeviceService {
         );
   }
 
+  /// Asks usbmuxd and each device's lockdownd first: no process, and no
+  /// simulators to filter out. `devicectl` (a second or more) only runs when
+  /// usbmuxd does not answer.
   @override
   Future<List<Device>> getPhysicalDevices() async {
     if (!Platform.isMacOS) return [];
+    return await _listUsbmuxDevices() ?? await _listDevicectlDevices();
+  }
 
-    final tempDirectory = Directory.systemTemp;
-    final outputFile = File('${tempDirectory.path}/ios_devices.json');
-
+  Future<List<Device>> _listDevicectlDevices() async {
+    // A directory of its own: the TUI, the app and the CLI may list at the
+    // same time, and a shared file name let them read or delete each
+    // other's output.
+    Directory? tempDirectory;
     try {
+      tempDirectory = Directory.systemTemp.createTempSync('simutil_ios_');
+      final outputFile = File('${tempDirectory.path}/devices.json');
       final devicectl = await _exec.run(
         'xcrun',
         arguments: listPhysicalDevicesArguments(
           outputPath: outputFile.path,
           xcode27: isDeviceHub(await _simulatorAppPath()),
         ),
+        timeout: _listTimeout,
         priority: CommandPriority.background,
       );
 
@@ -282,11 +377,14 @@ class IOSDeviceService implements DeviceService {
 
       return parsePhysicalDevices(json);
     } catch (e, st) {
-      log('IOSDeviceService.getPhysicalDevices error: $e\n$st');
+      log('IOSDeviceService._listDevicectlDevices error: $e\n$st');
       return [];
     } finally {
-      if (outputFile.existsSync()) {
-        outputFile.deleteSync();
+      // Cleanup failing must not replace the result.
+      try {
+        tempDirectory?.deleteSync(recursive: true);
+      } catch (e) {
+        log('IOSDeviceService._listDevicectlDevices cleanup: $e');
       }
     }
   }
@@ -322,7 +420,11 @@ class IOSDeviceService implements DeviceService {
           map['deviceProperties'] as Map<String, dynamic>? ?? {};
       final connectionProps =
           map['connectionProperties'] as Map<String, dynamic>? ?? {};
-      final identifier = map['identifier'] as String? ?? '';
+      final hardware = map['hardwareProperties'] as Map<String, dynamic>?;
+      // The hardware UDID, as usbmuxd reports it; `identifier` is a
+      // CoreDevice UUID.
+      final identifier =
+          hardware?['udid'] as String? ?? map['identifier'] as String? ?? '';
       final name = deviceProps['name'] as String? ?? '';
       final osVersion = deviceProps['osVersionNumber'] as String? ?? '';
       if (_deviceReality(map) == 'simulated') continue;
