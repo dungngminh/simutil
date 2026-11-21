@@ -53,5 +53,18 @@ void main() {
     final live = runs.start({'b': 'B'});
     runs.clear();
     expect(runs.stateValue.map((r) => r.id), [live]);
+    expect(runs.start({'c': 'C'}), live + 1);
+  });
+
+  test('clear with nothing running numbers runs from #1 again', () {
+    final runs = ScenarioRunsCubit();
+    final id = runs.start({'a': 'A'});
+    runs
+      ..setDevice(id, 'a', status: ScenarioStatus.ok)
+      ..start({'a': 'A'})
+      ..setDevice(1, 'a', status: ScenarioStatus.ok)
+      ..clear();
+    expect(runs.stateValue, isEmpty);
+    expect(runs.start({'a': 'A'}), 0);
   });
 }

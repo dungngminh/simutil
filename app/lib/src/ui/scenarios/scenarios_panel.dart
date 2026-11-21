@@ -288,6 +288,8 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
                         ? null
                         : () => setState(() {
                             _focus = null;
+                            // Ids restart, so the next run must load anew.
+                            _shownRun = null;
                             _runs.clear();
                           }),
                   );

@@ -122,13 +122,17 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
   var _nextId = 0;
   final _stopped = <int>{};
 
-  /// Forgets every finished run (results, logs); running ones stay.
+  /// Forgets every finished run (results, logs) and restarts numbering
+  /// after the runs still going (from #1 when none are).
   void clear() {
     final running = [
       for (final r in stateValue)
         if (r.status == ScenarioStatus.running) r,
     ];
     _stopped.removeWhere((id) => !running.any((r) => r.id == id));
+    _nextId = running.isEmpty
+        ? 0
+        : running.map((r) => r.id).reduce((a, b) => a > b ? a : b) + 1;
     emit(running);
   }
 
