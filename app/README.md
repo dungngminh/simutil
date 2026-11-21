@@ -40,13 +40,13 @@ claude mcp add --transport http simutil http://127.0.0.1:8765/mcp
 | `start_device` / `shutdown_device` | Boot (headless by default) or shut down an emulator / simulator |
 | `stream_device` | Show a running device in the grid |
 | `tap` / `swipe` / `press_button` | Input with coordinates normalized to 0..1; back (Android), home, recents, lock |
-| `run_maestro` / `stop_maestro` | Run a Maestro flow (YAML) on several Android and iOS devices in parallel — the same flow on every device, one shard each; reports each device's pass/fail and timing. Needs the Maestro CLI |
+| `run_maestro` / `stop_maestro` | Run a Maestro flow (YAML) on several Android and iOS devices in parallel — the same flow on every device at once; reports each device's pass/fail, timing and first failure. Needs the Maestro CLI |
 | `screenshot` | PNG of a running device |
 | `record_device` / `record_grid` | Start / stop a recording; returns the file when stopping |
 | `set_slim` | iOS simulator: turn background services off / on (reboots a running one) |
 
 The same [Maestro](https://maestro.dev) flow on every streamed device at once
-(one shard per device). `flow` is Maestro YAML; `devices` (ids or names) is
+(one `maestro test` per device). `flow` is Maestro YAML; `devices` (ids or names) is
 optional and defaults to every streamed device:
 
 ```json
@@ -56,8 +56,8 @@ optional and defaults to every streamed device:
 }
 ```
 
-The devices run in parallel and the result reports each one's pass/fail and
-duration. Needs the Maestro CLI installed (`stop_maestro` kills a running
+The devices run in parallel and the result reports each one's pass/fail,
+duration and first failure. Needs the Maestro CLI installed (`stop_maestro` kills a running
 flow).
 
 ## Install

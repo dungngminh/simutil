@@ -1,7 +1,6 @@
 import 'package:simutil_app/src/maestro/maestro_runner.dart';
 import 'package:simutil_app/src/mcp/mcp_server.dart';
 import 'package:simutil_app/src/mcp/tools/tool_context.dart';
-import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// Running Maestro flows on one or many devices at once (replaces the old
@@ -12,12 +11,12 @@ List<McpTool> maestroTools(ToolContext c) => [
     name: 'run_maestro',
     description:
         'Run a Maestro flow on one or more devices in parallel (the same flow '
-        'on every device, one shard each). flow is Maestro YAML: an appId, '
+        'on every device at once). flow is Maestro YAML: an appId, '
         'then "---", then commands such as launchApp, tapOn, assertVisible, '
         'assertNotVisible, inputText, swipe, scroll, back. devices are ids or '
         'names; omit to use every streamed device (they must be booted). '
-        'Needs the Maestro CLI installed. Returns each device\'s pass/fail '
-        'and duration.',
+        'Needs the Maestro CLI installed. Returns each device\'s pass/fail, '
+        'duration and first failure.',
     properties: {
       'flow': {'type': 'string', 'description': 'Maestro flow YAML'},
       'devices': {
@@ -37,7 +36,9 @@ List<McpTool> maestroTools(ToolContext c) => [
       if (ids == null) {
         targets = [for (final e in c.streams.stateValue.entries) e.device];
       } else if (ids is List) {
-        targets = [for (final id in ids) c.find({'device': id})];
+        targets = [
+          for (final id in ids) c.find({'device': id}),
+        ];
       } else {
         throw ArgumentError('devices must be a list of ids or names');
       }
@@ -50,49 +51,22 @@ List<McpTool> maestroTools(ToolContext c) => [
           'No booted devices: start or stream some first, or pass devices',
         );
       }
-      final deviceIds = [for (final d in booted) d.id];
-      final runId = c.runs?.start({
-        for (final d in booted) d.id: d.name,
-      }, source: flow);
+      final devices = {for (final d in booted) d.id: d.name};
+      final runs = c.runs;
       try {
-        final result = await c.maestro.run(
-          flowYaml: flow,
-          deviceIds: deviceIds,
-          onLine: runId == null ? null : (l) => c.runs?.appendLine(runId, l),
-        );
-        // --shard-all assigns devices to shards in the --device order; match
-        // each result back to its device rather than by list position, since a
-        // missing shard would otherwise shift every later device's result.
-        if (runId != null) {
-          // A stopped run's killed process reports no shards; mark the devices
-          // that never finished as stopped rather than failed.
-          final stopped = c.runs?.isStopped(runId) ?? false;
-          for (var i = 0; i < booted.length; i++) {
-            final shard = result.shardFor(booted[i].id, i);
-            c.runs?.setDevice(
-              runId,
-              booted[i].id,
-              status: shard != null
-                  ? (shard.passed ? ScenarioStatus.ok : ScenarioStatus.failed)
-                  : (stopped ? ScenarioStatus.stopped : ScenarioStatus.failed),
-              seconds: shard?.seconds,
-              error: shard != null
-                  ? (shard.passed ? null : 'Flow failed')
-                  : (stopped ? null : 'No result from Maestro'),
-            );
-          }
-        }
+        final result = runs != null
+            ? await runs.runFlow(c.maestro, flow, devices)
+            : await c.maestro.run(
+                flowYaml: flow,
+                deviceIds: devices.keys.toList(),
+              );
         c.devices.notify(
           'Maestro: ${result.passed}/${result.total} passed',
           error: !result.ok,
         );
         return c.text(result.toJson());
       } on MaestroNotInstalled catch (e) {
-        if (runId != null) c.runs?.failAll(runId, e.message);
         return c.text(e.message);
-      } catch (e) {
-        if (runId != null) c.runs?.failAll(runId, '$e');
-        rethrow;
       }
     },
   ),
@@ -103,7 +77,9 @@ List<McpTool> maestroTools(ToolContext c) => [
       final wasRunning = c.maestro.running;
       c.maestro.stop();
       final ids = c.runs?.stopAll() ?? const [];
-      return c.text(wasRunning || ids.isNotEmpty ? 'Stopped' : 'Nothing running');
+      return c.text(
+        wasRunning || ids.isNotEmpty ? 'Stopped' : 'Nothing running',
+      );
     },
   ),
 ];

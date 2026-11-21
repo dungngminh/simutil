@@ -1,5 +1,6 @@
 import 'package:bloc_signals/bloc_signals.dart';
 import 'package:equatable/equatable.dart';
+import 'package:simutil_app/src/maestro/maestro_runner.dart';
 
 /// Where a device (or a whole run) stands in a Maestro flow run.
 enum ScenarioStatus { running, ok, failed, stopped }
@@ -12,6 +13,8 @@ final class ScenarioDeviceRun extends Equatable {
     this.status = ScenarioStatus.running,
     this.seconds,
     this.error,
+    this.stepsDone = 0,
+    this.failedStep,
   });
 
   final String deviceId;
@@ -24,20 +27,48 @@ final class ScenarioDeviceRun extends Equatable {
   /// Failure message when [status] is failed.
   final String? error;
 
+  /// How many of the flow's top-level commands finished (passed or failed).
+  final int stepsDone;
+
+  /// The 0-based top-level command that failed, if one did.
+  final int? failedStep;
+
+  /// Where top-level command [step] stands on this device, or null when it
+  /// has not started (or never will).
+  ScenarioStatus? stepStatus(int step) => step == failedStep
+      ? ScenarioStatus.failed
+      : step < stepsDone
+      ? ScenarioStatus.ok
+      : step == stepsDone && status == ScenarioStatus.running
+      ? ScenarioStatus.running
+      : null;
+
   ScenarioDeviceRun copyWith({
     ScenarioStatus? status,
     int? seconds,
     String? error,
+    int? stepsDone,
+    int? failedStep,
   }) => ScenarioDeviceRun(
     deviceId: deviceId,
     name: name,
     status: status ?? this.status,
     seconds: seconds ?? this.seconds,
     error: error ?? this.error,
+    stepsDone: stepsDone ?? this.stepsDone,
+    failedStep: failedStep ?? this.failedStep,
   );
 
   @override
-  List<Object?> get props => [deviceId, name, status, seconds, error];
+  List<Object?> get props => [
+    deviceId,
+    name,
+    status,
+    seconds,
+    error,
+    stepsDone,
+    failedStep,
+  ];
 }
 
 /// One Maestro flow run across its devices (run in parallel via shards).
@@ -63,9 +94,11 @@ final class ScenarioRun extends Equatable {
   ScenarioStatus get status =>
       devices.any((d) => d.status == ScenarioStatus.running)
       ? ScenarioStatus.running
-      : devices.every((d) => d.status == ScenarioStatus.ok)
-      ? ScenarioStatus.ok
-      : ScenarioStatus.failed;
+      : devices.any((d) => d.status == ScenarioStatus.failed)
+      ? ScenarioStatus.failed
+      : devices.any((d) => d.status == ScenarioStatus.stopped)
+      ? ScenarioStatus.stopped
+      : ScenarioStatus.ok;
 
   @override
   List<Object?> get props => [id, startedAt, devices, source, lines];
@@ -129,14 +162,23 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
         ),
   ]);
 
-  /// Sets [deviceId]'s outcome in run [id].
-  void setDevice(
+  /// Records that top-level command [step] finished on [deviceId] in run
+  /// [id]; a failed one is remembered as the device's failed step.
+  void stepDone(int id, String deviceId, int step, {required bool passed}) =>
+      _updateDevice(
+        id,
+        deviceId,
+        (d) => d.copyWith(
+          stepsDone: step + 1,
+          failedStep: passed ? null : d.failedStep ?? step,
+        ),
+      );
+
+  void _updateDevice(
     int id,
-    String deviceId, {
-    required ScenarioStatus status,
-    int? seconds,
-    String? error,
-  }) => emit([
+    String deviceId,
+    ScenarioDeviceRun Function(ScenarioDeviceRun) update,
+  ) => emit([
     for (final r in stateValue)
       if (r.id != id)
         r
@@ -148,13 +190,65 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
           lines: r.lines,
           devices: [
             for (final d in r.devices)
-              if (d.deviceId == deviceId)
-                d.copyWith(status: status, seconds: seconds, error: error)
-              else
-                d,
+              if (d.deviceId == deviceId) update(d) else d,
           ],
         ),
   ]);
+
+  /// Sets [deviceId]'s outcome in run [id].
+  void setDevice(
+    int id,
+    String deviceId, {
+    required ScenarioStatus status,
+    int? seconds,
+    String? error,
+  }) => _updateDevice(
+    id,
+    deviceId,
+    (d) => d.copyWith(status: status, seconds: seconds, error: error),
+  );
+
+  /// Runs [flow] on [devices] (id → name) with [maestro], recording it as a
+  /// new run: live output (prefixed by device name when there are several),
+  /// each device's steps, then its outcome. Devices a stop cut short end as
+  /// stopped; any error fails the devices still running and is rethrown.
+  Future<MaestroRunResult> runFlow(
+    MaestroRunner maestro,
+    String flow,
+    Map<String, String> devices,
+  ) async {
+    final id = start(devices, source: flow);
+    try {
+      final result = await maestro.run(
+        flowYaml: flow,
+        deviceIds: devices.keys.toList(),
+        onLine: (device, line) => appendLine(
+          id,
+          devices.length > 1 && line.isNotEmpty
+              ? '[${devices[device]}] $line'
+              : line,
+        ),
+        onStep: (device, step, {required passed}) =>
+            stepDone(id, device, step, passed: passed),
+      );
+      for (final device in devices.keys) {
+        final r = result.deviceFor(device);
+        setDevice(
+          id,
+          device,
+          status: r == null
+              ? (isStopped(id) ? ScenarioStatus.stopped : ScenarioStatus.failed)
+              : (r.passed ? ScenarioStatus.ok : ScenarioStatus.failed),
+          seconds: r?.seconds,
+          error: r?.error ?? (isStopped(id) ? null : 'No result from Maestro'),
+        );
+      }
+      return result;
+    } catch (e) {
+      failAll(id, '$e');
+      rethrow;
+    }
+  }
 
   /// Marks every still-running device of run [id] as failed with [error]
   /// (e.g. Maestro missing, or the process died before reporting).

@@ -28,13 +28,14 @@ class ScenariosPanel extends StatefulWidget {
 }
 
 class _ScenariosPanelState extends State<ScenariosPanel> {
-  final _text = ScenarioSyntaxController(text: scenarioTemplate);
   final _runs = getIt<ScenarioRunsCubit>();
   final _maestro = getIt<MaestroRunner>();
   final _streams = getIt<StreamsCubit>();
+  late final _text = ScenarioSyntaxController(
+    text: scenarioTemplate(_targetOs),
+  );
 
   bool _running = false;
-  int? _runId;
   String? _error;
   String? _file;
 
@@ -62,6 +63,26 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
       for (final d in available)
         if (_selectedIds.contains(d.id)) d,
     ];
+  }
+
+  /// iOS when every target is iOS, else Android: picks the template.
+  DeviceOs get _targetOs {
+    final targets = _targets;
+    return targets.isNotEmpty && targets.every((d) => d.os == DeviceOs.ios)
+        ? DeviceOs.ios
+        : DeviceOs.android;
+  }
+
+  /// Swaps an unedited template for the targets' platform's one.
+  void _syncTemplate() {
+    final want = scenarioTemplate(_targetOs);
+    if (_text.text == want) return;
+    if (!DeviceOs.values.any((os) => _text.text == scenarioTemplate(os))) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _text.text = want;
+    });
   }
 
   void _selectAll() => setState(() {
@@ -129,223 +150,209 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
       _running = true;
       _error = null;
     });
-    final runId = _runs.start({
-      for (final d in devices) d.id: d.name,
-    }, source: _text.text);
-    setState(() => _runId = runId);
     try {
-      final result = await _maestro.run(
-        flowYaml: _text.text,
-        deviceIds: [for (final d in devices) d.id],
-        onLine: (l) => _runs.appendLine(runId, l),
-      );
-      // A stopped run's killed process reports no shards; mark the devices
-      // that never finished as stopped rather than failed.
-      final stopped = _runs.isStopped(runId);
-      for (var i = 0; i < devices.length; i++) {
-        final shard = result.shardFor(devices[i].id, i);
-        _runs.setDevice(
-          runId,
-          devices[i].id,
-          status: shard != null
-              ? (shard.passed ? ScenarioStatus.ok : ScenarioStatus.failed)
-              : (stopped ? ScenarioStatus.stopped : ScenarioStatus.failed),
-          seconds: shard?.seconds,
-          error: shard != null
-              ? (shard.passed ? null : 'Flow failed')
-              : (stopped ? null : 'No result from Maestro'),
-        );
-      }
+      await _runs.runFlow(_maestro, _text.text, {
+        for (final d in devices) d.id: d.name,
+      });
     } on MaestroNotInstalled catch (e) {
-      _runs.failAll(runId, e.message);
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
-      _runs.failAll(runId, '$e');
       if (mounted) setState(() => _error = '$e');
     } finally {
       if (mounted) setState(() => _running = false);
     }
   }
 
-  void _stop() {
-    _maestro.stop();
-    if (_runId case final id?) _runs.stop(id);
+  /// Each step's status across the run's devices, keyed by its line.
+  Map<int, LineMark> _marks(ScenarioRun run) => {
+    for (final (step, line) in flowStepLines(run.source).indexed)
+      line: ?_mark(run, step),
+  };
+
+  /// Failed if [step] failed on any device, running if it runs on any,
+  /// passed once it passed on all; null before it starts.
+  LineMark? _mark(ScenarioRun run, int step) {
+    final many = run.devices.length > 1;
+    List<ScenarioDeviceRun> on(ScenarioStatus s) => [
+      for (final d in run.devices)
+        if (d.stepStatus(step) == s) d,
+    ];
+    final failed = on(ScenarioStatus.failed);
+    if (failed.isNotEmpty) {
+      return (
+        status: ScenarioStatus.failed,
+        message: [
+          for (final d in failed)
+            many ? '${d.name}: ${d.error ?? 'Failed'}' : d.error ?? 'Failed',
+        ].join('\n'),
+      );
+    }
+    final running = on(ScenarioStatus.running);
+    if (running.isNotEmpty) {
+      return (
+        status: ScenarioStatus.running,
+        message: many
+            ? 'Running on ${running.map((d) => d.name).join(', ')}'
+            : 'Running',
+      );
+    }
+    if (on(ScenarioStatus.ok).length == run.devices.length) {
+      return (status: ScenarioStatus.ok, message: 'Passed');
+    }
+    return null;
   }
+
+  /// Stops [run], also one an agent started over MCP.
+  void _stop(ScenarioRun? run) {
+    _maestro.stop();
+    if (run != null) _runs.stop(run.id);
+  }
+
+  void _reset() => setState(() {
+    _text.text = scenarioTemplate(_targetOs);
+    _file = null;
+    _error = null;
+  });
 
   @override
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
-    return Container(
-      color: t.sidebar,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Header(onClose: widget.onClose),
-          BlocSignalBuilder<StreamsCubit, StreamsState>(
-            bloc: _streams,
-            builder: (context, _) {
-              final available = _available;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                    child: _Toolbar(
-                      running: _running,
-                      fileName: _file,
-                      targetCount: _targets.length,
-                      onRun: _run,
-                      onStop: _stop,
-                      onOpen: _open,
-                      onLoadSample: _running ? null : _loadSample,
-                      onReset: _running
-                          ? null
-                          : () => setState(() {
-                              _text.text = scenarioTemplate;
-                              _file = null;
-                            }),
-                    ),
+    return BlocSignalBuilder<ScenarioRunsCubit, List<ScenarioRun>>(
+      bloc: _runs,
+      builder: (context, runs) {
+        final run = runs.firstOrNull;
+        // A run an agent started over MCP shows here too.
+        final latest = runs.firstOrNull;
+        final running = _running || latest?.status == ScenarioStatus.running;
+        return Container(
+          decoration: BoxDecoration(
+            color: t.sidebar,
+            border: Border(left: BorderSide(color: t.border)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _StudioHeader(
+                file: _file,
+                running: running,
+                onOpen: _open,
+                onLoadSample: _loadSample,
+                onReset: _reset,
+                onRun: _run,
+                onStop: () => _stop(running && !_running ? latest : run),
+                onClose: widget.onClose,
+              ),
+              BlocSignalBuilder<StreamsCubit, StreamsState>(
+                bloc: _streams,
+                builder: (context, _) {
+                  _syncTemplate();
+                  return _DeviceSelector(
+                    devices: _available,
+                    allDevices: _allDevices,
+                    selectedIds: _selectedIds,
+                    enabled: !running,
+                    onSelectAll: _selectAll,
+                    onToggleDevice: _toggleDevice,
+                  );
+                },
+              ),
+              if (run != null) _RunSummary(run: run),
+              Expanded(
+                flex: 3,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: ScenarioCodeEditor(
+                    controller: _text,
+                    readOnly: running,
+                    // Statuses map to lines only while the text is what ran.
+                    marks: run != null && run.source == _text.text
+                        ? _marks(run)
+                        : const {},
                   ),
-                  if (available.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                      child: _DeviceSelector(
-                        devices: available,
-                        allDevices: _allDevices,
-                        selectedIds: _selectedIds,
-                        enabled: !_running,
-                        onSelectAll: _selectAll,
-                        onToggleDevice: _toggleDevice,
-                      ),
-                    ),
-                ],
-              );
-            },
+                ),
+              ),
+              if (run != null)
+                Expanded(flex: 2, child: _Output(lines: run.lines)),
+              _Problems(
+                error: _error,
+                onClear: () => setState(() => _error = null),
+              ),
+            ],
           ),
-          if (_error case final error?)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: _Banner(message: error),
-            ),
-          Expanded(
-            flex: 3,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-              child: ScenarioCodeEditor(controller: _text, readOnly: _running),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: BlocSignalBuilder<ScenarioRunsCubit, List<ScenarioRun>>(
-              bloc: _runs,
-              builder: (context, runs) {
-                final run = _runId == null
-                    ? runs.firstOrNull
-                    : runs.where((r) => r.id == _runId).firstOrNull;
-                return _Results(run: run);
-              },
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.onClose});
+/// Title, the open file, and the studio's actions: open, samples, reset,
+/// Run / Stop, close.
+class _StudioHeader extends StatelessWidget {
+  const _StudioHeader({
+    required this.file,
+    required this.running,
+    required this.onOpen,
+    required this.onLoadSample,
+    required this.onReset,
+    required this.onRun,
+    required this.onStop,
+    required this.onClose,
+  });
 
+  final String? file;
+  final bool running;
+  final VoidCallback onOpen;
+  final void Function(ScenarioSample sample) onLoadSample;
+  final VoidCallback onReset;
+  final VoidCallback onRun;
+  final VoidCallback onStop;
   final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 8, 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Scenarios', style: t.title),
-                Text(
-                  'Maestro flows, run in parallel',
-                  style: t.caption.copyWith(color: t.textFaint),
-                ),
-              ],
+    return SizedBox(
+      height: 52,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            Text('Scenario', style: t.title),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                file ?? 'Maestro flow',
+                style: t.caption,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-          SimuIconButton(
-            icon: LucideIcons.x,
-            tooltip: 'Close',
-            onPressed: onClose,
-          ),
-        ],
+            SimuIconButton(
+              icon: LucideIcons.folderOpen,
+              tooltip: 'Open a .yaml flow',
+              onPressed: running ? null : onOpen,
+            ),
+            _SamplesMenu(onLoadSample: running ? null : onLoadSample),
+            SimuIconButton(
+              icon: LucideIcons.rotateCcw,
+              tooltip: 'Reset to the template',
+              onPressed: running ? null : onReset,
+            ),
+            const SizedBox(width: 4),
+            SimuButton(
+              label: running ? 'Stop' : 'Run',
+              icon: running ? LucideIcons.square : LucideIcons.play,
+              primary: true,
+              onPressed: running ? onStop : onRun,
+            ),
+            const SizedBox(width: 4),
+            SimuIconButton(
+              icon: LucideIcons.x,
+              tooltip: 'Hide scenario',
+              onPressed: onClose,
+            ),
+          ],
+        ),
       ),
-    );
-  }
-}
-
-class _Toolbar extends StatelessWidget {
-  const _Toolbar({
-    required this.running,
-    required this.fileName,
-    required this.targetCount,
-    required this.onRun,
-    required this.onStop,
-    required this.onOpen,
-    required this.onLoadSample,
-    required this.onReset,
-  });
-
-  final bool running;
-  final String? fileName;
-  final int targetCount;
-  final VoidCallback onRun;
-  final VoidCallback onStop;
-  final VoidCallback onOpen;
-  final void Function(ScenarioSample sample)? onLoadSample;
-  final VoidCallback? onReset;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = SimuTokens.of(context);
-    return Row(
-      children: [
-        if (running)
-          SimuButton(label: 'Stop', icon: LucideIcons.square, onPressed: onStop)
-        else
-          SimuButton(
-            label: 'Run',
-            icon: LucideIcons.play,
-            primary: true,
-            onPressed: onRun,
-          ),
-        const SizedBox(width: 6),
-        SimuIconButton(
-          icon: LucideIcons.folderOpen,
-          tooltip: 'Open a .yaml flow',
-          size: 15,
-          onPressed: running ? null : onOpen,
-        ),
-        _SamplesMenu(onLoadSample: onLoadSample),
-        SimuIconButton(
-          icon: LucideIcons.rotateCcw,
-          tooltip: 'Reset to the template',
-          size: 15,
-          onPressed: onReset,
-        ),
-        const Spacer(),
-        Text(
-          running
-              ? 'Running…'
-              : '$targetCount device${targetCount == 1 ? '' : 's'}',
-          style: t.caption.copyWith(color: t.textFaint),
-        ),
-      ],
     );
   }
 }
@@ -363,7 +370,14 @@ class _SamplesMenu extends StatelessWidget {
       menuChildren: [
         for (final sample in scenarioSamples)
           MenuItemButton(
-            leadingIcon: Icon(LucideIcons.fileCode, size: 14, color: t.accent),
+            leadingIcon: SimuStatusDot(
+              color: sample.os == DeviceOs.ios ? t.apple : t.android,
+              size: 6,
+            ),
+            trailingIcon: Text(
+              sample.os.label,
+              style: t.mono.copyWith(color: t.textFaint),
+            ),
             onPressed: onLoadSample == null
                 ? null
                 : () => onLoadSample!(sample),
@@ -373,7 +387,6 @@ class _SamplesMenu extends StatelessWidget {
       builder: (context, controller, _) => SimuIconButton(
         icon: LucideIcons.sparkles,
         tooltip: 'Load a sample flow',
-        size: 15,
         onPressed: onLoadSample == null
             ? null
             : () => controller.isOpen ? controller.close() : controller.open(),
@@ -382,112 +395,8 @@ class _SamplesMenu extends StatelessWidget {
   }
 }
 
-class _Banner extends StatelessWidget {
-  const _Banner({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = SimuTokens.of(context);
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: t.danger.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(SimuTokens.radiusSmall),
-        border: Border.all(color: t.danger.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        message,
-        style: t.caption.copyWith(color: t.danger),
-      ),
-    );
-  }
-}
-
-/// The latest run's per-device outcome and Maestro's live log.
-class _Results extends StatelessWidget {
-  const _Results({required this.run});
-
-  final ScenarioRun? run;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = SimuTokens.of(context);
-    if (run == null) {
-      return Center(
-        child: Text(
-          'Run a flow to see results',
-          style: t.caption.copyWith(color: t.textFaint),
-        ),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          height: 1,
-          color: t.border,
-          margin: const EdgeInsets.only(bottom: 8),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final d in run!.devices) _DevicePill(device: d),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: t.page,
-              borderRadius: BorderRadius.circular(SimuTokens.radiusSmall),
-              border: Border.all(color: t.border),
-            ),
-            child: SingleChildScrollView(
-              reverse: true,
-              child: SelectableText(
-                run!.lines.isEmpty ? '…' : run!.lines.join('\n'),
-                style: t.mono.copyWith(fontSize: 10.5, color: t.textMuted),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DevicePill extends StatelessWidget {
-  const _DevicePill({required this.device});
-
-  final ScenarioDeviceRun device;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = SimuTokens.of(context);
-    final (label, color) = switch (device.status) {
-      ScenarioStatus.running => ('running', t.accent),
-      ScenarioStatus.ok => (
-        device.seconds == null ? 'passed' : 'passed ${device.seconds}s',
-        t.success,
-      ),
-      ScenarioStatus.failed => ('failed', t.danger),
-      ScenarioStatus.stopped => ('stopped', t.textFaint),
-    };
-    final pill = SimuStatusPill(label: '${device.name} · $label', color: color);
-    return device.error == null ? pill : Tooltip(message: device.error!, child: pill);
-  }
-}
-
-/// Picks which streamed devices the flow runs on: an "All devices" chip plus
-/// one chip per device. "All" follows the streamed devices as they come and go;
+/// Picks which streamed devices the flow runs on: an "All" chip plus one
+/// chip per device. "All" follows the streamed devices as they come and go;
 /// picking a device switches to an explicit selection.
 class _DeviceSelector extends StatelessWidget {
   const _DeviceSelector({
@@ -508,28 +417,45 @@ class _DeviceSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        _DeviceChip(
-          label: 'All devices',
-          icon: LucideIcons.layoutGrid,
-          selected: allDevices,
-          enabled: enabled,
-          onTap: onSelectAll,
-        ),
-        for (final d in devices)
-          _DeviceChip(
-            label: d.name,
-            dotColor: d.os == DeviceOs.android
-                ? SimuTokens.of(context).android
-                : SimuTokens.of(context).apple,
-            selected: allDevices || selectedIds.contains(d.id),
-            enabled: enabled,
-            onTap: () => onToggleDevice(d.id),
+    final t = SimuTokens.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 12, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 6, right: 10),
+            child: Text('RUN ON', style: t.overline),
           ),
-      ],
+          Expanded(
+            child: devices.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text('Stream a device to run on', style: t.caption),
+                  )
+                : Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      _DeviceChip(
+                        label: 'All',
+                        selected: allDevices,
+                        enabled: enabled,
+                        onTap: onSelectAll,
+                      ),
+                      for (final d in devices)
+                        _DeviceChip(
+                          label: d.name,
+                          dot: d.os == DeviceOs.android ? t.android : t.apple,
+                          selected: allDevices || selectedIds.contains(d.id),
+                          enabled: enabled,
+                          onTap: () => onToggleDevice(d.id),
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -540,57 +466,272 @@ class _DeviceChip extends StatelessWidget {
     required this.selected,
     required this.enabled,
     required this.onTap,
-    this.icon,
-    this.dotColor,
+    this.dot,
   });
 
   final String label;
   final bool selected;
   final bool enabled;
   final VoidCallback onTap;
-  final IconData? icon;
-  final Color? dotColor;
+
+  /// Platform color; none for "All".
+  final Color? dot;
 
   @override
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
     return SimuHoverable(
       onTap: enabled ? onTap : null,
-      builder: (context, hovered) {
-        final fg = selected
-            ? t.accent
-            : (enabled ? t.textMuted : t.textFaint);
-        return AnimatedContainer(
+      builder: (context, hovered) => AnimatedOpacity(
+        duration: SimuTokens.motion,
+        opacity: enabled ? 1 : 0.5,
+        child: AnimatedContainer(
           duration: SimuTokens.motion,
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          height: 26,
+          padding: const EdgeInsets.symmetric(horizontal: 9),
           decoration: BoxDecoration(
             color: selected
                 ? t.accent.withValues(alpha: 0.14)
-                : (hovered && enabled ? t.hover : Colors.transparent),
+                : hovered && enabled
+                ? t.hover
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: selected ? t.accent : t.border),
+            border: Border.all(color: selected ? Colors.transparent : t.border),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (selected)
-                Icon(LucideIcons.check, size: 12, color: fg)
-              else if (icon != null)
-                Icon(icon, size: 12, color: fg)
-              else if (dotColor != null)
-                SimuStatusDot(color: dotColor!, size: 6),
-              const SizedBox(width: 5),
+              if (dot case final dot?) ...[
+                SimuStatusDot(color: dot, size: 6),
+                const SizedBox(width: 6),
+              ],
               Text(
                 label,
                 style: t.caption.copyWith(
-                  color: fg,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: selected ? t.accent : t.textMuted,
+                  fontWeight: selected ? FontWeight.w600 : null,
                 ),
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+}
+
+/// The run on one line: status, when, how many devices passed, failed,
+/// stopped or still run; expands to each device and its time.
+class _RunSummary extends StatefulWidget {
+  const _RunSummary({required this.run});
+
+  final ScenarioRun run;
+
+  @override
+  State<_RunSummary> createState() => _RunSummaryState();
+}
+
+class _RunSummaryState extends State<_RunSummary> {
+  var _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SimuTokens.of(context);
+    final run = widget.run;
+    final time = TimeOfDay.fromDateTime(run.startedAt).format(context);
+    int count(ScenarioStatus s) =>
+        run.devices.where((d) => d.status == s).length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 8, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ScenarioStatusIcon(status: run.status, size: 13),
+              const SizedBox(width: 6),
+              Text('Run #${run.id + 1} · $time', style: t.caption),
+              const SizedBox(width: 10),
+              for (final s in ScenarioStatus.values)
+                if (count(s) > 0) _CountChip(status: s, count: count(s)),
+              const Spacer(),
+              SimuIconButton(
+                icon: _expanded
+                    ? LucideIcons.chevronUp
+                    : LucideIcons.chevronDown,
+                tooltip: _expanded ? 'Hide devices' : 'Show devices',
+                size: 14,
+                onPressed: () => setState(() => _expanded = !_expanded),
+              ),
+            ],
+          ),
+          if (_expanded) _DeviceList(devices: run.devices),
+        ],
+      ),
+    );
+  }
+}
+
+/// How many devices are in [status], beside its icon.
+class _CountChip extends StatelessWidget {
+  const _CountChip({required this.status, required this.count});
+
+  final ScenarioStatus status;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SimuTokens.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ScenarioStatusIcon(status: status, size: 11),
+          const SizedBox(width: 3),
+          Text('$count', style: t.caption),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeviceList extends StatelessWidget {
+  const _DeviceList({required this.devices});
+
+  final List<ScenarioDeviceRun> devices;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SimuTokens.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 4,
+        children: [
+          for (final d in devices)
+            Tooltip(
+              message: d.error ?? '',
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ScenarioStatusIcon(status: d.status, size: 11),
+                  const SizedBox(width: 4),
+                  Text(
+                    d.seconds == null ? d.name : '${d.name} · ${d.seconds} s',
+                    style: t.caption,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Maestro's live output for the run.
+class _Output extends StatelessWidget {
+  const _Output({required this.lines});
+
+  final List<String> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SimuTokens.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 6),
+          child: Text('OUTPUT', style: t.overline),
+        ),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: t.raised,
+              borderRadius: BorderRadius.circular(SimuTokens.radius),
+              border: Border.all(color: t.border),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              reverse: true,
+              padding: const EdgeInsets.all(10),
+              child: SelectableText(
+                lines.isEmpty ? 'Waiting for Maestro…' : lines.join('\n'),
+                style: t.mono.copyWith(
+                  fontSize: 11,
+                  height: 1.45,
+                  color: lines.isEmpty ? t.textFaint : t.textMuted,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The last error (an empty flow, no device, Maestro missing or failing).
+class _Problems extends StatelessWidget {
+  const _Problems({required this.error, required this.onClear});
+
+  final String? error;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SimuTokens.of(context);
+    final error = this.error;
+    if (error == null) return const SizedBox(height: 12);
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 160),
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: t.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(SimuTokens.radius),
+        border: Border.all(color: t.danger.withValues(alpha: 0.4)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('Problems', style: t.label.copyWith(color: t.danger)),
+                const Spacer(),
+                SimuHoverable(
+                  onTap: onClear,
+                  builder: (context, hovered) => Text(
+                    'Clear',
+                    style: t.caption.copyWith(
+                      color: hovered ? t.text : t.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(LucideIcons.circleX, size: 14, color: t.danger),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    error,
+                    style: t.caption.copyWith(color: t.danger),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

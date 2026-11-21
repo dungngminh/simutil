@@ -12,7 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scenarios now run [Maestro](https://maestro.dev) flows instead of the
   built-in step format: pick which streamed devices to run on (or all of them)
   and the same flow runs on them at once, in parallel. A Samples menu loads
-  ready-made example flows. Needs the Maestro CLI installed.
+  ready-made example flows for Android and iOS, and the starting flow
+  matches the devices you stream. While a flow runs, each step shows beside
+  its line whether it is running, passed or failed (hover a failure for the
+  reason, per device). Needs the Maestro CLI installed.
 
 ## [0.6.1] - 2026-11-21
 

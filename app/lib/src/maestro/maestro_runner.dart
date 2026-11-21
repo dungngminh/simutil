@@ -2,75 +2,54 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// One shard's outcome in a Maestro run (one shard runs on one device when
-/// `--shard-all <deviceCount>` is used, so a shard maps to a device).
-class MaestroShard {
-  const MaestroShard({
-    required this.shard,
-    required this.device,
+/// One device's outcome in a Maestro run.
+class MaestroDeviceResult {
+  const MaestroDeviceResult({
+    required this.deviceId,
     required this.passed,
-    required this.flow,
     required this.seconds,
+    this.error,
   });
 
-  /// 1-based shard index as Maestro prints it.
-  final int shard;
+  final String deviceId;
 
-  /// The device this shard ran on, when Maestro named it; else empty.
-  final String device;
-
-  /// Whether the shard's flow passed.
+  /// Whether the flow passed on this device.
   final bool passed;
 
-  /// The flow name Maestro reported.
-  final String flow;
-
-  /// How long the flow took, in seconds.
+  /// How long the flow took on this device, in seconds.
   final int seconds;
 
+  /// The first failure Maestro reported, e.g.
+  /// `Assertion is false: "Settings" is visible`.
+  final String? error;
+
   Map<String, Object?> toJson() => {
-    'shard': shard,
-    if (device.isNotEmpty) 'device': device,
-    'flow': flow,
+    'device': deviceId,
     'passed': passed,
     'seconds': seconds,
+    'error': ?error,
   };
 }
 
-/// The result of a whole `maestro test` run.
+/// The result of running a flow on every device.
 class MaestroRunResult {
-  const MaestroRunResult({
-    required this.ok,
-    required this.passed,
-    required this.total,
-    required this.shards,
-    required this.output,
-  });
+  const MaestroRunResult({required this.devices, required this.output});
 
-  /// Every flow across every device passed.
-  final bool ok;
+  /// Per-device outcomes, in the run's device order; empty when stopped
+  /// before any device started.
+  final List<MaestroDeviceResult> devices;
 
-  /// Flows that passed / flows run, from Maestro's summary.
-  final int passed;
-  final int total;
-
-  /// Per-shard (per-device) outcomes.
-  final List<MaestroShard> shards;
-
-  /// The combined stdout/stderr, for debugging.
+  /// Every device's output, for debugging.
   final String output;
 
-  /// The shard outcome for the device [deviceId] that ran at [index] in the
-  /// run's device order. Matches by the device Maestro named first, then falls
-  /// back to the 1-based shard number ([index] + 1). Returns null when no shard
-  /// matches, since [shards] is compacted and sorted — a missing shard would
-  /// otherwise make positional lookups return another device's result.
-  MaestroShard? shardFor(String deviceId, int index) {
-    for (final s in shards) {
-      if (s.device.isNotEmpty && s.device == deviceId) return s;
-    }
-    for (final s in shards) {
-      if (s.shard == index + 1) return s;
+  int get passed => devices.where((d) => d.passed).length;
+  int get total => devices.length;
+  bool get ok => devices.isNotEmpty && devices.every((d) => d.passed);
+
+  /// [deviceId]'s outcome, or null when it never finished.
+  MaestroDeviceResult? deviceFor(String deviceId) {
+    for (final d in devices) {
+      if (d.deviceId == deviceId) return d;
     }
     return null;
   }
@@ -79,7 +58,7 @@ class MaestroRunResult {
     'ok': ok,
     'passed': passed,
     'total': total,
-    'shards': [for (final s in shards) s.toJson()],
+    'devices': [for (final d in devices) d.toJson()],
   };
 }
 
@@ -91,14 +70,15 @@ class MaestroNotInstalled implements Exception {
   String toString() => message;
 }
 
-/// Runs Maestro flows on one or more devices through the `maestro` CLI,
-/// in parallel via `--shard-all`. Spawns a long-running process, so it uses
-/// [Process.start] rather than `CommandExec`.
+/// Runs Maestro flows on one or more devices through the `maestro` CLI: one
+/// `maestro test` per device, all at once, so each device reports its steps
+/// live. Spawns long-running processes, so it uses [Process.start] rather
+/// than `CommandExec`.
 class MaestroRunner {
   MaestroRunner({String? binary}) : _binary = binary ?? resolveBinary();
 
   final String _binary;
-  Process? _process;
+  final _processes = <Process>{};
 
   /// Held for the whole of a [run], from before the first `await` until its
   /// `finally`, so overlapping runs are rejected even while the CLI is probed.
@@ -138,9 +118,7 @@ class MaestroRunner {
       ], environment: _env);
       if (result.exitCode != 0) return null;
       // The first non-banner line that looks like a version.
-      final match = RegExp(
-        r'\d+\.\d+\.\d+',
-      ).firstMatch('${result.stdout}');
+      final match = RegExp(r'\d+\.\d+\.\d+').firstMatch('${result.stdout}');
       return match?.group(0);
     } catch (_) {
       return null;
@@ -149,25 +127,27 @@ class MaestroRunner {
 
   Future<bool> isAvailable() async => (await version()) != null;
 
-  static final _shardLine = RegExp(
-    r'\[shard (\d+)\] \[(Passed|Failed)\] (\S+) \((\d+)s\)',
-  );
-  static final _runningOn = RegExp(r'\[shard (\d+)\].*Running on (.+)$');
-  static final _summary = RegExp(r'Passed:\s*(\d+)\s*/\s*(\d+)');
-
   Map<String, String> get _env => {
     ...Platform.environment,
     'MAESTRO_CLI_NO_ANALYTICS': '1',
   };
 
-  /// Runs [flowYaml] on [deviceIds] in parallel — one shard per device, so
-  /// the same flow runs on every device at once. [onLine] receives each
-  /// output line as it arrives (for live progress). Throws
-  /// [MaestroNotInstalled] when the CLI is missing.
+  /// A top-level command's result line, e.g. `Tap on "General"... COMPLETED`.
+  /// Nested commands (inside repeat, runFlow, …) are indented and skipped,
+  /// so the Nth match is the flow's Nth top-level command.
+  static final _stepLine = RegExp(
+    r'^\S.*\.\.\. (COMPLETED|FAILED|SKIPPED|WARNED)$',
+  );
+
+  /// Runs [flowYaml] on [deviceIds] at once, one `maestro test` each.
+  /// [onLine] gets each device's output lines as they arrive; [onStep] gets
+  /// each top-level command's result (its 0-based index and whether it
+  /// passed). Throws [MaestroNotInstalled] when the CLI is missing.
   Future<MaestroRunResult> run({
     required String flowYaml,
     required List<String> deviceIds,
-    void Function(String line)? onLine,
+    void Function(String deviceId, String line)? onLine,
+    void Function(String deviceId, int step, {required bool passed})? onStep,
   }) async {
     if (deviceIds.isEmpty) {
       throw ArgumentError('No devices to run on');
@@ -181,102 +161,32 @@ class MaestroRunner {
     _busy = true;
     _canceled = false;
 
-    Process? proc;
     Directory? dir;
     try {
       if (!await isAvailable()) throw const MaestroNotInstalled(installHint);
-      if (_canceled) return _stoppedResult(deviceIds);
+      if (_canceled) return _stopped;
 
       dir = await Directory.systemTemp.createTemp('simutil-maestro-');
-      final flows = Directory('${dir.path}/flows')..createSync();
-      File('${flows.path}/flow.yaml').writeAsStringSync(flowYaml);
-
-      final args = [
-        '--device',
-        deviceIds.join(','),
-        'test',
-        '--shard-all',
-        '${deviceIds.length}',
-        flows.path,
-      ];
-      if (_canceled) return _stoppedResult(deviceIds);
-      final process = await Process.start(_binary, args, environment: _env);
-      proc = process;
-      _process = process;
-      // A stop that landed while the process was starting still needs to kill
-      // it, since stop() saw no `_process` yet.
-      if (_canceled) {
-        process.kill();
-        return _stoppedResult(deviceIds);
-      }
-
+      final flow = File('${dir.path}/flow.yaml')..writeAsStringSync(flowYaml);
       final output = StringBuffer();
-      final shardDevice = <int, String>{};
-      final shards = <int, MaestroShard>{};
-      int? passed, total;
-
-      void handle(String line) {
-        output.writeln(line);
-        onLine?.call(line);
-        if (_runningOn.firstMatch(line) case final r?) {
-          shardDevice[int.parse(r.group(1)!)] = r.group(2)!.trim();
-        }
-        if (_shardLine.firstMatch(line) case final m?) {
-          final shard = int.parse(m.group(1)!);
-          shards[shard] = MaestroShard(
-            shard: shard,
-            device: shardDevice[shard] ?? '',
-            passed: m.group(2) == 'Passed',
-            flow: m.group(3)!,
-            seconds: int.parse(m.group(4)!),
-          );
-        }
-        if (_summary.firstMatch(line) case final s?) {
-          passed = int.parse(s.group(1)!);
-          total = int.parse(s.group(2)!);
-        }
-      }
-
-      // Drain both streams to completion before reading the exit code:
-      // `exitCode` can complete before stdout/stderr deliver their last lines,
-      // which are the per-shard results and the `Passed: x/y` summary. Decode
-      // leniently so a stray non-UTF-8 byte from the JVM can't abort the read.
-      const decoder = Utf8Decoder(allowMalformed: true);
-      final outDone = process.stdout
-          .transform(decoder)
-          .transform(const LineSplitter())
-          .listen(handle)
-          .asFuture<void>();
-      final errDone = process.stderr
-          .transform(decoder)
-          .transform(const LineSplitter())
-          .listen(handle)
-          .asFuture<void>();
-      try {
-        await Future.wait([outDone, errDone]);
-      } catch (_) {
-        // If reading the output fails, kill the process so it isn't orphaned
-        // (the `finally` clears `_process`, leaving nothing to stop it).
-        process.kill();
-        rethrow;
-      }
-      final code = await process.exitCode;
-
-      final shardList = shards.values.toList()
-        ..sort((a, b) => a.shard.compareTo(b.shard));
-      final ran = total ?? deviceIds.length;
-      final ok = code == 0 && (passed ?? 0) == ran && shardList.every((s) => s.passed);
+      final results = await Future.wait([
+        for (final id in deviceIds)
+          _runOn(
+            id,
+            flow.path,
+            onLine: (line) {
+              output.writeln(line);
+              onLine?.call(id, line);
+            },
+            onStep: (step, {required passed}) =>
+                onStep?.call(id, step, passed: passed),
+          ),
+      ]);
       return MaestroRunResult(
-        ok: ok,
-        passed: passed ?? shardList.where((s) => s.passed).length,
-        total: ran,
-        shards: shardList,
+        devices: [for (final r in results) ?r],
         output: output.toString(),
       );
     } finally {
-      // Only the run that owns the shared handle clears it, so a later run's
-      // process is never dropped by an earlier run finishing.
-      if (identical(_process, proc)) _process = null;
       _busy = false;
       if (dir != null) {
         try {
@@ -286,22 +196,84 @@ class MaestroRunner {
     }
   }
 
-  /// An empty result for a run that was stopped before (or as) it started, so
-  /// callers mark the devices stopped rather than failed.
-  MaestroRunResult _stoppedResult(List<String> deviceIds) => MaestroRunResult(
-    ok: false,
-    passed: 0,
-    total: deviceIds.length,
-    shards: const [],
-    output: '',
-  );
+  /// One device's `maestro test`; null when stopped before it started.
+  Future<MaestroDeviceResult?> _runOn(
+    String deviceId,
+    String flowPath, {
+    required void Function(String line) onLine,
+    required void Function(int step, {required bool passed}) onStep,
+  }) async {
+    if (_canceled) return null;
+    final clock = Stopwatch()..start();
+    final process = await Process.start(_binary, [
+      '--device',
+      deviceId,
+      'test',
+      '--no-ansi',
+      flowPath,
+    ], environment: _env);
+    _processes.add(process);
+    try {
+      // A stop that landed while the process was starting still needs to
+      // kill it, since stop() did not see it yet.
+      if (_canceled) {
+        process.kill();
+        return null;
+      }
+      var step = 0;
+      var awaitingError = false;
+      String? error;
+      void handle(String line) {
+        onLine(line);
+        if (awaitingError && line.trim().isNotEmpty) {
+          error = line.trim();
+          awaitingError = false;
+        }
+        if (_stepLine.firstMatch(line) case final m?) {
+          final failed = m.group(1) == 'FAILED';
+          onStep(step++, passed: !failed);
+          if (failed && error == null) awaitingError = true;
+        }
+      }
 
-  /// Stops the running `maestro test`. Sets the cancel flag so a launch still
-  /// in its `await`s is abandoned, and kills the process once one exists. The
-  /// owning [run] clears `_process`/`_busy` in its `finally`.
+      // Drain both streams before reading the exit code, which can complete
+      // before the last lines arrive. Decode leniently so a stray non-UTF-8
+      // byte from the JVM can't abort the read.
+      const decoder = Utf8Decoder(allowMalformed: true);
+      Future<void> drain(Stream<List<int>> s) => s
+          .transform(decoder)
+          .transform(const LineSplitter())
+          .listen(handle)
+          .asFuture<void>();
+      try {
+        await Future.wait([drain(process.stdout), drain(process.stderr)]);
+      } catch (_) {
+        process.kill();
+        rethrow;
+      }
+      final code = await process.exitCode;
+      if (_canceled) return null;
+      return MaestroDeviceResult(
+        deviceId: deviceId,
+        passed: code == 0,
+        seconds: clock.elapsed.inSeconds,
+        error: code == 0 ? null : error ?? 'Maestro exited with code $code',
+      );
+    } finally {
+      _processes.remove(process);
+    }
+  }
+
+  static const _stopped = MaestroRunResult(devices: [], output: '');
+
+  /// Stops every running `maestro test`. Sets the cancel flag so a launch
+  /// still in its `await`s is abandoned. The owning [run] clears `_busy` in
+  /// its `finally`.
   void stop() {
     _canceled = true;
-    _process?.kill();
+    for (final p in _processes) {
+      p.kill();
+    }
   }
 
   /// Whether a run is in progress.
