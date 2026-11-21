@@ -243,7 +243,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           (cd dist && sha256sum -- * > checksums.txt && cat checksums.txt)
-          awk -v v="## [$VERSION]" 'index($0, v) == 1 {on=1; next} /^## \[/ {on=0} on' app/CHANGELOG.md > notes.md
+          # The changelog is hard-wrapped; GitHub renders each newline in a
+          # release body as a line break, so join wrapped lines first.
+          awk -v v="## [$VERSION]" 'index($0, v) == 1 {on=1; next} /^## \[/ {on=0} on' app/CHANGELOG.md \
+            | awk '/^ +[^ *+-]/ && buf != "" {sub(/^ +/, ""); buf = buf " " $0; next} {if (NR > 1) print buf; buf = $0} END {if (NR) print buf}' > notes.md
           echo >> notes.md
           .github/scripts/release-notes.sh "$GITHUB_REF_NAME" .github/release-app.yaml 'app-v*' >> notes.md
 
