@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ready-made example flows for Android and iOS, and the starting flow
   matches the devices you stream. While a flow runs, each step shows beside
   its line whether it is running, passed or failed (hover a failure for the
-  reason, per device). Pick a device under the run to see only its log and
-  its steps. Flows an agent runs show in the editor too. Needs the Maestro
+  reason, per device). The devices list (a button above the editor) picks
+  where to run, shows each device's step progress, and opens one device's
+  log and steps; the eraser button clears past results. Flows an agent runs show in the editor too. Needs the Maestro
   CLI installed.
 
 ## [0.6.1] - 2026-11-21

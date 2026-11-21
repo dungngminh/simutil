@@ -45,4 +45,13 @@ void main() {
     expect(run.devices[0].stepStatus(0), ScenarioStatus.ok);
     expect(run.devices[1].stepStatus(0), ScenarioStatus.failed);
   });
+
+  test('clear forgets finished runs and keeps running ones', () {
+    final runs = ScenarioRunsCubit();
+    final done = runs.start({'a': 'A'});
+    runs.setDevice(done, 'a', status: ScenarioStatus.ok);
+    final live = runs.start({'b': 'B'});
+    runs.clear();
+    expect(runs.stateValue.map((r) => r.id), [live]);
+  });
 }

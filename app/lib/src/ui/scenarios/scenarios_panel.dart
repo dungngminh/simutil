@@ -91,22 +91,24 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
     });
   }
 
-  void _selectAll() => setState(() {
-    _allDevices = true;
-    _selectedIds.clear();
-  });
-
+  /// Ticks or unticks [id] as a device to run on. Unticking one while
+  /// "all" is on keeps every other device; ticking the last one goes back
+  /// to "all", which follows devices as they come and go.
   void _toggleDevice(String id) => setState(() {
     if (_allDevices) {
-      // Leaving "all": start an explicit selection with just this device.
       _allDevices = false;
       _selectedIds
         ..clear()
-        ..add(id);
-    } else {
-      if (!_selectedIds.remove(id)) _selectedIds.add(id);
-      // Never get stuck with nothing selected.
-      if (_selectedIds.isEmpty) _allDevices = true;
+        ..addAll([
+          for (final d in _available)
+            if (d.id != id) d.id,
+        ]);
+    } else if (!_selectedIds.remove(id)) {
+      _selectedIds.add(id);
+    }
+    if (_available.every((d) => _selectedIds.contains(d.id))) {
+      _allDevices = true;
+      _selectedIds.clear();
     }
   });
 
@@ -273,22 +275,24 @@ class _ScenariosPanelState extends State<ScenariosPanel> {
                 bloc: _streams,
                 builder: (context, _) {
                   _syncTemplate();
-                  return _DeviceSelector(
+                  return _DeviceBar(
                     devices: _available,
-                    allDevices: _allDevices,
-                    selectedIds: _selectedIds,
-                    enabled: !running,
-                    onSelectAll: _selectAll,
-                    onToggleDevice: _toggleDevice,
+                    isTarget: (id) => _allDevices || _selectedIds.contains(id),
+                    run: run,
+                    steps: run == null ? 0 : flowStepLines(run.source).length,
+                    focused: focused,
+                    editable: !running,
+                    onToggle: _toggleDevice,
+                    onFocus: (id) => setState(() => _focus = id),
+                    onClear: running
+                        ? null
+                        : () => setState(() {
+                            _focus = null;
+                            _runs.clear();
+                          }),
                   );
                 },
               ),
-              if (run != null)
-                _RunSummary(
-                  run: run,
-                  focus: focused?.deviceId,
-                  onFocus: (id) => setState(() => _focus = id),
-                ),
               Expanded(
                 flex: 3,
                 child: Padding(
@@ -436,317 +440,417 @@ class _SamplesMenu extends StatelessWidget {
   }
 }
 
-/// Picks which streamed devices the flow runs on: an "All" chip plus one
-/// chip per device. "All" follows the streamed devices as they come and go;
-/// picking a device switches to an explicit selection.
-class _DeviceSelector extends StatelessWidget {
-  const _DeviceSelector({
+/// One line for devices and the run: a button naming who runs (or whose
+/// results show) that opens the device list, and the run's headline.
+class _DeviceBar extends StatelessWidget {
+  const _DeviceBar({
     required this.devices,
-    required this.allDevices,
-    required this.selectedIds,
-    required this.enabled,
-    required this.onSelectAll,
-    required this.onToggleDevice,
+    required this.isTarget,
+    required this.run,
+    required this.steps,
+    required this.focused,
+    required this.editable,
+    required this.onToggle,
+    required this.onFocus,
+    required this.onClear,
   });
 
+  /// Streamed, running devices the flow can run on.
   final List<Device> devices;
-  final bool allDevices;
-  final Set<String> selectedIds;
-  final bool enabled;
-  final VoidCallback onSelectAll;
-  final void Function(String id) onToggleDevice;
+  final bool Function(String id) isTarget;
+  final ScenarioRun? run;
+
+  /// How many top-level steps the run's flow has.
+  final int steps;
+
+  /// The device whose log and steps show; null for all.
+  final ScenarioDeviceRun? focused;
+
+  /// Whether the run targets can change (not while a flow runs).
+  final bool editable;
+  final void Function(String id) onToggle;
+  final ValueChanged<String?> onFocus;
+
+  /// Clears every finished run's results; null while one runs.
+  final VoidCallback? onClear;
 
   @override
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
+    final run = this.run;
+    final targets = devices.where((d) => isTarget(d.id)).length;
+    final passed = run?.devices
+        .where((d) => d.status == ScenarioStatus.ok)
+        .length;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 12, 10),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 6, right: 10),
-            child: Text('RUN ON', style: t.overline),
+          MenuAnchor(
+            style: MenuStyle(
+              backgroundColor: WidgetStatePropertyAll(t.panel),
+              surfaceTintColor: const WidgetStatePropertyAll(
+                Colors.transparent,
+              ),
+              padding: const WidgetStatePropertyAll(EdgeInsets.all(6)),
+              shape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(SimuTokens.radiusLarge),
+                  side: BorderSide(color: t.border),
+                ),
+              ),
+            ),
+            menuChildren: [
+              _DevicePopup(
+                devices: devices,
+                isTarget: isTarget,
+                run: run,
+                steps: steps,
+                focus: focused?.deviceId,
+                editable: editable,
+                onToggle: onToggle,
+                onFocus: onFocus,
+              ),
+            ],
+            builder: (context, controller, _) => _DeviceButton(
+              label: switch (focused) {
+                final d? => d.name,
+                null when devices.isEmpty => 'No devices',
+                null when targets == devices.length =>
+                  '${devices.length} device${devices.length == 1 ? '' : 's'}',
+                null => '$targets of ${devices.length} devices',
+              },
+              status: focused?.status,
+              open: controller.isOpen,
+              onTap: () =>
+                  controller.isOpen ? controller.close() : controller.open(),
+            ),
           ),
-          Expanded(
-            child: devices.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text('Stream a device to run on', style: t.caption),
-                  )
-                : Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: [
-                      _DeviceChip(
-                        label: 'All',
-                        selected: allDevices,
-                        enabled: enabled,
-                        onTap: onSelectAll,
-                      ),
-                      for (final d in devices)
-                        _DeviceChip(
-                          label: d.name,
-                          dot: d.os == DeviceOs.android ? t.android : t.apple,
-                          selected: allDevices || selectedIds.contains(d.id),
-                          enabled: enabled,
-                          onTap: () => onToggleDevice(d.id),
-                        ),
-                    ],
-                  ),
-          ),
+          if (focused != null)
+            SimuIconButton(
+              icon: LucideIcons.x,
+              tooltip: 'Show every device',
+              size: 13,
+              onPressed: () => onFocus(null),
+            ),
+          const Spacer(),
+          if (run != null) ...[
+            ScenarioStatusIcon(status: run.status, size: 13),
+            const SizedBox(width: 6),
+            Text('Run #${run.id + 1}', style: t.label),
+            const SizedBox(width: 6),
+            Text(
+              TimeOfDay.fromDateTime(run.startedAt).format(context),
+              style: t.caption,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$passed/${run.devices.length}',
+              style: t.mono.copyWith(color: t.textFaint),
+            ),
+            const SizedBox(width: 4),
+            SimuIconButton(
+              icon: LucideIcons.eraser,
+              tooltip: 'Clear results',
+              size: 14,
+              onPressed: onClear,
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// A device to run on, as a checkbox: outlined, with a tick when picked,
-/// so it reads as a choice rather than the run's results below.
-class _DeviceChip extends StatelessWidget {
-  const _DeviceChip({
+/// The bar's button: a phone icon (or the focused device's status), a
+/// label, and a chevron.
+class _DeviceButton extends StatelessWidget {
+  const _DeviceButton({
     required this.label,
-    required this.selected,
-    required this.enabled,
+    required this.open,
     required this.onTap,
-    this.dot,
+    this.status,
   });
 
   final String label;
-  final bool selected;
-  final bool enabled;
+  final bool open;
   final VoidCallback onTap;
-
-  /// Platform color; none for "All".
-  final Color? dot;
+  final ScenarioStatus? status;
 
   @override
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
     return SimuHoverable(
-      onTap: enabled ? onTap : null,
-      builder: (context, hovered) => AnimatedOpacity(
-        duration: SimuTokens.motion,
-        opacity: enabled ? 1 : 0.5,
-        child: AnimatedContainer(
-          duration: SimuTokens.motion,
-          height: 26,
-          padding: const EdgeInsets.only(left: 6, right: 9),
-          decoration: BoxDecoration(
-            color: hovered && enabled ? t.hover : Colors.transparent,
-            borderRadius: BorderRadius.circular(SimuTokens.radiusSmall),
-            border: Border.all(
-              color: selected ? t.accent.withValues(alpha: 0.5) : t.border,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                selected ? LucideIcons.squareCheck : LucideIcons.square,
-                size: 13,
-                color: selected ? t.accent : t.textFaint,
-              ),
-              const SizedBox(width: 6),
-              if (dot case final dot?) ...[
-                SimuStatusDot(color: dot, size: 6),
-                const SizedBox(width: 5),
-              ],
-              Text(
-                label,
-                style: t.caption.copyWith(
-                  color: selected ? t.text : t.textMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The run's headline (status, number, time, device counts) and, with
-/// several devices, a segmented control choosing whose log and step
-/// statuses show: all devices, or one.
-class _RunSummary extends StatelessWidget {
-  const _RunSummary({
-    required this.run,
-    required this.focus,
-    required this.onFocus,
-  });
-
-  final ScenarioRun run;
-
-  /// The focused device's id; null for all.
-  final String? focus;
-  final ValueChanged<String?> onFocus;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = SimuTokens.of(context);
-    final time = TimeOfDay.fromDateTime(run.startedAt).format(context);
-    int count(ScenarioStatus s) =>
-        run.devices.where((d) => d.status == s).length;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 2, 12, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              ScenarioStatusIcon(status: run.status, size: 13),
-              const SizedBox(width: 6),
-              Text('Run #${run.id + 1}', style: t.label),
-              const SizedBox(width: 6),
-              Text(time, style: t.caption),
-              const Spacer(),
-              for (final s in ScenarioStatus.values)
-                if (count(s) > 0) _CountChip(status: s, count: count(s)),
-            ],
-          ),
-          if (run.devices.length > 1) ...[
-            const SizedBox(height: 8),
-            _DeviceTabs(run: run, focus: focus, onFocus: onFocus),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// How many devices are in [status], beside its icon.
-class _CountChip extends StatelessWidget {
-  const _CountChip({required this.status, required this.count});
-
-  final ScenarioStatus status;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = SimuTokens.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(left: 8),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ScenarioStatusIcon(status: status, size: 11),
-          const SizedBox(width: 3),
-          Text('$count', style: t.caption),
-        ],
-      ),
-    );
-  }
-}
-
-/// Segmented control over the run's devices: "All", then each device with
-/// its status and time. Scrolls sideways when the devices do not fit.
-class _DeviceTabs extends StatelessWidget {
-  const _DeviceTabs({
-    required this.run,
-    required this.focus,
-    required this.onFocus,
-  });
-
-  final ScenarioRun run;
-  final String? focus;
-  final ValueChanged<String?> onFocus;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = SimuTokens.of(context);
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: t.raised,
-        borderRadius: BorderRadius.circular(SimuTokens.radius),
-        border: Border.all(color: t.border),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _DeviceTab(
-              label: 'All',
-              selected: focus == null,
-              onTap: () => onFocus(null),
-            ),
-            for (final d in run.devices)
-              _DeviceTab(
-                label: d.name,
-                status: d.status,
-                trailing: d.seconds == null ? null : '${d.seconds}s',
-                tooltip: d.error,
-                selected: focus == d.deviceId,
-                onTap: () => onFocus(d.deviceId),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DeviceTab extends StatelessWidget {
-  const _DeviceTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.status,
-    this.trailing,
-    this.tooltip,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final ScenarioStatus? status;
-
-  /// Small monospace note after the label, e.g. the device's time.
-  final String? trailing;
-  final String? tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = SimuTokens.of(context);
-    final tab = SimuHoverable(
       onTap: onTap,
       builder: (context, hovered) => AnimatedContainer(
         duration: SimuTokens.motion,
-        height: 24,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: 28,
+        padding: const EdgeInsets.only(left: 8, right: 6),
         decoration: BoxDecoration(
-          color: selected
-              ? t.panel
-              : hovered
-              ? t.hover
-              : Colors.transparent,
+          color: open || hovered ? t.hover : t.raised,
           borderRadius: BorderRadius.circular(SimuTokens.radiusSmall),
-          border: Border.all(color: selected ? t.border : Colors.transparent),
+          border: Border.all(color: t.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (status case final status?) ...[
-              ScenarioStatusIcon(status: status, size: 11),
-              const SizedBox(width: 5),
-            ],
-            Text(
-              label,
-              style: t.caption.copyWith(
-                color: selected ? t.text : t.textMuted,
-                fontWeight: selected ? FontWeight.w600 : null,
-              ),
+            if (status case final status?)
+              ScenarioStatusIcon(status: status, size: 12)
+            else
+              Icon(LucideIcons.smartphone, size: 13, color: t.textMuted),
+            const SizedBox(width: 6),
+            Text(label, style: t.caption.copyWith(color: t.text)),
+            const SizedBox(width: 4),
+            Icon(
+              open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+              size: 12,
+              color: t.textFaint,
             ),
-            if (trailing case final trailing?) ...[
-              const SizedBox(width: 5),
-              Text(trailing, style: t.mono.copyWith(color: t.textFaint)),
-            ],
           ],
         ),
       ),
     );
-    return tooltip == null ? tab : Tooltip(message: tooltip, child: tab);
+  }
+}
+
+/// The device list: tick a device to run on it; click a row to show its
+/// log and step statuses ("All devices" shows everyone's). Each row with a
+/// result shows its steps as a bar, how many passed, its status and time.
+class _DevicePopup extends StatelessWidget {
+  const _DevicePopup({
+    required this.devices,
+    required this.isTarget,
+    required this.run,
+    required this.steps,
+    required this.focus,
+    required this.editable,
+    required this.onToggle,
+    required this.onFocus,
+  });
+
+  final List<Device> devices;
+  final bool Function(String id) isTarget;
+  final ScenarioRun? run;
+  final int steps;
+  final String? focus;
+  final bool editable;
+  final void Function(String id) onToggle;
+  final ValueChanged<String?> onFocus;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SimuTokens.of(context);
+    final results = {for (final d in run?.devices ?? const []) d.deviceId: d};
+    // Streamed devices, then any the run used that no longer stream.
+    final rows = <({String id, String name, DeviceOs? os, bool live})>[
+      for (final d in devices) (id: d.id, name: d.name, os: d.os, live: true),
+      for (final d in run?.devices ?? const <ScenarioDeviceRun>[])
+        if (!devices.any((x) => x.id == d.deviceId))
+          (id: d.deviceId, name: d.name, os: null, live: false),
+    ];
+    return SizedBox(
+      width: 380,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+            child: Row(
+              children: [
+                Text('DEVICES', style: t.overline),
+                const Spacer(),
+                Text(
+                  'Tick to run on · click to view',
+                  style: t.caption.copyWith(color: t.textFaint),
+                ),
+              ],
+            ),
+          ),
+          if (run != null)
+            _DeviceRow(
+              name: 'All devices',
+              selected: focus == null,
+              onTap: () => onFocus(null),
+              trailing: ScenarioStatusIcon(status: run!.status, size: 13),
+            ),
+          if (rows.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text('Stream a device to run on', style: t.caption),
+            ),
+          for (final row in rows)
+            _DeviceRow(
+              name: row.name,
+              dot: switch (row.os) {
+                DeviceOs.android => t.android,
+                DeviceOs.ios => t.apple,
+                null => null,
+              },
+              checked: row.live ? isTarget(row.id) : null,
+              onCheck: row.live && editable ? () => onToggle(row.id) : null,
+              selected: focus == row.id,
+              onTap: results.containsKey(row.id) ? () => onFocus(row.id) : null,
+              result: results[row.id],
+              steps: steps,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeviceRow extends StatelessWidget {
+  const _DeviceRow({
+    required this.name,
+    required this.selected,
+    this.onTap,
+    this.dot,
+    this.checked,
+    this.onCheck,
+    this.result,
+    this.steps = 0,
+    this.trailing,
+  });
+
+  final String name;
+  final bool selected;
+
+  /// Shows this device's log and steps; null when it has no result.
+  final VoidCallback? onTap;
+  final Color? dot;
+
+  /// Whether the flow runs on it; null hides the checkbox.
+  final bool? checked;
+  final VoidCallback? onCheck;
+  final ScenarioDeviceRun? result;
+  final int steps;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SimuTokens.of(context);
+    final result = this.result;
+    final done = result == null
+        ? 0
+        : [
+            for (var i = 0; i < steps; i++) result.stepStatus(i),
+          ].where((s) => s == ScenarioStatus.ok).length;
+    final row = SimuHoverable(
+      onTap: onTap,
+      builder: (context, hovered) => AnimatedContainer(
+        duration: SimuTokens.motion,
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? t.accent.withValues(alpha: 0.12)
+              : hovered && onTap != null
+              ? t.hover
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(SimuTokens.radius),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 22,
+              child: switch (checked) {
+                final checked? => SimuHoverable(
+                  onTap: onCheck,
+                  builder: (context, _) => Icon(
+                    checked ? LucideIcons.squareCheck : LucideIcons.square,
+                    size: 14,
+                    color: onCheck == null
+                        ? t.textFaint
+                        : checked
+                        ? t.accent
+                        : t.textMuted,
+                  ),
+                ),
+                null => null,
+              },
+            ),
+            if (dot case final dot?) ...[
+              SimuStatusDot(color: dot, size: 6),
+              const SizedBox(width: 6),
+            ],
+            Expanded(
+              child: Text(
+                name,
+                overflow: TextOverflow.ellipsis,
+                style: t.caption.copyWith(
+                  color: selected ? t.accent : t.text,
+                  fontWeight: selected ? FontWeight.w600 : null,
+                ),
+              ),
+            ),
+            if (result != null && steps > 0) ...[
+              SizedBox(
+                width: 84,
+                child: _StepBar(device: result, steps: steps),
+              ),
+              SizedBox(
+                width: 38,
+                child: Text(
+                  '$done/$steps',
+                  textAlign: TextAlign.right,
+                  style: t.mono.copyWith(color: t.textFaint),
+                ),
+              ),
+            ],
+            if (result != null) ...[
+              const SizedBox(width: 8),
+              ScenarioStatusIcon(status: result.status, size: 13),
+              SizedBox(
+                width: 30,
+                child: Text(
+                  result.seconds == null ? '' : '${result.seconds}s',
+                  textAlign: TextAlign.right,
+                  style: t.mono.copyWith(color: t.textFaint),
+                ),
+              ),
+            ],
+            ?trailing,
+          ],
+        ),
+      ),
+    );
+    final error = result?.error;
+    return error == null ? row : Tooltip(message: error, child: row);
+  }
+}
+
+/// One segment per step: green passed, red failed, accent running, grey
+/// not reached.
+class _StepBar extends StatelessWidget {
+  const _StepBar({required this.device, required this.steps});
+
+  final ScenarioDeviceRun device;
+  final int steps;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SimuTokens.of(context);
+    return Row(
+      children: [
+        for (var i = 0; i < steps; i++) ...[
+          if (i > 0) const SizedBox(width: 2),
+          Expanded(
+            child: Container(
+              height: 5,
+              decoration: BoxDecoration(
+                color: switch (device.stepStatus(i)) {
+                  ScenarioStatus.ok => t.success,
+                  ScenarioStatus.failed => t.danger,
+                  ScenarioStatus.running => t.accent,
+                  _ => t.border,
+                },
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
 

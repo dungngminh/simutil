@@ -122,6 +122,16 @@ class ScenarioRunsCubit extends CubitSignal<List<ScenarioRun>> {
   var _nextId = 0;
   final _stopped = <int>{};
 
+  /// Forgets every finished run (results, logs); running ones stay.
+  void clear() {
+    final running = [
+      for (final r in stateValue)
+        if (r.status == ScenarioStatus.running) r,
+    ];
+    _stopped.removeWhere((id) => !running.any((r) => r.id == id));
+    emit(running);
+  }
+
   /// Asks run [id] to stop (the runner kills the maestro process).
   void stop(int id) => _stopped.add(id);
 
