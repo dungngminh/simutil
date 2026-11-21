@@ -62,13 +62,24 @@ class GridRecorderCubit extends CubitSignal<bool> {
   /// Length of the current recording; zero when not recording.
   Duration get elapsed => stateValue ? _clock.elapsed : Duration.zero;
 
+  /// A start still running; a second click joins it instead of starting
+  /// another recording (and freeing the lock the first one holds).
+  Future<void>? _starting;
+
   /// Starts recording to [path] (`.mp4`) at [quality]; throws when ffmpeg
   /// is missing or [RecordingInProgress] while a device is recording.
   Future<void> start(
     String path, {
     GridRecordQuality quality = GridRecordQuality.standard,
-  }) async {
-    if (stateValue) return;
+  }) {
+    if (stateValue) return Future.value();
+    return _starting ??= _begin(
+      path,
+      quality,
+    ).whenComplete(() => _starting = null);
+  }
+
+  Future<void> _begin(String path, GridRecordQuality quality) async {
     _quality = quality;
     final view = WidgetsBinding.instance.platformDispatcher.views.firstOrNull;
     _pixelRatio = quality.pixelRatio(view?.devicePixelRatio ?? 1);
@@ -234,6 +245,9 @@ class GridRecorderCubit extends CubitSignal<bool> {
 
   /// Finishes the file; returns its path.
   Future<String?> stop() async {
+    // Stopped (or closed) while starting: let the start finish, then stop
+    // what it started instead of leaving it running.
+    await _starting?.then<void>((_) {}, onError: (Object _) {});
     if (!stateValue) return null;
     _timer?.cancel();
     _timer = null;

@@ -100,7 +100,7 @@ class StreamsCubit extends CubitSignal<StreamsState> {
   }
 
   Future<void> _start(Device device, Object ticket) async {
-    if (isClosed || _queued[device.id] != ticket) return;
+    if (_closing || _queued[device.id] != ticket) return;
     final DeviceSession session;
     try {
       session = await _create(device);
@@ -110,7 +110,7 @@ class StreamsCubit extends CubitSignal<StreamsState> {
       }
       return;
     }
-    if (isClosed || _queued[device.id] != ticket) {
+    if (_closing || _queued[device.id] != ticket) {
       await session.stop();
       return;
     }
@@ -187,21 +187,21 @@ class StreamsCubit extends CubitSignal<StreamsState> {
     }
   }
 
-  /// Saves a running recording (it gets announced like any other), then
-  /// closes the tile.
-  Future<void> _closeDisconnected(String deviceId) async {
-    if (_sessions[deviceId]?.isRecording ?? false) {
+  Future<void> _closeDisconnected(String deviceId) => closeStream(deviceId);
+
+  /// Closes [deviceId]'s tile and stops its session (or drops its queued
+  /// start). A running recording is saved first and announced like any
+  /// other.
+  Future<void> closeStream(String deviceId) async {
+    // A start still running would otherwise leave a recording behind.
+    await _toggling[deviceId]?.then<void>((_) {}, onError: (Object _) {});
+    if (_isRecording(deviceId)) {
       try {
         await toggleRecording(deviceId, '');
       } catch (_) {
         // Closing still releases the session and the recording lock.
       }
     }
-    await closeStream(deviceId);
-  }
-
-  /// Closes [deviceId]'s tile and stops its session (or drops its queued start).
-  Future<void> closeStream(String deviceId) async {
     _queued.remove(deviceId);
     _setEntries([
       for (final e in stateValue.entries)
@@ -212,12 +212,33 @@ class StreamsCubit extends CubitSignal<StreamsState> {
     _recordingLock.release(deviceId);
   }
 
+  /// Recording starts or stops still running, per device.
+  final _toggling = <String, Future<String?>>{};
+
+  /// Whether [deviceId]'s tile shows a recording, or its session records.
+  bool _isRecording(String deviceId) =>
+      stateValue.entries.any(
+        (e) => e.device.id == deviceId && e.recordingSince != null,
+      ) ||
+      (_sessions[deviceId]?.isRecording ?? false);
+
   /// Starts or stops recording [deviceId] into [directory]. Throws
   /// [RecordingInProgress] when the grid or another device is recording.
-  Future<String?> toggleRecording(String deviceId, String directory) async {
+  /// A call while a start or stop is still running (a second click while
+  /// an emulator recording converts) joins it instead of toggling again.
+  Future<String?> toggleRecording(String deviceId, String directory) {
+    if (_toggling[deviceId] case final running?) return running;
+    final toggle = _toggle(deviceId, directory);
+    _toggling[deviceId] = toggle;
+    return toggle.whenComplete(() => _toggling.remove(deviceId));
+  }
+
+  Future<String?> _toggle(String deviceId, String directory) async {
     final session = _sessions[deviceId];
     if (session == null) return null;
-    if (session.isRecording) {
+    // The tile decides: a session reports not recording as soon as a stop
+    // begins, or once its recorder ended by itself.
+    if (_isRecording(deviceId)) {
       final path = await session.stopRecording();
       _recordingLock.release(deviceId);
       _update(deviceId, (e) => e.copyWith(recordingSince: () => null));
@@ -263,13 +284,18 @@ class StreamsCubit extends CubitSignal<StreamsState> {
   void _setEntries(List<StreamEntry> entries) =>
       emit(StreamsState(entries, Set.unmodifiable(_pendingByName)));
 
+  /// Set by [close]: queued starts are skipped, and one that is creating
+  /// its session stops it instead of adding it.
+  bool _closing = false;
+
   @override
   Future<void> close() async {
+    _closing = true;
     _missingCheck?.cancel();
-    for (final subscription in _subscriptions.values) {
+    for (final subscription in [..._subscriptions.values]) {
       await subscription.cancel();
     }
-    for (final session in _sessions.values) {
+    for (final session in [..._sessions.values]) {
       await session.stop();
     }
     _sessions.clear();

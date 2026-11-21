@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clicking stop again while a device recording is still saving no longer
+  starts a new, hidden recording.
+- Closing a device tile (or shutting the device down) while it records
+  saves the video and shows it like any other recording.
+- A double click on the grid recording button starts one recording, not
+  two.
 - The iOS device list no longer freezes when Xcode's simulator service
   hangs (for example after an Xcode update).
 - Starting a device recording that fails (for example an iOS simulator
