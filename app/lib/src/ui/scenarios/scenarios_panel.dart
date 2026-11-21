@@ -501,6 +501,8 @@ class _DeviceSelector extends StatelessWidget {
   }
 }
 
+/// A device to run on, as a checkbox: outlined, with a tick when picked,
+/// so it reads as a choice rather than the run's results below.
 class _DeviceChip extends StatelessWidget {
   const _DeviceChip({
     required this.label,
@@ -529,28 +531,31 @@ class _DeviceChip extends StatelessWidget {
         child: AnimatedContainer(
           duration: SimuTokens.motion,
           height: 26,
-          padding: const EdgeInsets.symmetric(horizontal: 9),
+          padding: const EdgeInsets.only(left: 6, right: 9),
           decoration: BoxDecoration(
-            color: selected
-                ? t.accent.withValues(alpha: 0.14)
-                : hovered && enabled
-                ? t.hover
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: selected ? Colors.transparent : t.border),
+            color: hovered && enabled ? t.hover : Colors.transparent,
+            borderRadius: BorderRadius.circular(SimuTokens.radiusSmall),
+            border: Border.all(
+              color: selected ? t.accent.withValues(alpha: 0.5) : t.border,
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Icon(
+                selected ? LucideIcons.squareCheck : LucideIcons.square,
+                size: 13,
+                color: selected ? t.accent : t.textFaint,
+              ),
+              const SizedBox(width: 6),
               if (dot case final dot?) ...[
                 SimuStatusDot(color: dot, size: 6),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
               ],
               Text(
                 label,
                 style: t.caption.copyWith(
-                  color: selected ? t.accent : t.textMuted,
-                  fontWeight: selected ? FontWeight.w600 : null,
+                  color: selected ? t.text : t.textMuted,
                 ),
               ),
             ],
@@ -561,9 +566,9 @@ class _DeviceChip extends StatelessWidget {
   }
 }
 
-/// The run on one line (status, when, how many devices passed, failed,
-/// stopped or still run) and, with several devices, a chip per device that
-/// shows just that device's log and step statuses.
+/// The run's headline (status, number, time, device counts) and, with
+/// several devices, a segmented control choosing whose log and step
+/// statuses show: all devices, or one.
 class _RunSummary extends StatelessWidget {
   const _RunSummary({
     required this.run,
@@ -584,43 +589,25 @@ class _RunSummary extends StatelessWidget {
     int count(ScenarioStatus s) =>
         run.devices.where((d) => d.status == s).length;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 12, 8),
+      padding: const EdgeInsets.fromLTRB(14, 2, 12, 10),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               ScenarioStatusIcon(status: run.status, size: 13),
               const SizedBox(width: 6),
-              Text('Run #${run.id + 1} · $time', style: t.caption),
-              const SizedBox(width: 10),
+              Text('Run #${run.id + 1}', style: t.label),
+              const SizedBox(width: 6),
+              Text(time, style: t.caption),
+              const Spacer(),
               for (final s in ScenarioStatus.values)
                 if (count(s) > 0) _CountChip(status: s, count: count(s)),
             ],
           ),
           if (run.devices.length > 1) ...[
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: [
-                _FocusChip(
-                  label: 'All',
-                  selected: focus == null,
-                  onTap: () => onFocus(null),
-                ),
-                for (final d in run.devices)
-                  _FocusChip(
-                    label: d.seconds == null
-                        ? d.name
-                        : '${d.name} · ${d.seconds} s',
-                    status: d.status,
-                    tooltip: d.error,
-                    selected: focus == d.deviceId,
-                    onTap: () => onFocus(d.deviceId),
-                  ),
-              ],
-            ),
+            const SizedBox(height: 8),
+            _DeviceTabs(run: run, focus: focus, onFocus: onFocus),
           ],
         ],
       ),
@@ -639,7 +626,7 @@ class _CountChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.only(left: 8),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -652,14 +639,61 @@ class _CountChip extends StatelessWidget {
   }
 }
 
-/// Picks whose log and step statuses the panel shows: all devices, or one
-/// (with its own status).
-class _FocusChip extends StatelessWidget {
-  const _FocusChip({
+/// Segmented control over the run's devices: "All", then each device with
+/// its status and time. Scrolls sideways when the devices do not fit.
+class _DeviceTabs extends StatelessWidget {
+  const _DeviceTabs({
+    required this.run,
+    required this.focus,
+    required this.onFocus,
+  });
+
+  final ScenarioRun run;
+  final String? focus;
+  final ValueChanged<String?> onFocus;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SimuTokens.of(context);
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: t.raised,
+        borderRadius: BorderRadius.circular(SimuTokens.radius),
+        border: Border.all(color: t.border),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _DeviceTab(
+              label: 'All',
+              selected: focus == null,
+              onTap: () => onFocus(null),
+            ),
+            for (final d in run.devices)
+              _DeviceTab(
+                label: d.name,
+                status: d.status,
+                trailing: d.seconds == null ? null : '${d.seconds}s',
+                tooltip: d.error,
+                selected: focus == d.deviceId,
+                onTap: () => onFocus(d.deviceId),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DeviceTab extends StatelessWidget {
+  const _DeviceTab({
     required this.label,
     required this.selected,
     required this.onTap,
     this.status,
+    this.trailing,
     this.tooltip,
   });
 
@@ -667,25 +701,28 @@ class _FocusChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final ScenarioStatus? status;
+
+  /// Small monospace note after the label, e.g. the device's time.
+  final String? trailing;
   final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
     final t = SimuTokens.of(context);
-    final chip = SimuHoverable(
+    final tab = SimuHoverable(
       onTap: onTap,
       builder: (context, hovered) => AnimatedContainer(
         duration: SimuTokens.motion,
         height: 24,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: selected
-              ? t.accent.withValues(alpha: 0.14)
+              ? t.panel
               : hovered
               ? t.hover
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? Colors.transparent : t.border),
+          borderRadius: BorderRadius.circular(SimuTokens.radiusSmall),
+          border: Border.all(color: selected ? t.border : Colors.transparent),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -697,15 +734,19 @@ class _FocusChip extends StatelessWidget {
             Text(
               label,
               style: t.caption.copyWith(
-                color: selected ? t.accent : t.textMuted,
+                color: selected ? t.text : t.textMuted,
                 fontWeight: selected ? FontWeight.w600 : null,
               ),
             ),
+            if (trailing case final trailing?) ...[
+              const SizedBox(width: 5),
+              Text(trailing, style: t.mono.copyWith(color: t.textFaint)),
+            ],
           ],
         ),
       ),
     );
-    return tooltip == null ? chip : Tooltip(message: tooltip, child: chip);
+    return tooltip == null ? tab : Tooltip(message: tooltip, child: tab);
   }
 }
 
