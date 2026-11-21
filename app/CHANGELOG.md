@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shutting down or recording a frozen Android emulator no longer hangs.
 - A failed video conversion after a recording is no longer run a second
   time.
+- When an Android emulator does not confirm that a recording stopped, the
+  recording stays active and shows the error, so stopping it again
+  retries instead of starting a new recording.
 
 ## [0.6.0] - 2026-11-11
 

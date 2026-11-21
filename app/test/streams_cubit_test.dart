@@ -39,6 +39,29 @@ class _FakeSession implements DeviceSession {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// A session whose recording stop fails until [stopWorks] is set.
+class _RecordingSession extends _FakeSession {
+  _RecordingSession(super.deviceId);
+
+  bool recording = false;
+  bool stopWorks = false;
+  int stops = 0;
+
+  @override
+  bool get isRecording => recording;
+
+  @override
+  Future<void> startRecording(String path) async => recording = true;
+
+  @override
+  Future<String?> stopRecording() async {
+    stops++;
+    if (!stopWorks) throw StateError('Recording did not stop: offline');
+    recording = false;
+    return '/rec/done.mp4';
+  }
+}
+
 void main() {
   Device sim(DeviceState state) => Device.ios(
     id: 'UDID',
@@ -258,5 +281,25 @@ void main() {
     expect(cubit.stateValue.booting, isEmpty);
     expect(cubit.stateValue.isOpen('UDID'), isTrue);
     await cubit.close();
+  });
+
+  test('a recording whose stop fails stays recording for a retry', () async {
+    final session = _RecordingSession('UDID')..gate.complete();
+    final saved = <String>[];
+    final cubit = StreamsCubit((_) async => session, onSaved: saved.add);
+    await cubit.open(sim(DeviceState.booted));
+    await cubit.toggleRecording('UDID', '/rec');
+    bool recording() => cubit.stateValue.entries.single.recordingSince != null;
+    expect(recording(), isTrue);
+
+    await expectLater(cubit.toggleRecording('UDID', '/rec'), throwsStateError);
+    expect(recording(), isTrue);
+    expect(saved, isEmpty);
+
+    session.stopWorks = true;
+    expect(await cubit.toggleRecording('UDID', '/rec'), '/rec/done.mp4');
+    expect(recording(), isFalse);
+    expect(saved, ['/rec/done.mp4']);
+    expect(session.stops, 2);
   });
 }

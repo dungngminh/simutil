@@ -282,19 +282,24 @@ class _EmulatorGrpcSession implements EmulatorGrpcSession {
     _recordingPath = path;
   }
 
+  /// Throws a [StateError] when the emulator does not confirm the stop: it
+  /// may still be recording, so the recording stays active (and the
+  /// `.webm` untouched) for the caller to retry.
   @override
   Future<String?> stopRecording() async {
     final path = _recordingPath;
-    _recordingPath = null;
     if (path == null) return null;
-    // Until the emulator confirms the stop it may still be writing the
-    // file: then report nothing saved and leave the `.webm` as it is.
+    final String? failure;
     try {
       final stopped = await _emu(['screenrecord', 'stop']);
-      if (!stopped.success || stopped.stdout.contains('KO')) return null;
-    } catch (_) {
-      return null;
+      failure = !stopped.success || stopped.stdout.contains('KO')
+          ? (stopped.stdout + stopped.stderr).trim()
+          : null;
+    } catch (e) {
+      throw StateError('Recording did not stop: $e');
     }
+    if (failure != null) throw StateError('Recording did not stop: $failure');
+    _recordingPath = null;
     final converted = await runFfmpeg(_exec, [
       '-y',
       '-loglevel',
@@ -325,7 +330,11 @@ class _EmulatorGrpcSession implements EmulatorGrpcSession {
   @override
   Future<void> stop() async {
     if (_stopped) return;
-    await stopRecording();
+    try {
+      await stopRecording();
+    } on StateError {
+      // The session goes away anyway; the emulator keeps the `.webm`.
+    }
     _stopped = true;
     unawaited(_input?.close());
     await _channel.shutdown();
