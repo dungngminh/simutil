@@ -2,10 +2,12 @@ import 'package:bloc_signals_flutter/bloc_signals_flutter.dart';
 import 'package:flutter/widgets.dart';
 import 'package:simutil_adb/simutil_adb.dart';
 import 'package:simutil_app/src/devices/devices_cubit.dart';
+import 'package:simutil_app/src/di.dart';
 import 'package:simutil_app/src/devices/devices_state.dart';
 import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
+import 'package:simutil_app/src/windows/device_windows.dart';
 import 'package:simutil_core/simutil_core.dart';
 
 /// What a device row can do; each design maps it to its own icon.
@@ -18,19 +20,41 @@ typedef DeviceAction = ({
 });
 
 /// Start / stop / restart for one device, using its per-device settings and
-/// keeping its stream in step.
+/// keeping its stream in step. In a device window, stop and restart run in
+/// the main window (see [DeviceWindows.inWindow]).
 class DeviceCommands {
   DeviceCommands(BuildContext context, this.device)
     : _devices = context.read<DevicesCubit>(),
       _streams = context.read<StreamsCubit>(),
       settings = context.read<DeviceSettingsCubit>().of(device),
-      _globalHeadless = context.read<ViewSettingsCubit>().stateValue.headless;
+      _globalHeadless = context.read<ViewSettingsCubit>().stateValue.headless,
+      _inWindow =
+          getIt.isRegistered<DeviceWindows>() &&
+          getIt<DeviceWindows>().inWindow,
+      _reopenInWindow = null;
+
+  /// For the main window running an action a device window handed over:
+  /// [reopenInWindow] brings the device back in its own window once booted.
+  DeviceCommands.forWindow({
+    required this.device,
+    required this.settings,
+    required DevicesCubit devices,
+    required StreamsCubit streams,
+    required bool globalHeadless,
+    required void Function(Device device) reopenInWindow,
+  }) : _devices = devices,
+       _streams = streams,
+       _globalHeadless = globalHeadless,
+       _inWindow = false,
+       _reopenInWindow = reopenInWindow;
 
   final Device device;
   final DeviceSettings settings;
   final DevicesCubit _devices;
   final StreamsCubit _streams;
   final bool _globalHeadless;
+  final bool _inWindow;
+  final void Function(Device device)? _reopenInWindow;
 
   bool get headless => settings.headless ?? _globalHeadless;
 
@@ -63,6 +87,9 @@ class DeviceCommands {
   }
 
   Future<void> stop() async {
+    if (_inWindow) {
+      return DeviceWindows.sendAction(device, DeviceWindowAction.stop);
+    }
     await _streams.closeStream(device.id);
     await _devices.shutdown(device);
   }
@@ -70,7 +97,18 @@ class DeviceCommands {
   /// Reboots the device and reopens its stream if it had one (or runs
   /// headless).
   Future<void> restart() async {
-    final reopen = headless || _streams.stateValue.isOpen(device.id);
+    if (_inWindow) {
+      return DeviceWindows.sendAction(
+        device,
+        DeviceWindowAction.restart,
+        settings: settings.toJson(),
+      );
+    }
+    final reopenInWindow = _reopenInWindow;
+    final reopen =
+        reopenInWindow != null ||
+        headless ||
+        _streams.stateValue.isOpen(device.id);
     await _streams.closeStream(device.id);
     await _devices.restart(
       device,
@@ -78,7 +116,10 @@ class DeviceCommands {
       cameraArgs: _cameraArgs(),
     );
     // After the restart so the old, still-booted device is not reopened.
-    if (reopen) _streams.openWhenBooted(device);
+    if (!reopen) return;
+    reopenInWindow != null
+        ? reopenInWindow(device)
+        : _streams.openWhenBooted(device);
   }
 }
 

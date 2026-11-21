@@ -48,7 +48,9 @@ Future<void> runDeviceWindow(WindowController window, Device device) async {
   windowManager.addListener(_OnClose(close));
   await windowManager.setPreventClose(true);
 
-  getIt<DeviceWindows>().backToMain = () => close(back: true);
+  getIt<DeviceWindows>()
+    ..inWindow = true
+    ..backToMain = () => close(back: true);
   final streams = getIt<StreamsCubit>();
   unawaited(streams.open(device)); // adds the tile synchronously
   streams.state.subscribe((state) {

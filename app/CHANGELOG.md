@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Restart, Shut down, Slim and Disconnect from a device's own window work:
+  the window used to close, and take the action with it, as soon as the
+  stream ended, so a restarted device stayed off. After a restart or slim
+  the device opens in its own window again.
 - The iOS device list no longer freezes when Xcode's simulator service
   hangs (for example after an Xcode update).
 - Starting a device recording that fails (for example an iOS simulator

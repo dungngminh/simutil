@@ -16,6 +16,7 @@ import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/ui/shared/device_actions.dart';
 import 'package:simutil_app/src/ui/shared/device_recording.dart';
 import 'package:simutil_app/src/ui/shared/native_menu.dart';
+import 'package:simutil_app/src/windows/device_windows.dart';
 import 'package:simutil_core/simutil_core.dart';
 import 'package:tray_manager/tray_manager.dart' as native;
 
@@ -76,6 +77,11 @@ Future<void> showDeviceContextMenu(BuildContext context, Device device) async {
   final webcams = emulator
       ? await _listWebcams()
       : const <({String id, String name})>[];
+  // A device window never loads the lists (its main window watches the
+  // devices): load them once so slim state and busy flags are right.
+  if (getIt<DeviceWindows>().inWindow && context.mounted) {
+    await context.read<DevicesCubit>().refresh(silent: true);
+  }
   final simCamera =
       Platform.isMacOS &&
           device.os == DeviceOs.ios &&
@@ -146,6 +152,7 @@ List<native.MenuItem> _deviceItems(BuildContext context, Device device) {
   final streams = context.read<StreamsCubit>();
   final slimMode = context.read<SlimModeCubit>();
   final slim = devices.stateValue.slimmed.contains(device.id);
+  final inWindow = getIt<DeviceWindows>().inWindow;
   return [
     menuItem(
       device.os == DeviceOs.ios ? 'Copy UDID' : 'Copy serial',
@@ -154,12 +161,23 @@ List<native.MenuItem> _deviceItems(BuildContext context, Device device) {
     if (device.os == DeviceOs.ios && !device.type.isPhysical)
       menuItem(
         slim ? 'Restore services (reboots)' : 'Slim (reboots)',
-        () => slimMode.setSlim(device, on: !slim),
+        () => inWindow
+            ? DeviceWindows.sendAction(
+                device,
+                slim ? DeviceWindowAction.unslim : DeviceWindowAction.slim,
+              )
+            : slimMode.setSlim(device, on: !slim),
       ),
     if (device.os == DeviceOs.android &&
         device.type.isPhysical &&
         device.id.contains(':'))
       menuItem('Disconnect (Wi-Fi)', () async {
+        if (inWindow) {
+          return DeviceWindows.sendAction(
+            device,
+            DeviceWindowAction.disconnect,
+          );
+        }
         await streams.closeStream(device.id);
         await getIt<AndroidDeviceService>().disconnectDevice(device.id);
         await devices.refresh(silent: true);

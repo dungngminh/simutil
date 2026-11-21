@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:bloc_signals/bloc_signals.dart';
@@ -20,10 +21,12 @@ import 'package:simutil_app/src/mcp/simutil_tools.dart';
 import 'package:simutil_app/src/mcp/tools/tool_context.dart';
 import 'package:simutil_app/src/recording/grid_recorder.dart';
 import 'package:simutil_app/src/scenarios/scenario_runs_cubit.dart';
+import 'package:simutil_app/src/settings/device_settings_cubit.dart';
 import 'package:simutil_app/src/settings/view_settings_cubit.dart';
 import 'package:simutil_app/src/stream/ios/sim_camera.dart';
 import 'package:simutil_app/src/stream/streams_cubit.dart';
 import 'package:simutil_app/src/stream/touch_marks.dart';
+import 'package:simutil_app/src/ui/shared/device_actions.dart';
 import 'package:simutil_app/src/update/app_update_cubit.dart';
 import 'package:simutil_app/src/windows/device_window_app.dart';
 import 'package:simutil_app/src/windows/device_windows.dart';
@@ -56,12 +59,33 @@ Future<void> main(List<String> args) async {
     streams.onDevices(state.all);
     SimCamera.onDevices(state.all);
   });
-  // A device window sends its device back to the grid.
-  await getIt<DeviceWindows>().listen((device) async {
-    await windowManager.show(); // it may be hidden
-    await windowManager.focus();
-    await streams.open(device, here: true);
+  // Devices to stream in their own window again once booted, by name (an
+  // emulator's id changes on boot): after an action a window handed over.
+  final reopenInWindow = <String>{};
+  devices.state.subscribe((state) {
+    if (reopenInWindow.isEmpty) return;
+    for (final device in state.all) {
+      if (StreamsCubit.canStream(device) &&
+          reopenInWindow.remove(device.name)) {
+        unawaited(getIt<DeviceWindows>().open(device));
+      }
+    }
   });
+  // A device window sends its device back to the grid, and hands over
+  // actions that end its stream (and so the window itself).
+  await getIt<DeviceWindows>().listen(
+    (device) async {
+      await windowManager.show(); // it may be hidden
+      await windowManager.focus();
+      await streams.open(device, here: true);
+    },
+    onAction: (device, action, settings) => _runWindowAction(
+      device,
+      action,
+      settings,
+      reopenInWindow: (device) => reopenInWindow.add(device.name),
+    ),
+  );
   // Closing the window quits, after streams and recordings are released;
   // while device windows are open it only hides.
   final quitOnClose = _QuitOnClose(quitApp, getIt<DeviceWindows>());
@@ -121,6 +145,49 @@ Future<void> main(List<String> args) async {
   );
 
   runApp(const SimutilApp());
+}
+
+/// Runs [action], handed over by [device]'s own window, here: the window
+/// closes as the device's stream ends. Devices that come back are
+/// reopened in a window by [reopenInWindow].
+Future<void> _runWindowAction(
+  Device device,
+  DeviceWindowAction action,
+  Object? settings, {
+  required void Function(Device device) reopenInWindow,
+}) async {
+  final devices = getIt<DevicesCubit>();
+  final deviceSettings = getIt<DeviceSettingsCubit>();
+  // The window cannot save its own changes (e.g. a new camera source).
+  if (settings != null) {
+    deviceSettings.update(device, (_) => DeviceSettings.fromJson(settings));
+  }
+  try {
+    switch (action) {
+      case DeviceWindowAction.stop:
+        await devices.shutdown(device);
+      case DeviceWindowAction.restart:
+        await DeviceCommands.forWindow(
+          device: device,
+          settings: deviceSettings.of(device),
+          devices: devices,
+          streams: getIt<StreamsCubit>(),
+          globalHeadless: getIt<ViewSettingsCubit>().stateValue.headless,
+          reopenInWindow: reopenInWindow,
+        ).restart();
+      case DeviceWindowAction.slim || DeviceWindowAction.unslim:
+        await getIt<SlimModeCubit>().setSlim(
+          device,
+          on: action == DeviceWindowAction.slim,
+        );
+        reopenInWindow(device);
+      case DeviceWindowAction.disconnect:
+        await getIt<AndroidDeviceService>().disconnectDevice(device.id);
+        await devices.refresh(silent: true);
+    }
+  } catch (e) {
+    devices.notify('${device.name}: $e', error: true);
+  }
 }
 
 /// Runs [quit] when the main window is closed, or hides it while device
